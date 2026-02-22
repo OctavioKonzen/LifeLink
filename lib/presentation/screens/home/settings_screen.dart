@@ -1,0 +1,138 @@
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../../data/providers/theme_provider.dart';
+
+class SettingsScreen extends StatefulWidget {
+  const SettingsScreen({super.key});
+
+  @override
+  State<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends State<SettingsScreen> {
+  final TextEditingController _nameController = TextEditingController();
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
+    if (_nameController.text.isEmpty) {
+      _nameController.text = themeProvider.playerName;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final themeProvider = context.watch<ThemeProvider>();
+    final currentBg = themeProvider.backgroundColor;
+    final bool isLight = currentBg.computeLuminance() > 0.5;
+    final Color textColor = isLight ? Colors.black87 : Colors.white;
+    
+    // Verificador de Idioma
+    final bool isPt = themeProvider.cardLanguage == 'pt';
+
+    return Scaffold(
+      backgroundColor: currentBg,
+      resizeToAvoidBottomInset: false, 
+      appBar: AppBar(
+        title: Text(isPt ? "CONFIGURAÇÕES" : "SETTINGS"), 
+        backgroundColor: Colors.transparent, 
+        elevation: 0, 
+        foregroundColor: textColor
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // NOME DO JOGADOR
+            TextField(
+              controller: _nameController,
+              style: TextStyle(color: textColor),
+              decoration: InputDecoration(
+                filled: true,
+                fillColor: isLight ? Colors.black.withValues(alpha: 0.05) : Colors.white10,
+                hintText: isPt ? "Nome do Jogador" : "Player Name",
+                hintStyle: TextStyle(color: textColor.withValues(alpha: 0.4)),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+              ),
+            ),
+            
+            const SizedBox(height: 30),
+            
+            // CORES
+            Text(isPt ? "COR DE FUNDO" : "BACKGROUND COLOR", style: TextStyle(color: textColor.withValues(alpha: 0.5), fontSize: 12, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 20,
+              children: themeProvider.availableColors.entries.map((entry) {
+                bool isSelected = currentBg == entry.value;
+                return GestureDetector(
+                  onTap: () => themeProvider.setBackgroundColor(entry.value),
+                  child: Container(
+                    width: 55, height: 55,
+                    decoration: BoxDecoration(
+                      color: entry.value,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: isSelected ? Colors.blueAccent : Colors.grey.withValues(alpha: 0.5), width: isSelected ? 3 : 1),
+                      boxShadow: isSelected ? [BoxShadow(color: Colors.blueAccent.withValues(alpha: 0.3), blurRadius: 10)] : [],
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+
+            const SizedBox(height: 30),
+
+            // IDIOMA DAS CARTAS E APP
+            Text(isPt ? "IDIOMA DO APP E CARTAS" : "APP & CARD LANGUAGE", style: TextStyle(color: textColor.withValues(alpha: 0.5), fontSize: 12, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 10),
+            Container(
+              decoration: BoxDecoration(
+                color: isLight ? Colors.black.withValues(alpha: 0.05) : Colors.white10, 
+                borderRadius: BorderRadius.circular(12)
+              ),
+              child: Column(
+                children: [
+                  ListTile(
+                    title: Text("Português (PT-BR)", style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
+                    trailing: Icon(
+                      themeProvider.cardLanguage == 'pt' ? Icons.radio_button_checked : Icons.radio_button_off,
+                      color: themeProvider.cardLanguage == 'pt' ? Colors.blueAccent : textColor.withValues(alpha: 0.3),
+                    ),
+                    onTap: () => themeProvider.setCardLanguage('pt'),
+                  ),
+                  Divider(height: 1, color: textColor.withValues(alpha: 0.1)),
+                  ListTile(
+                    title: Text("English (EN)", style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
+                    trailing: Icon(
+                      themeProvider.cardLanguage == 'en' ? Icons.radio_button_checked : Icons.radio_button_off,
+                      color: themeProvider.cardLanguage == 'en' ? Colors.blueAccent : textColor.withValues(alpha: 0.3),
+                    ),
+                    onTap: () => themeProvider.setCardLanguage('en'),
+                  ),
+                ],
+              ),
+            ),
+
+            const Spacer(),
+            
+            // BOTÃO SALVAR
+            ElevatedButton(
+              onPressed: () {
+                themeProvider.setPlayerName(_nameController.text);
+                Navigator.pop(context);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: isLight ? Colors.black87 : Colors.white10,
+                minimumSize: const Size(double.infinity, 60),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              ),
+              child: Text(isPt ? "SALVAR" : "SAVE", style: const TextStyle(color: Colors.white)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
