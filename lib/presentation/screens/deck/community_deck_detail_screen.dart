@@ -8,6 +8,7 @@ import '../../../data/providers/theme_provider.dart';
 import '../../../data/providers/deck_provider.dart';
 import '../../../data/services/pdf_service.dart';
 import '../search/card_detail_screen.dart'; 
+import '../../widgets/custom_back_button.dart'; // IMPORT DO BOTÃO TRIANGULAR
 
 class CommunityDeckDetailScreen extends StatefulWidget {
   final Map<String, dynamic> deckData;
@@ -38,48 +39,55 @@ class _CommunityDeckDetailScreenState extends State<CommunityDeckDetailScreen> {
         final data = jsonDecode(response.body)['data'];
         List<Map<String, dynamic>> tempCards = [];
 
-        // Função interna para processar cada monte de cartas
         void extractCards(List<dynamic>? board) {
           if (board == null) return;
           for (var item in board) {
-            // O MTGJSON traz o 'count', que é a quantidade daquela carta no deck
-            int qty = item['count'] ?? 1;
-            String? scryfallId = item['identifiers']?['scryfallId'];
+            if (item is! Map) continue; 
             
+            int qty = int.tryParse(item['count']?.toString() ?? '1') ?? 1;
+            
+            String? scryfallId;
+            if (item['identifiers'] != null && item['identifiers'] is Map) {
+              scryfallId = item['identifiers']['scryfallId'];
+            }
+            
+            String imgUrl = 'https://upload.wikimedia.org/wikipedia/en/a/aa/Magic_the_gathering-card_back.jpg';
             if (scryfallId != null && scryfallId.length >= 2) {
-              String imgUrl = 'https://cards.scryfall.io/normal/front/${scryfallId[0]}/${scryfallId[1]}/$scryfallId.jpg';
-              
-              Map<String, dynamic> cardObj = {
-                'name': item['name'] ?? 'Carta',
-                'imageUrl': imgUrl,
-                'type_line': item['type'] ?? '',
-                'oracle_text': item['text'] ?? '',
-                'rarity': item['rarity'] ?? 'common',
-                'mana_cost': item['manaCost'] ?? '',
-                'power': item['power']?.toString(),
-                'toughness': item['toughness']?.toString(),
-                'color_identity': (item['colorIdentity'] as List?)?.join('') ?? '',
-                'setName': item['setCode'] ?? '',
-                'collectorNumber': item['number'] ?? '',
-                'oracle_id': item['identifiers']?['oracleId'],
-              };
+              imgUrl = 'https://cards.scryfall.io/normal/front/${scryfallId[0]}/${scryfallId[1]}/$scryfallId.jpg';
+            }
+            
+            Map<String, dynamic> cardObj = {
+              'name': item['name'] ?? 'Carta Desconhecida',
+              'imageUrl': imgUrl,
+              'type_line': item['type'] ?? '',
+              'oracle_text': item['text'] ?? '',
+              'rarity': item['rarity'] ?? 'common',
+              'mana_cost': item['manaCost'] ?? '',
+              'power': item['power']?.toString(),
+              'toughness': item['toughness']?.toString(),
+              'color_identity': (item['colorIdentity'] as List?)?.join('') ?? '',
+              'setName': item['setCode'] ?? '',
+              'collectorNumber': item['number'] ?? '',
+              'oracle_id': item['identifiers']?['oracleId'],
+            };
 
-              // IMPORTANTE: Adiciona a carta n vezes baseada na quantidade real (qty)
-              for (int i = 0; i < qty; i++) {
-                tempCards.add(cardObj);
-              }
+            for (int i = 0; i < qty; i++) {
+              tempCards.add(cardObj);
             }
           }
         }
 
-        // Chamamos para todas as partes possíveis do deck para garantir as 100 cartas
-        extractCards(data['commander']); // O Comandante (1 carta)
-        extractCards(data['mainBoard']);  // O deck principal (99 cartas no Commander)
-        extractCards(data['sideBoard']);  // Sideboard ou Companions
+        if (data is Map) {
+          data.forEach((key, value) {
+            if (value is List) {
+              extractCards(value);
+            }
+          });
+        }
 
         if (mounted) {
           setState(() {
-            _cards = tempCards; // Agora _cards contém a lista total sem limites
+            _cards = tempCards; 
             _isLoading = false;
           });
         }
@@ -102,14 +110,7 @@ class _CommunityDeckDetailScreenState extends State<CommunityDeckDetailScreen> {
       final String deckName = widget.deckData['name'] ?? 'Novo Deck';
       final String deckType = widget.deckData['type'] ?? 'Casual';
       
-      deckProvider.createDeck(deckName, deckType);
-      
-      int newDeckIndex = deckProvider.allDecks.length - 1;
-
-      // Adiciona todas as cartas processadas ao seu provider local
-      for (var card in _cards) {
-        deckProvider.addCardToDeck(newDeckIndex, card);
-      }
+      deckProvider.importDeck(deckName, deckType, _cards);
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -125,7 +126,6 @@ class _CommunityDeckDetailScreenState extends State<CommunityDeckDetailScreen> {
     }
   }
 
-  // O restante do código (build, GridView, etc) permanece o mesmo do passo anterior
   @override
   Widget build(BuildContext context) {
     final theme = context.watch<ThemeProvider>();
@@ -135,6 +135,7 @@ class _CommunityDeckDetailScreenState extends State<CommunityDeckDetailScreen> {
     return Scaffold(
       backgroundColor: theme.backgroundColor,
       appBar: AppBar(
+        automaticallyImplyLeading: false, // REMOVE A SETA NORMAL
         backgroundColor: Colors.transparent, 
         elevation: 0, 
         iconTheme: IconThemeData(color: textColor),
@@ -159,50 +160,58 @@ class _CommunityDeckDetailScreenState extends State<CommunityDeckDetailScreen> {
           ),
         ],
       ),
-      body: _isLoading 
-        ? const Center(child: CircularProgressIndicator())
-        : _errorMessage != null
-          ? Center(child: Text(_errorMessage!, style: const TextStyle(color: Colors.redAccent)))
-          : GridView.builder(
-              padding: const EdgeInsets.all(16),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 3, 
-                childAspectRatio: 0.7, 
-                crossAxisSpacing: 10, 
-                mainAxisSpacing: 15,
-              ),
-              itemCount: _cards.length,
-              itemBuilder: (context, index) {
-                final cardData = _cards[index];
-                final cardUrl = cardData['imageUrl'] as String;
-                final gridSafeUrl = kIsWeb ? 'https://wsrv.nl/?url=${Uri.encodeComponent(cardUrl)}&w=300' : cardUrl;
+      // STACK PARA SOBREPOR O NOSSO BOTÃO TRIANGULAR AQUI TAMBÉM
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: _isLoading 
+              ? const Center(child: CircularProgressIndicator())
+              : _errorMessage != null
+                ? Center(child: Text(_errorMessage!, style: const TextStyle(color: Colors.redAccent)))
+                : GridView.builder(
+                    padding: const EdgeInsets.all(16),
+                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 3, 
+                      childAspectRatio: 0.7, 
+                      crossAxisSpacing: 10, 
+                      mainAxisSpacing: 15,
+                    ),
+                    itemCount: _cards.length,
+                    itemBuilder: (context, index) {
+                      final cardData = _cards[index];
+                      final cardUrl = cardData['imageUrl'] as String;
+                      final gridSafeUrl = kIsWeb ? 'https://wsrv.nl/?url=${Uri.encodeComponent(cardUrl)}&w=300' : cardUrl;
 
-                return GestureDetector(
-                  onTap: () {
-                    final Map<String, dynamic> safeCardData = Map.from(cardData);
-                    if (kIsWeb) {
-                      safeCardData['imageUrl'] = 'https://wsrv.nl/?url=${Uri.encodeComponent(cardUrl)}&w=800';
-                    }
-                    Navigator.push(context, MaterialPageRoute(builder: (context) => CardDetailScreen(card: safeCardData)));
-                  },
-                  child: Container(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(8),
-                      boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 5)],
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: CachedNetworkImage(
-                        imageUrl: gridSafeUrl,
-                        fit: BoxFit.cover,
-                        placeholder: (context, url) => Container(color: Colors.black12),
-                        errorWidget: (context, url, error) => const Icon(Icons.broken_image, color: Colors.grey),
-                      ),
-                    ),
+                      return GestureDetector(
+                        onTap: () {
+                          final Map<String, dynamic> safeCardData = Map.from(cardData);
+                          if (kIsWeb) {
+                            safeCardData['imageUrl'] = 'https://wsrv.nl/?url=${Uri.encodeComponent(cardUrl)}&w=800';
+                          }
+                          Navigator.push(context, MaterialPageRoute(builder: (context) => CardDetailScreen(card: safeCardData)));
+                        },
+                        child: Container(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(8),
+                            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 5)],
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: CachedNetworkImage(
+                              imageUrl: gridSafeUrl,
+                              fit: BoxFit.cover,
+                              placeholder: (context, url) => Container(color: Colors.black12),
+                              errorWidget: (context, url, error) => const Icon(Icons.broken_image, color: Colors.grey),
+                            ),
+                          ),
+                        ),
+                      );
+                    },
                   ),
-                );
-              },
-            ),
+          ),
+          const CustomBackButton(), // O BOTÃO NOVO AQUI NO FIM
+        ],
+      ),
     );
   }
 

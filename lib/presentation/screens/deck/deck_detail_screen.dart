@@ -3,9 +3,10 @@ import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../../data/providers/deck_provider.dart';
 import '../../../data/providers/theme_provider.dart';
-import '../../../data/services/pdf_service.dart'; // <-- IMPORT DO SERVIÇO DE PDF
+import '../../../data/services/pdf_service.dart';
 import '../search/card_detail_screen.dart'; 
 import '../search/card_search_screen.dart';
+import '../../widgets/custom_back_button.dart'; // <-- IMPORT DO NOSSO BOTÃO
 
 class DeckDetailScreen extends StatefulWidget {
   final int deckIndex;
@@ -29,14 +30,13 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
     }
   }
 
-  // FUNÇÃO PARA APAGAR O DECK INTEIRO
   void _deleteDeck(BuildContext context, DeckProvider provider) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: const Color(0xFF1E1E24),
         title: const Text("Apagar Deck", style: TextStyle(color: Colors.white)),
-        content: const Text("Tem certeza que deseja excluir este deck permanentemente?"),
+        content: const Text("Tem certeza que deseja excluir este deck permanentemente?", style: TextStyle(color: Colors.white70)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
@@ -77,6 +77,7 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
     return Scaffold(
       backgroundColor: theme.backgroundColor,
       appBar: AppBar(
+        automaticallyImplyLeading: false, // ISTO REMOVE A SETINHA DE VOLTAR ANTIGA
         backgroundColor: Colors.transparent,
         elevation: 0,
         iconTheme: IconThemeData(color: textColor),
@@ -84,36 +85,19 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(deck.name, style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 18)),
-            Text("${deck.type} • ${deck.cards.length} cartas", 
-              style: const TextStyle(fontSize: 12, color: Colors.grey)),
+            Text("${deck.type} • ${deck.cards.length} cartas", style: const TextStyle(fontSize: 12, color: Colors.grey)),
           ],
         ),
         actions: [
-          // <-- NOVO BOTÃO DE GERAR PDF AQUI -->
           IconButton(
             icon: const Icon(Icons.picture_as_pdf, color: Colors.blueAccent),
-            tooltip: "Baixar PDF para Impressão",
+            tooltip: "Baixar PDF",
             onPressed: () async {
-              if (deck.cards.isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text("Adicione cartas ao deck primeiro!", style: TextStyle(color: Colors.white)), 
-                    backgroundColor: Colors.redAccent,
-                    behavior: SnackBarBehavior.floating,
-                  )
-                );
-                return;
-              }
-
-              // Extrai apenas as URLs das imagens de dentro do deck
+              if (deck.cards.isEmpty) return;
               List<String> imageUrls = deck.cards.map((c) => c['imageUrl'].toString()).toList();
-
-              // Chama o nosso PdfService para gerar e imprimir
               await PdfService.generateAndPrintDeckPdf(context, imageUrls);
             },
           ),
-          
-          // BOTÃO DE APAGAR O DECK
           IconButton(
             icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
             onPressed: () => _deleteDeck(context, deckProvider),
@@ -141,31 +125,36 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
           ),
         ),
       ),
-      body: filteredCards.isEmpty
-          ? _buildEmptyState(textColor)
-          : GridView.builder(
-              padding: const EdgeInsets.all(16),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 3, 
-                childAspectRatio: 0.7,
-                crossAxisSpacing: 12,
-                mainAxisSpacing: 20,
-              ),
-              itemCount: filteredCards.length,
-              itemBuilder: (context, index) {
-                final card = filteredCards[index];
-                final realIndex = deck.cards.indexOf(card);
-                return _buildGridCard(card, realIndex, isLight);
-              },
-            ),
+      // STACK PARA SOBREPOR O BOTÃO À TELA
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: filteredCards.isEmpty
+              ? _buildEmptyState(textColor)
+              : GridView.builder(
+                  padding: const EdgeInsets.all(16),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 3, 
+                    childAspectRatio: 0.7,
+                    crossAxisSpacing: 12,
+                    mainAxisSpacing: 20,
+                  ),
+                  itemCount: filteredCards.length,
+                  itemBuilder: (context, index) {
+                    final card = filteredCards[index];
+                    final realIndex = deck.cards.indexOf(card);
+                    return _buildGridCard(card, realIndex, isLight);
+                  },
+                ),
+          ),
+          const CustomBackButton(), // O NOSSO BOTÃO DE LADO
+        ],
+      ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => CardSearchScreen(targetDeckIndex: widget.deckIndex),
-            ),
-          );
+          Navigator.push(context, MaterialPageRoute(
+            builder: (context) => CardSearchScreen(targetDeckIndex: widget.deckIndex),
+          ));
         },
         backgroundColor: Colors.blueAccent,
         child: const Icon(Icons.add, color: Colors.white, size: 30),
@@ -196,24 +185,26 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
       onTap: () {
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (context) => CardDetailScreen(card: card)),
+          MaterialPageRoute(builder: (context) => CardDetailScreen(
+            card: card,
+            targetDeckIndex: widget.deckIndex,
+            existingCardIndex: indexInDeck, 
+          )),
+        );
+      },
+      onLongPress: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => CardSearchScreen(
+            targetDeckIndex: widget.deckIndex,
+            replaceCardIndex: indexInDeck, 
+          )),
         );
       },
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(8),
-              boxShadow: [
-                BoxShadow(
-                  color: rarityColor.withValues(alpha: 0.4),
-                  blurRadius: 12,
-                  spreadRadius: 1,
-                )
-              ],
-            ),
-          ),
+          Container(decoration: BoxDecoration(borderRadius: BorderRadius.circular(8), boxShadow: [BoxShadow(color: rarityColor.withValues(alpha: 0.4), blurRadius: 12, spreadRadius: 1)])),
           ClipRRect(
             borderRadius: BorderRadius.circular(8),
             child: CachedNetworkImage(

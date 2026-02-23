@@ -1,3 +1,4 @@
+// ignore_for_file: prefer_const_constructors, prefer_const_literals_to_create_immutables
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart'; 
@@ -8,12 +9,21 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../../../data/providers/deck_provider.dart';
 import '../../../data/providers/theme_provider.dart';
 import '../../../data/repositories/card_repository.dart';
+import '../../widgets/custom_back_button.dart'; 
 
 class CardDetailScreen extends StatefulWidget {
   final Map<String, dynamic> card;
   final int? targetDeckIndex; 
+  final int? existingCardIndex; 
+  final int? replaceCardIndex;  
 
-  const CardDetailScreen({super.key, required this.card, this.targetDeckIndex});
+  const CardDetailScreen({
+    super.key, 
+    required this.card, 
+    this.targetDeckIndex,
+    this.existingCardIndex,
+    this.replaceCardIndex,
+  });
 
   @override
   State<CardDetailScreen> createState() => _CardDetailScreenState();
@@ -28,7 +38,7 @@ class _CardDetailScreenState extends State<CardDetailScreen> with SingleTickerPr
   late Map<String, dynamic> _currentCard;
   final CardRepository _repository = CardRepository(); 
 
-  final Map<String, String> _imageHeaders = {
+  final Map<String, String> _imageHeaders = const {
     'User-Agent': 'LifelinkApp/1.0',
     'Accept': '*/*'
   };
@@ -48,17 +58,9 @@ class _CardDetailScreenState extends State<CardDetailScreen> with SingleTickerPr
     super.dispose();
   }
 
-  // --- Função Mágica Anti-CORS (Inteligente) ---
   String _getSafeUrl(String url) {
     if (!kIsWeb || url.isEmpty || url.contains('wikimedia')) return url;
-    
-    // MÁGICA: Se a tela anterior (ex: Comunidade) já colocou um proxy,
-    // nós NÃO colocamos outro proxy por cima, senão a imagem quebra (Erro 0)!
-    if (url.contains('allorigins') || url.contains('wsrv') || url.contains('corsproxy')) {
-      return url;
-    }
-
-    // Se for um link limpo da Scryfall, aplicamos o proxy padrão
+    if (url.contains('allorigins') || url.contains('wsrv') || url.contains('corsproxy')) return url;
     return 'https://wsrv.nl/?url=${Uri.encodeComponent(url)}';
   }
 
@@ -108,9 +110,8 @@ class _CardDetailScreenState extends State<CardDetailScreen> with SingleTickerPr
           height: size,
           child: SvgPicture.network(
             "https://svgs.scryfall.io/card-symbols/$symbol.svg",
-            // Na web não enviamos headers para evitar que o navegador bloqueie o SVG
             headers: kIsWeb ? null : _imageHeaders,
-            placeholderBuilder: (context) => const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+            placeholderBuilder: (context) => const Center(child: CircularProgressIndicator(strokeWidth: 2)), 
           ),
         );
       }).toList(),
@@ -124,7 +125,8 @@ class _CardDetailScreenState extends State<CardDetailScreen> with SingleTickerPr
       context: context,
       isScrollControlled: true,
       backgroundColor: bgColor,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      // O ERRO FATAL ESTAVA AQUI: Removi o const de BorderRadius
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       builder: (ctx) => StatefulBuilder(
         builder: (context, setModalState) {
           return FractionallySizedBox(
@@ -158,8 +160,12 @@ class _CardDetailScreenState extends State<CardDetailScreen> with SingleTickerPr
                   child: FutureBuilder<List<Map<String, dynamic>>>(
                     future: _repository.fetchOtherVersions(_currentCard['name'], modalLang, _currentCard['oracle_id']),
                     builder: (context, snapshot) {
-                      if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
-                      if (!snapshot.hasData || snapshot.data!.isEmpty) return const Center(child: Text("Nada encontrado."));
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return const Center(child: CircularProgressIndicator()); 
+                      }
+                      if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                        return Center(child: Text("Nada encontrado.", style: TextStyle(color: textColor))); 
+                      }
                       
                       final versions = snapshot.data!;
                       return PageView.builder(
@@ -174,7 +180,16 @@ class _CardDetailScreenState extends State<CardDetailScreen> with SingleTickerPr
                             child: AspectRatio(
                               aspectRatio: 0.71,
                               child: GestureDetector(
-                                onTap: () { setState(() => _currentCard = vCard); Navigator.pop(ctx); },
+                                onTap: () { 
+                                  setState(() => _currentCard = vCard); 
+                                  
+                                  if (widget.targetDeckIndex != null && widget.existingCardIndex != null) {
+                                    context.read<DeckProvider>().updateCardInDeck(widget.targetDeckIndex!, widget.existingCardIndex!, vCard);
+                                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(isPt ? "Arte atualizada no deck!" : "Art updated in deck!"), backgroundColor: Colors.green[700]));
+                                  }
+
+                                  Navigator.pop(ctx); 
+                                },
                                 child: Container(
                                   margin: const EdgeInsets.all(10),
                                   decoration: BoxDecoration(
@@ -187,8 +202,8 @@ class _CardDetailScreenState extends State<CardDetailScreen> with SingleTickerPr
                                       imageUrl: safeUrl, 
                                       httpHeaders: kIsWeb ? null : _imageHeaders,
                                       fit: BoxFit.cover,
-                                      placeholder: (context, url) => const Center(child: CircularProgressIndicator()),
-                                      errorWidget: (context, url, error) => const Icon(Icons.broken_image, color: Colors.grey),
+                                      placeholder: (context, url) => const Center(child: CircularProgressIndicator()), 
+                                      errorWidget: (context, url, error) => const Icon(Icons.broken_image, color: Colors.grey), 
                                     )
                                   ),
                                 ),
@@ -223,7 +238,10 @@ class _CardDetailScreenState extends State<CardDetailScreen> with SingleTickerPr
 
   void _showDeckPicker(Map<String, dynamic> card, DeckProvider provider, bool isPt) {
     showModalBottomSheet(
-      context: context, backgroundColor: const Color(0xFF1E1E24), shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      context: context, 
+      backgroundColor: const Color(0xFF1E1E24), 
+      // O ERRO FATAL ESTAVA AQUI: Removi o const de BorderRadius
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       builder: (ctx) => Container(
         padding: const EdgeInsets.all(24),
         child: Column(
@@ -256,13 +274,12 @@ class _CardDetailScreenState extends State<CardDetailScreen> with SingleTickerPr
 
     bool isFrontVisible = math.cos(_currentAngle) > 0;
     final rarityColor = _getRarityColor(_currentCard['rarity'] ?? '');
-
-    // Aplica o proxy seguro na imagem principal da carta
     final String mainCardSafeUrl = _getSafeUrl(_currentCard['imageUrl'] ?? '');
 
     return Scaffold(
       backgroundColor: bgColor,
       appBar: AppBar(
+        automaticallyImplyLeading: false, 
         backgroundColor: Colors.transparent, elevation: 0, iconTheme: IconThemeData(color: textColor),
         title: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -272,116 +289,138 @@ class _CardDetailScreenState extends State<CardDetailScreen> with SingleTickerPr
           ],
         ),
       ),
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 20),
-              child: Center(
-                child: GestureDetector(
-                  onPanUpdate: _onPanUpdate, onPanEnd: _onPanEnd,
-                  child: Container(
-                    width: MediaQuery.of(context).size.width * 0.75,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(16), 
-                      boxShadow: [BoxShadow(color: rarityColor.withValues(alpha: 0.6), blurRadius: 40, spreadRadius: 5)]
-                    ),
-                    child: AspectRatio(
-                      aspectRatio: 0.71, 
-                      child: Transform(
-                        transform: Matrix4.identity()..setEntry(3, 2, 0.001)..rotateY(_currentAngle), 
-                        alignment: FractionalOffset.center,
-                        child: isFrontVisible
-                            ? ClipRRect(
-                                borderRadius: BorderRadius.circular(16), 
-                                child: CachedNetworkImage(
-                                  imageUrl: mainCardSafeUrl, 
-                                  httpHeaders: kIsWeb ? null : _imageHeaders,
-                                  fit: BoxFit.cover,
-                                  placeholder: (context, url) => const Center(child: CircularProgressIndicator()),
-                                  errorWidget: (context, url, error) => const Icon(Icons.broken_image, color: Colors.grey, size: 50),
-                                )
-                              )
-                            : Transform(
-                                transform: Matrix4.identity()..rotateY(math.pi), 
-                                alignment: FractionalOffset.center, 
-                                child: ClipRRect(
-                                  borderRadius: BorderRadius.circular(16), 
-                                  child: Image.asset('assets/images/traseira_carta.jpg', fit: BoxFit.cover)
-                                )
-                              ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-
-            Container(
-              margin: const EdgeInsets.all(16), padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(color: cardContainerColor, borderRadius: BorderRadius.circular(24), border: Border.all(color: Colors.white.withValues(alpha: 0.05))),
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: SingleChildScrollView(
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      _renderManaCost(_currentCard['mana_cost'] ?? '', size: 22),
-                      if (_currentCard['power'] != null) Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4), 
-                        decoration: BoxDecoration(
-                          color: Colors.redAccent.withValues(alpha: 0.1), 
-                          borderRadius: BorderRadius.circular(8)
-                        ), 
-                        child: Text(
-                          "${_currentCard['power']}/${_currentCard['toughness']}", 
-                          style: const TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)
-                        )
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 20),
+                    child: Center(
+                      child: GestureDetector(
+                        onPanUpdate: _onPanUpdate, onPanEnd: _onPanEnd,
+                        child: Container(
+                          width: MediaQuery.of(context).size.width * 0.75,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(16), 
+                            boxShadow: [BoxShadow(color: rarityColor.withValues(alpha: 0.6), blurRadius: 40, spreadRadius: 5)]
+                          ),
+                          child: AspectRatio(
+                            aspectRatio: 0.71, 
+                            child: Transform(
+                              transform: Matrix4.identity()..setEntry(3, 2, 0.001)..rotateY(_currentAngle), 
+                              alignment: FractionalOffset.center,
+                              child: isFrontVisible
+                                  ? ClipRRect(
+                                      borderRadius: BorderRadius.circular(16), 
+                                      child: CachedNetworkImage(
+                                        imageUrl: mainCardSafeUrl, 
+                                        httpHeaders: kIsWeb ? null : _imageHeaders,
+                                        fit: BoxFit.cover,
+                                        placeholder: (context, url) => const Center(child: CircularProgressIndicator()), 
+                                        errorWidget: (context, url, error) => const Icon(Icons.broken_image, color: Colors.grey, size: 50), 
+                                      )
+                                    )
+                                  : Transform(
+                                      transform: Matrix4.identity()..rotateY(math.pi), 
+                                      alignment: FractionalOffset.center, 
+                                      child: ClipRRect(
+                                        borderRadius: BorderRadius.circular(16), 
+                                        child: Image.asset('assets/images/traseira_carta.jpg', fit: BoxFit.cover)
+                                      )
+                                    ),
+                            ),
+                          ),
+                        ),
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Text(_currentCard['type_line'] ?? (isPt ? 'Tipo desconhecido' : 'Unknown type'), style: TextStyle(color: textColor, fontSize: 16, fontWeight: FontWeight.bold)),
-                  _buildDivider(textColor),
-
-                  if (_currentCard['oracle_text'] != null && _currentCard['oracle_text'].isNotEmpty) ...[
-                    Text(isPt ? "HABILIDADES" : "ABILITIES", style: TextStyle(color: Colors.grey[500], fontSize: 11, fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 8),
-                    Text(_currentCard['oracle_text'], style: TextStyle(color: textColor, fontSize: 14, height: 1.5)),
-                    _buildDivider(textColor),
-                  ],
-
-                  _buildIconRow(isPt ? "Cores" : "Color Identity", _currentCard['color_identity'] ?? 'C'),
-                  
-                  _buildInfoRow(isPt ? "Raridade" : "Rarity", _currentCard['rarity']?.toString().toUpperCase() ?? 'COMMON', rarityColor, isBold: true),
-                  _buildInfoRow(isPt ? "Coleção" : "Set", _currentCard['setName']?.toString().toUpperCase() ?? '', Colors.purpleAccent),
-                  
-                  const SizedBox(height: 16),
-
-                  OutlinedButton.icon(
-                    style: OutlinedButton.styleFrom(
-                      minimumSize: const Size(double.infinity, 50),
-                      side: BorderSide(color: Colors.blueAccent.withValues(alpha: 0.5)),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
-                    icon: const Icon(Icons.style, color: Colors.blueAccent),
-                    onPressed: () => _showVersionsModal(bgColor, textColor, isPt, themeProvider.cardLanguage),
-                    label: Text(isPt ? "VER OUTRAS ARTES / VERSÕES" : "VIEW OTHER ARTS / VERSIONS", style: const TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold)),
                   ),
 
-                  const SizedBox(height: 16),
+                  Container(
+                    margin: const EdgeInsets.all(16), padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(color: cardContainerColor, borderRadius: BorderRadius.circular(24), border: Border.all(color: Colors.white.withValues(alpha: 0.05))),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            _renderManaCost(_currentCard['mana_cost'] ?? '', size: 22),
+                            if (_currentCard['power'] != null) Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4), 
+                              decoration: BoxDecoration(
+                                color: Colors.redAccent.withValues(alpha: 0.1), 
+                                borderRadius: BorderRadius.circular(8)
+                              ), 
+                              child: Text(
+                                "${_currentCard['power']}/${_currentCard['toughness']}", 
+                                style: const TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)
+                              )
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Text(_currentCard['type_line'] ?? (isPt ? 'Tipo desconhecido' : 'Unknown type'), style: TextStyle(color: textColor, fontSize: 16, fontWeight: FontWeight.bold)),
+                        _buildDivider(textColor),
 
-                  ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(backgroundColor: Colors.blueAccent, minimumSize: const Size(double.infinity, 55), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
-                    icon: const Icon(Icons.add_box_rounded, color: Colors.white),
-                    label: Text(isPt ? "ADICIONAR AO DECK" : "ADD TO DECK", style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-                    onPressed: () => _handleAutoAdd(deckProvider, isPt),
+                        if (_currentCard['oracle_text'] != null && _currentCard['oracle_text'].isNotEmpty) ...[
+                          Text(isPt ? "HABILIDADES" : "ABILITIES", style: TextStyle(color: Colors.grey[500], fontSize: 11, fontWeight: FontWeight.bold)),
+                          const SizedBox(height: 8),
+                          Text(_currentCard['oracle_text'], style: TextStyle(color: textColor, fontSize: 14, height: 1.5)),
+                          _buildDivider(textColor),
+                        ],
+
+                        _buildIconRow(isPt ? "Cores" : "Color Identity", _currentCard['color_identity'] ?? 'C'),
+                        
+                        _buildInfoRow(isPt ? "Raridade" : "Rarity", _currentCard['rarity']?.toString().toUpperCase() ?? 'COMMON', rarityColor, isBold: true),
+                        _buildInfoRow(isPt ? "Coleção" : "Set", _currentCard['setName']?.toString().toUpperCase() ?? '', Colors.purpleAccent),
+                        
+                        const SizedBox(height: 16),
+
+                        OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            minimumSize: const Size(double.infinity, 50),
+                            side: BorderSide(color: Colors.blueAccent.withValues(alpha: 0.5)),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                          icon: const Icon(Icons.style, color: Colors.blueAccent),
+                          onPressed: () => _showVersionsModal(bgColor, textColor, isPt, themeProvider.cardLanguage),
+                          label: Text(isPt ? "VER OUTRAS ARTES / VERSÕES" : "VIEW OTHER ARTS / VERSIONS", style: const TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold)),
+                        ),
+
+                        if (widget.existingCardIndex == null) ...[
+                          const SizedBox(height: 16),
+                          ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(backgroundColor: Colors.blueAccent, minimumSize: const Size(double.infinity, 55), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
+                            icon: const Icon(Icons.add_box_rounded, color: Colors.white),
+                            label: Text(
+                              widget.replaceCardIndex != null 
+                                ? (isPt ? "SUBSTITUIR CARTA NO DECK" : "REPLACE CARD IN DECK") 
+                                : (isPt ? "ADICIONAR AO DECK" : "ADD TO DECK"), 
+                              style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)
+                            ),
+                            onPressed: () {
+                              if (widget.replaceCardIndex != null && widget.targetDeckIndex != null) {
+                                deckProvider.updateCardInDeck(widget.targetDeckIndex!, widget.replaceCardIndex!, _currentCard);
+                                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(isPt ? "Carta substituída!" : "Card replaced!"), backgroundColor: Colors.green[700]));
+                                Navigator.pop(context); 
+                                Navigator.pop(context); 
+                              } else {
+                                _handleAutoAdd(deckProvider, isPt);
+                              }
+                            },
+                          ),
+                        ]
+                      ],
+                    ),
                   ),
                 ],
               ),
             ),
-          ],
-        ),
+          ),
+          const CustomBackButton(), 
+        ],
       ),
     );
   }

@@ -81,7 +81,8 @@ class CardProvider with ChangeNotifier {
       }
 
       _hasMore = result['hasMore'];
-      _nextPageUrl = result['next_page'];
+      // Ajustado para coincidir com a chave retornada pelo CardRepository
+      _nextPageUrl = result['nextPage']; 
     } catch (e) {
       _hasMore = false;
     } finally {

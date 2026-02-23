@@ -4,9 +4,9 @@ import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../../data/providers/deck_provider.dart';
 import '../../../data/providers/theme_provider.dart';
-// REMOVIDO: O import que causava erro de URI
 import 'deck_detail_screen.dart';
 import 'community_decks_screen.dart'; 
+import '../../widgets/custom_back_button.dart';
 
 class MyDecksScreen extends StatefulWidget {
   const MyDecksScreen({super.key});
@@ -17,7 +17,6 @@ class MyDecksScreen extends StatefulWidget {
 
 class _MyDecksScreenState extends State<MyDecksScreen> {
   
-  // Função para confirmar e apagar o deck
   void _confirmDelete(BuildContext context, DeckProvider provider, int index, String deckName) {
     showDialog(
       context: context,
@@ -36,9 +35,6 @@ class _MyDecksScreenState extends State<MyDecksScreen> {
             onPressed: () {
               provider.deleteDeck(index);
               Navigator.pop(ctx);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text("Deck '$deckName' removido"), behavior: SnackBarBehavior.floating),
-              );
             },
             child: const Text("APAGAR"),
           ),
@@ -48,7 +44,7 @@ class _MyDecksScreenState extends State<MyDecksScreen> {
   }
 
   void _showCreateDeckDialog() {
-    String selectedType = 'Challenger';
+    String selectedType = 'Commander';
     final TextEditingController nameController = TextEditingController();
 
     showDialog(
@@ -75,7 +71,7 @@ class _MyDecksScreenState extends State<MyDecksScreen> {
                 value: selectedType,
                 dropdownColor: const Color(0xFF1E1E24),
                 isExpanded: true,
-                items: ['Challenger', 'Commander'].map((t) => DropdownMenuItem(value: t, child: Text(t, style: const TextStyle(color: Colors.white)))).toList(),
+                items: ['Commander', 'Challenger', 'Normal'].map((t) => DropdownMenuItem(value: t, child: Text(t, style: const TextStyle(color: Colors.white)))).toList(),
                 onChanged: (val) => setDialogState(() => selectedType = val!),
               ),
             ],
@@ -104,42 +100,53 @@ class _MyDecksScreenState extends State<MyDecksScreen> {
     final isLight = theme.backgroundColor.computeLuminance() > 0.5;
     final textColor = isLight ? Colors.black87 : Colors.white;
 
-    return Scaffold(
-      backgroundColor: theme.backgroundColor,
-      appBar: AppBar(
-        title: Text("MEUS DECKS", style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        iconTheme: IconThemeData(color: textColor),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.language),
-            onPressed: () {
-              Navigator.push(
-                context, 
-                MaterialPageRoute(builder: (context) => const CommunityDecksScreen())
-              );
-            },
-            tooltip: "Decks da Comunidade",
+    // A MÁGICA DE CENTRALIZAÇÃO: O Stack agora envolve o Scaffold todo!
+    return Stack(
+      children: [
+        Scaffold(
+          backgroundColor: theme.backgroundColor,
+          appBar: AppBar(
+            automaticallyImplyLeading: false, 
+            title: Text("MEUS DECKS", style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            iconTheme: IconThemeData(color: textColor),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.language),
+                onPressed: () {
+                  Navigator.push(
+                    context, 
+                    MaterialPageRoute(builder: (context) => const CommunityDecksScreen())
+                  );
+                },
+                tooltip: "Decks da Comunidade",
+              ),
+            ],
           ),
-        ],
-      ),
-      body: GridView.builder(
-        padding: const EdgeInsets.all(16),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2, 
-          childAspectRatio: 0.72, 
-          crossAxisSpacing: 16, 
-          mainAxisSpacing: 16
+          body: GridView.builder(
+            padding: const EdgeInsets.all(16),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2, 
+              childAspectRatio: 0.72, 
+              crossAxisSpacing: 16, 
+              mainAxisSpacing: 16
+            ),
+            itemCount: deckProvider.allDecks.length + 1,
+            itemBuilder: (context, index) {
+              if (index == 0) return _buildCreateButton(textColor, isLight);
+              final deckIndex = index - 1;
+              final deck = deckProvider.allDecks[deckIndex];
+              return _buildDeckCard(deck, deckIndex, deckProvider, textColor, isLight);
+            },
+          ),
         ),
-        itemCount: deckProvider.allDecks.length + 1,
-        itemBuilder: (context, index) {
-          if (index == 0) return _buildCreateButton(textColor, isLight);
-          final deckIndex = index - 1;
-          final deck = deckProvider.allDecks[deckIndex];
-          return _buildDeckCard(deck, deckIndex, deckProvider, textColor, isLight);
-        },
-      ),
+        // O Botão fica aqui fora e centraliza no ecrã todo independentemente de AppBars!
+        const Material(
+          type: MaterialType.transparency,
+          child: CustomBackButton(),
+        ),
+      ],
     );
   }
 
@@ -157,7 +164,6 @@ class _MyDecksScreenState extends State<MyDecksScreen> {
     );
   }
 
-  // Removi a tipagem 'DeckModel' para evitar o erro de import e usei 'dynamic'
   Widget _buildDeckCard(dynamic deck, int index, DeckProvider provider, Color textColor, bool isLight) {
     return GestureDetector(
       onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => DeckDetailScreen(deckIndex: index))),

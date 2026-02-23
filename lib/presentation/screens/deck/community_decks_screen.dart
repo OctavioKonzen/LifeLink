@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../../data/providers/theme_provider.dart';
 import 'community_deck_detail_screen.dart';
+import '../../widgets/custom_back_button.dart';
 
 class CommunityDecksScreen extends StatefulWidget {
   const CommunityDecksScreen({super.key});
@@ -33,7 +34,7 @@ class _CommunityDecksScreenState extends State<CommunityDecksScreen> {
   bool _isProcessingQueue = false;
   final String _cardBackUrl = 'https://upload.wikimedia.org/wikipedia/en/a/aa/Magic_the_gathering-card_back.jpg';
 
-  final Map<String, String> _headers = {
+  final Map<String, String> _headers = const {
     'User-Agent': 'LifelinkApp/2.0',
     'Accept': 'application/json',
   };
@@ -175,7 +176,6 @@ class _CommunityDecksScreenState extends State<CommunityDecksScreen> {
   List<dynamic> _getFilteredDecks() {
     List<dynamic> baseList;
     
-    // CORREÇÃO: Chaves adicionadas nos blocos de controle de fluxo
     if (_selectedCategory == 0) {
       baseList = _commanderDecks;
     } else if (_selectedCategory == 1) {
@@ -201,67 +201,77 @@ class _CommunityDecksScreenState extends State<CommunityDecksScreen> {
     final textColor = isLight ? Colors.black87 : Colors.white;
     final filteredDecks = _getFilteredDecks();
 
-    return Scaffold(
-      backgroundColor: theme.backgroundColor,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent, 
-        elevation: 0, 
-        iconTheme: IconThemeData(color: textColor),
-        title: Text("Comunidade", style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
-      ),
-      body: _isLoading 
-        ? const Center(child: CircularProgressIndicator())
-        : Column(
-            children: [
-              // BARRA DE PESQUISA
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: TextField(
-                  controller: _searchController,
-                  style: TextStyle(color: textColor),
-                  decoration: InputDecoration(
-                    hintText: "Pesquisar deck...",
-                    hintStyle: TextStyle(color: textColor.withValues(alpha: 0.5)),
-                    prefixIcon: Icon(Icons.search, color: textColor.withValues(alpha: 0.5)),
-                    filled: true,
-                    fillColor: isLight ? Colors.black.withValues(alpha: 0.05) : Colors.white.withValues(alpha: 0.05),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none),
-                    contentPadding: const EdgeInsets.symmetric(vertical: 0),
-                  ),
-                  onChanged: (val) => setState(() => _searchQuery = val),
-                ),
-              ),
-              
-              _buildCategorySelector(textColor),
-              
-              Expanded(
-                child: _errorMessage != null
-                  ? Center(child: Text(_errorMessage!))
-                  : filteredDecks.isEmpty
-                    ? Center(child: Text("Nenhum deck encontrado.", style: TextStyle(color: textColor.withValues(alpha: 0.5))))
-                    : GridView.builder(
-                        padding: const EdgeInsets.all(16),
-                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 2, 
-                          childAspectRatio: 0.75, 
-                          crossAxisSpacing: 16, 
-                          mainAxisSpacing: 16,
-                        ),
-                        itemCount: filteredDecks.length,
-                        itemBuilder: (context, index) {
-                          final deck = filteredDecks[index];
-                          final String fileName = deck['fileName'];
-                          if (!_coverCache.containsKey(fileName)) {
-                            _queueDeckCover(fileName);
-                          }
-                          final coverImages = _coverCache[fileName] ?? [_cardBackUrl, _cardBackUrl, _cardBackUrl];
-
-                          return _buildDeckCard(context, deck, coverImages, isLight, textColor);
-                        },
-                      ),
-              ),
-            ],
+    // A MÁGICA: Stack englobando o Scaffold inteiro
+    return Stack(
+      children: [
+        Scaffold(
+          backgroundColor: theme.backgroundColor,
+          appBar: AppBar(
+            automaticallyImplyLeading: false, 
+            backgroundColor: Colors.transparent, 
+            elevation: 0, 
+            iconTheme: IconThemeData(color: textColor),
+            title: Text("Comunidade", style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
           ),
+          body: _isLoading 
+            ? const Center(child: CircularProgressIndicator())
+            : Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    child: TextField(
+                      controller: _searchController,
+                      style: TextStyle(color: textColor),
+                      decoration: InputDecoration(
+                        hintText: "Pesquisar deck...",
+                        hintStyle: TextStyle(color: textColor.withValues(alpha: 0.5)),
+                        prefixIcon: Icon(Icons.search, color: textColor.withValues(alpha: 0.5)),
+                        filled: true,
+                        fillColor: isLight ? Colors.black.withValues(alpha: 0.05) : Colors.white.withValues(alpha: 0.05),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none),
+                        contentPadding: const EdgeInsets.symmetric(vertical: 0),
+                      ),
+                      onChanged: (val) => setState(() => _searchQuery = val),
+                    ),
+                  ),
+                  
+                  _buildCategorySelector(textColor),
+                  
+                  Expanded(
+                    child: _errorMessage != null
+                      ? Center(child: Text(_errorMessage!))
+                      : filteredDecks.isEmpty
+                        ? Center(child: Text("Nenhum deck encontrado.", style: TextStyle(color: textColor.withValues(alpha: 0.5))))
+                        : GridView.builder(
+                            padding: const EdgeInsets.all(16),
+                            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 2, 
+                              childAspectRatio: 0.75, 
+                              crossAxisSpacing: 16, 
+                              mainAxisSpacing: 16,
+                            ),
+                            itemCount: filteredDecks.length,
+                            itemBuilder: (context, index) {
+                              final deck = filteredDecks[index];
+                              final String fileName = deck['fileName'];
+                              if (!_coverCache.containsKey(fileName)) {
+                                _queueDeckCover(fileName);
+                              }
+                              final coverImages = _coverCache[fileName] ?? [_cardBackUrl, _cardBackUrl, _cardBackUrl];
+
+                              return _buildDeckCard(context, deck, coverImages, isLight, textColor);
+                            },
+                          ),
+                  ),
+                ],
+              ),
+        ),
+        // O Botão fica aqui fora, calculando o centro real!
+        const Material(
+          type: MaterialType.transparency,
+          child: CustomBackButton(),
+        ),
+      ],
     );
   }
 
@@ -373,7 +383,7 @@ class CommunityDeckCoverWidget extends StatelessWidget {
         borderRadius: BorderRadius.circular(8), 
         child: CachedNetworkImage(
           imageUrl: safeUrl, 
-          httpHeaders: kIsWeb ? null : {'User-Agent': 'LifelinkApp/2.0'},
+          httpHeaders: kIsWeb ? null : const {'User-Agent': 'LifelinkApp/2.0'},
           fit: BoxFit.cover,
           placeholder: (c, u) => Container(color: Colors.black26),
           errorWidget: (c, u, e) => Container(color: Colors.black26),

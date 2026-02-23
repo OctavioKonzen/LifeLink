@@ -4,10 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart'; 
 import 'package:audioplayers/audioplayers.dart'; 
-import '../../../data/providers/theme_provider.dart'; 
 import '../../../data/providers/game_provider.dart';
+import '../../../data/providers/theme_provider.dart'; 
 import '../../widgets/player_card_widget.dart';
-import '../../widgets/continuous_action_button.dart';
+import '../../widgets/continuous_action_button.dart'; // <-- IMPORT CORRIGIDO PARA O TOPO!
 
 class LifeCounterScreen extends StatefulWidget {
   const LifeCounterScreen({super.key});
@@ -18,12 +18,17 @@ class LifeCounterScreen extends StatefulWidget {
 
 class _LifeCounterScreenState extends State<LifeCounterScreen> {
   final List<Color> _playerColors = [
-    const Color(0xFFB5CBE0), const Color(0xFFFCA5A5), 
-    const Color(0xFFA5D6A7), const Color(0xFFE8E4D9),
-    const Color(0xFFD1C4E9), const Color(0xFFFFCC80)
+    const Color(0xFF4B32C3), // Roxo
+    const Color(0xFF1BA655), // Verde
+    const Color(0xFFD32029), // Vermelho
+    const Color(0xFF0073E6), // Azul
+    const Color(0xFFD49E4A), // Laranja
+    const Color(0xFF6B6B6B)  // Cinzento
   ];
 
   final AudioPlayer _audioSystem = AudioPlayer();
+  
+  bool _isMenuOpen = false;
 
   void _checkGameStatus(BuildContext context, GameProvider game) {
     if (game.playerCount <= 1) return; 
@@ -54,11 +59,15 @@ class _LifeCounterScreenState extends State<LifeCounterScreen> {
         _audioSystem.play(AssetSource('sounds/victory.mp3'));
       });
       
+      final theme = context.read<ThemeProvider>();
+      final bgColor = theme.backgroundColor;
+      final textColor = bgColor.computeLuminance() > 0.5 ? Colors.black87 : Colors.white;
+
       showDialog(
         context: context,
         barrierDismissible: false,
         builder: (ctx) => Dialog(
-          backgroundColor: const Color(0xFF1E1E24),
+          backgroundColor: bgColor,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
           child: Padding(
             padding: const EdgeInsets.all(30),
@@ -67,7 +76,7 @@ class _LifeCounterScreenState extends State<LifeCounterScreen> {
               children: [
                 const Icon(Icons.emoji_events, size: 80, color: Colors.amber),
                 const SizedBox(height: 16),
-                const Text("VITÓRIA!", style: TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold, letterSpacing: 2)),
+                Text("VITÓRIA!", style: TextStyle(color: textColor, fontSize: 32, fontWeight: FontWeight.bold, letterSpacing: 2)),
                 const SizedBox(height: 10),
                 Text("${game.playerNames[winnerIndex]} venceu a partida!", style: TextStyle(color: _playerColors[winnerIndex], fontSize: 20, fontWeight: FontWeight.bold), textAlign: TextAlign.center),
                 const SizedBox(height: 30),
@@ -97,8 +106,13 @@ class _LifeCounterScreenState extends State<LifeCounterScreen> {
       builder: (dialogContext) {
         return Consumer<GameProvider>(
           builder: (context, game, child) {
+            final theme = context.read<ThemeProvider>();
+            final bgColor = theme.backgroundColor;
+            final isLight = bgColor.computeLuminance() > 0.5;
+            final textColor = isLight ? Colors.black87 : Colors.white;
+
             return Dialog(
-              backgroundColor: const Color(0xFF1E1E24),
+              backgroundColor: bgColor,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)), 
               child: Container(
                 width: 400, 
@@ -106,7 +120,7 @@ class _LifeCounterScreenState extends State<LifeCounterScreen> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min, 
                   children: [
-                    Text("Dano em ${game.playerNames[victimIndex]}", style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold), textAlign: TextAlign.center),
+                    Text("Dano em ${game.playerNames[victimIndex]}", style: TextStyle(color: textColor, fontSize: 22, fontWeight: FontWeight.bold), textAlign: TextAlign.center),
                     const SizedBox(height: 20),
                     Flexible(
                       child: ListView.builder(
@@ -118,6 +132,8 @@ class _LifeCounterScreenState extends State<LifeCounterScreen> {
                           game: game,
                           dialogContext: dialogContext,
                           playerColors: _playerColors,
+                          isLight: isLight,
+                          textColor: textColor,
                           onStateChanged: () => _checkGameStatus(context, game), 
                         ),
                       ),
@@ -138,97 +154,249 @@ class _LifeCounterScreenState extends State<LifeCounterScreen> {
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final bgColor = Provider.of<ThemeProvider>(context).backgroundColor;
-    final bool isLightBg = bgColor.computeLuminance() > 0.5;
-    
-    return Scaffold(
-      backgroundColor: bgColor,
-      body: Consumer<GameProvider>(
-        builder: (context, game, child) {
-          final int halfCount = (game.playerCount / 2).floor();
-          final int topCount = game.playerCount - halfCount; 
-          final int bottomCount = halfCount; 
-
-          return Stack(
-            children: [
-              SafeArea(
-                child: game.playerCount == 1 
-                ? Column(
-                    children: [
-                      Expanded(child: Padding(padding: const EdgeInsets.all(4.0), child: _buildPlayerRow(0, 1, false, game))),
-                      _buildCenterMenu(isLightBg, game), 
-                    ],
-                  )
-                : Column(
-                    children: [
-                      Expanded(child: _buildPlayerRow(bottomCount, topCount, true, game)),
-                      _buildCenterMenu(isLightBg, game),
-                      Expanded(child: _buildPlayerRow(0, bottomCount, false, game)),
-                    ],
-                  ),
+  Widget _buildMenuIcon(IconData icon, String label, VoidCallback onTap, Color circleColor, Color iconColor) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        color: Colors.transparent,
+        padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 40.0),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: circleColor, 
+                shape: BoxShape.circle,
+                border: Border.all(color: iconColor.withValues(alpha: 0.3), width: 2),
+                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 8)],
               ),
-              Positioned(
-                top: 10, left: 10,
-                child: SafeArea(
-                  child: IconButton(icon: Icon(Icons.close, color: Colors.black.withValues(alpha: 0.45), size: 30), onPressed: () => Navigator.pop(context)),
-                ),
-              ),
-            ],
-          );
-        }
+              child: Icon(icon, color: iconColor, size: 32),
+            ),
+            const SizedBox(height: 8),
+            Text(label, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold, decoration: TextDecoration.none)),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildPlayerRow(int start, int count, bool inverted, GameProvider game) {
+  Widget _buildPlayerCard(int index, int quarterTurns, GameProvider game) {
+    return PlayerCardWidget(
+      index: index,
+      quarterTurns: quarterTurns,
+      playerColor: _playerColors[index],
+      game: game,
+      onCommanderTap: () => _showCommanderDamageDialog(index),
+      onPoisonTap: () => _audioSystem.play(AssetSource('sounds/Poison.mp3')),
+      onStateChanged: () => _checkGameStatus(context, game), 
+    );
+  }
+
+  Widget _buildPlayerRow(int start, int count, int quarterTurns, GameProvider game) {
     return Row(
       children: List.generate(count, (i) {
         return Expanded(
           child: Padding(
-            padding: const EdgeInsets.all(4.0),
-            child: PlayerCardWidget(
-              index: start + i,
-              inverted: inverted,
-              playerColor: _playerColors[start + i],
-              game: game,
-              onCommanderTap: () => _showCommanderDamageDialog(start + i),
-              onPoisonTap: () => _audioSystem.play(AssetSource('sounds/Poison.mp3')),
-              onStateChanged: () => _checkGameStatus(context, game), 
-            ),
+            padding: const EdgeInsets.all(1.5),
+            child: _buildPlayerCard(start + i, quarterTurns, game),
           ),
         );
       }),
     );
   }
 
-  Widget _buildCenterMenu(bool isLightBg, GameProvider game) {
-    final color = isLightBg ? Colors.black87 : Colors.white70;
-    return Container(
-      height: 50,
-      margin: const EdgeInsets.symmetric(vertical: 2),
-      child: FittedBox(
-        fit: BoxFit.scaleDown,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: [
-            IconButton(icon: Icon(Icons.replay, color: color, size: 28), onPressed: () { game.resetGame(); HapticFeedback.heavyImpact(); }),
-            GestureDetector(
-              onTap: () { game.toggleCMDMode(); HapticFeedback.mediumImpact(); },
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(color: game.startingLife == 40 ? Colors.orange.withValues(alpha: 0.2) : Colors.transparent, borderRadius: BorderRadius.circular(10), border: Border.all(color: game.startingLife == 40 ? Colors.orange : Colors.transparent)),
-                child: Text("CMD", style: TextStyle(color: game.startingLife == 40 ? Colors.orange : color, fontWeight: FontWeight.bold, fontSize: 16)),
-              ),
+  Widget _buildLayout(GameProvider game) {
+    if (game.playerCount <= 1) {
+      return Column(children: [Expanded(child: _buildPlayerRow(0, 1, 0, game))]);
+    } 
+    else if (game.playerCount == 3) {
+      return Column(
+        children: [
+          Expanded(
+            flex: 3, 
+            child: Row(
+              children: [
+                Expanded(child: Padding(padding: const EdgeInsets.all(1.5), child: _buildPlayerCard(1, 1, game))), 
+                Expanded(child: Padding(padding: const EdgeInsets.all(1.5), child: _buildPlayerCard(2, 3, game))), 
+              ],
             ),
-            IconButton(icon: CustomPaint(size: const Size(28, 28), painter: GoogleD20IconPainter(color: color)), onPressed: () => _showDiceDialog(game)),
-            IconButton(icon: Icon(Icons.person_add, color: color, size: 28), onPressed: () { if (game.playerCount < 6) game.setPlayerCount(game.playerCount + 1); }),
-            IconButton(icon: Icon(Icons.remove_circle_outline, color: game.playerCount > 1 ? color : color.withValues(alpha: 0.3), size: 28), onPressed: () { if (game.playerCount > 1) game.setPlayerCount(game.playerCount - 1); }),
-          ],
-        ),
+          ),
+          Expanded(
+            flex: 2, 
+            child: _buildPlayerRow(0, 1, 0, game) 
+          ),
+        ],
+      );
+    } 
+    else {
+      final int halfCount = (game.playerCount / 2).floor();
+      final int topCount = game.playerCount - halfCount; 
+      final int bottomCount = halfCount; 
+
+      return Column(
+        children: [
+          Expanded(child: _buildPlayerRow(bottomCount, topCount, 2, game)), 
+          Expanded(child: _buildPlayerRow(0, bottomCount, 0, game)),       
+        ],
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = context.watch<ThemeProvider>();
+    
+    final buttonBgColor = theme.backgroundColor; 
+    final isLight = buttonBgColor.computeLuminance() > 0.5;
+    
+    final buttonIconColor = isLight ? Colors.black87 : Colors.white;
+    final borderColor = isLight ? Colors.black26 : Colors.white38;
+
+    return Scaffold(
+      backgroundColor: buttonBgColor, 
+      body: Consumer<GameProvider>(
+        builder: (context, game, child) {
+          
+          final double dynamicYAlignment = game.playerCount == 3 ? 0.2 : 0.0;
+
+          return Stack(
+            children: [
+              SafeArea(
+                bottom: false,
+                top: false,
+                child: _buildLayout(game),
+              ),
+
+              AnimatedOpacity(
+                opacity: _isMenuOpen ? 0.0 : 1.0,
+                duration: const Duration(milliseconds: 250),
+                child: Align(
+                  alignment: Alignment(0.0, dynamicYAlignment),
+                  child: IgnorePointer(
+                    ignoring: _isMenuOpen,
+                    child: GestureDetector(
+                      onTap: () {
+                        HapticFeedback.mediumImpact();
+                        setState(() => _isMenuOpen = true);
+                      },
+                      child: Container(
+                        width: 55, 
+                        height: 55,
+                        decoration: BoxDecoration(
+                          color: buttonBgColor, 
+                          shape: BoxShape.circle,
+                          border: Border.all(color: borderColor, width: 2),
+                          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.4), blurRadius: 12, spreadRadius: 2)],
+                        ),
+                        child: Icon(Icons.menu, color: buttonIconColor, size: 28),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+
+              Align(
+                alignment: Alignment(1.0, dynamicYAlignment),
+                child: AnimatedSlide(
+                  offset: _isMenuOpen ? const Offset(1.5, 0) : Offset.zero,
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeInOut,
+                  child: GestureDetector(
+                    onTap: () {
+                      HapticFeedback.mediumImpact();
+                      Navigator.pop(context); 
+                    },
+                    child: CustomPaint(
+                      painter: EdgeTrianglePainter(fillColor: buttonBgColor, borderColor: borderColor),
+                      child: SizedBox(
+                        width: 45,
+                        height: 90,
+                        child: Center(
+                          child: Padding(
+                            padding: const EdgeInsets.only(left: 6.0), 
+                            child: RotatedBox(
+                              quarterTurns: 3, 
+                              child: Text("Sair", style: TextStyle(color: buttonIconColor, fontWeight: FontWeight.bold, fontSize: 15)),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 300),
+                switchInCurve: Curves.easeOut,
+                switchOutCurve: Curves.easeIn,
+                child: _isMenuOpen
+                  ? GestureDetector(
+                      key: const ValueKey("MenuOverlay"),
+                      onTap: () => setState(() => _isMenuOpen = false), 
+                      child: Container(
+                        color: Colors.black.withValues(alpha: 0.85),
+                        width: double.infinity,
+                        height: double.infinity,
+                        child: Center(
+                          child: SingleChildScrollView(
+                            physics: const BouncingScrollPhysics(),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                _buildMenuIcon(Icons.casino, "Rolar Dado", () { setState(() => _isMenuOpen = false); _showDiceDialog(game); }, buttonBgColor, buttonIconColor),
+                                _buildMenuIcon(Icons.shield, "CMD: ${game.startingLife == 40 ? 'ON' : 'OFF'}", () { game.toggleCMDMode(); setState(() => _isMenuOpen = false); }, game.startingLife == 40 ? Colors.green : buttonBgColor, game.startingLife == 40 ? Colors.white : buttonIconColor),
+                                _buildMenuIcon(Icons.replay, "Reiniciar Partida", () { game.resetGame(); setState(() => _isMenuOpen = false); }, buttonBgColor, buttonIconColor),
+                                _buildMenuIcon(Icons.person_add, "Adicionar Jogador", () { if (game.playerCount < 6) game.setPlayerCount(game.playerCount + 1); }, buttonBgColor, buttonIconColor),
+                                _buildMenuIcon(Icons.person_remove, "Remover Jogador", () { if (game.playerCount > 2) { game.setPlayerCount(game.playerCount - 1); } }, buttonBgColor, buttonIconColor),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    )
+                  : const SizedBox.shrink(key: ValueKey("Empty")),
+              )
+
+            ],
+          );
+        }
       ),
     );
+  }
+}
+
+class EdgeTrianglePainter extends CustomPainter {
+  final Color fillColor;
+  final Color borderColor;
+
+  const EdgeTrianglePainter({required this.fillColor, required this.borderColor});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = fillColor
+      ..style = PaintingStyle.fill;
+      
+    final borderPaint = Paint()
+      ..color = borderColor
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.0;
+
+    final path = Path();
+    path.moveTo(size.width, 0);               
+    path.lineTo(0, size.height / 2);          
+    path.lineTo(size.width, size.height);     
+    path.close();
+
+    canvas.drawPath(path, paint);
+    canvas.drawPath(path, borderPaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant EdgeTrianglePainter oldDelegate) {
+    return oldDelegate.fillColor != fillColor || oldDelegate.borderColor != borderColor;
   }
 }
 
@@ -238,6 +406,8 @@ class _CommanderAttackerItem extends StatefulWidget {
   final GameProvider game;
   final BuildContext dialogContext;
   final List<Color> playerColors;
+  final bool isLight;
+  final Color textColor;
   final VoidCallback onStateChanged;
 
   const _CommanderAttackerItem({
@@ -246,6 +416,8 @@ class _CommanderAttackerItem extends StatefulWidget {
     required this.game,
     required this.dialogContext,
     required this.playerColors,
+    required this.isLight,
+    required this.textColor,
     required this.onStateChanged,
   });
 
@@ -292,20 +464,26 @@ class _CommanderAttackerItemState extends State<_CommanderAttackerItem> {
   Widget build(BuildContext context) {
     if (widget.attackerIndex == widget.victimIndex) return const SizedBox.shrink();
     int dmg = widget.game.commanderDamage[widget.victimIndex][widget.attackerIndex];
-    Color dmgColor = dmg >= 21 ? Colors.redAccent : (dmg >= 15 ? Colors.orangeAccent : Colors.white);
+    
+    Color dmgColor = dmg >= 21 
+        ? Colors.redAccent 
+        : (dmg >= 15 ? Colors.orangeAccent : widget.textColor);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.05), borderRadius: BorderRadius.circular(16)),
+      decoration: BoxDecoration(
+        color: widget.isLight ? Colors.black.withValues(alpha: 0.05) : Colors.white.withValues(alpha: 0.05), 
+        borderRadius: BorderRadius.circular(16)
+      ),
       child: Row(
         children: [
           CircleAvatar(backgroundColor: widget.playerColors[widget.attackerIndex], radius: 8),
           const SizedBox(width: 12),
-          Expanded(child: Text(widget.game.playerNames[widget.attackerIndex], style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis)),
-          ContinuousActionButton(onTap: () { if (dmg > 0) _changeCmdDmg(-1); }, onHoldAction: () { if (widget.game.commanderDamage[widget.victimIndex][widget.attackerIndex] > 0) _changeCmdDmg(-1); }, padding: const EdgeInsets.symmetric(horizontal: 4.0), child: const Icon(Icons.remove_circle, color: Colors.white54, size: 40)),
+          Expanded(child: Text(widget.game.playerNames[widget.attackerIndex], style: TextStyle(color: widget.textColor, fontSize: 18, fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis)),
+          ContinuousActionButton(onTap: () { if (dmg > 0) _changeCmdDmg(-1); }, onHoldAction: () { if (widget.game.commanderDamage[widget.victimIndex][widget.attackerIndex] > 0) _changeCmdDmg(-1); }, padding: const EdgeInsets.symmetric(horizontal: 4.0), child: Icon(Icons.remove_circle, color: widget.textColor.withValues(alpha: 0.5), size: 40)),
           SizedBox(width: 50, child: Center(child: Text("$dmg", style: TextStyle(color: dmgColor, fontSize: 28, fontWeight: FontWeight.bold)))),
-          ContinuousActionButton(onTap: () => _changeCmdDmg(1), onHoldAction: () => _changeCmdDmg(1), padding: const EdgeInsets.symmetric(horizontal: 4.0), child: const Icon(Icons.add_circle, color: Colors.white54, size: 40)),
+          ContinuousActionButton(onTap: () => _changeCmdDmg(1), onHoldAction: () => _changeCmdDmg(1), padding: const EdgeInsets.symmetric(horizontal: 4.0), child: Icon(Icons.add_circle, color: widget.textColor.withValues(alpha: 0.5), size: 40)),
         ],
       ),
     );
@@ -333,17 +511,26 @@ class _DiceDialogState extends State<_DiceDialog> {
     });
   }
   @override void dispose() { _audio.dispose(); super.dispose(); }
-  @override Widget build(BuildContext context) {
+  
+  @override 
+  Widget build(BuildContext context) {
     int maxVal = _rolling ? 0 : _vals.reduce(max);
-    return Dialog(backgroundColor: const Color(0xFF1E1E24), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+    final theme = Provider.of<ThemeProvider>(context);
+    final bgColor = theme.backgroundColor;
+    final isLight = bgColor.computeLuminance() > 0.5;
+    final textColor = isLight ? Colors.black87 : Colors.white;
+
+    return Dialog(
+      backgroundColor: bgColor, 
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: Padding(padding: const EdgeInsets.all(24), child: Column(mainAxisSize: MainAxisSize.min, children: [
-            const Text("Rolar Dados", style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)), const SizedBox(height: 20),
+            Text("Rolar Dados", style: TextStyle(color: textColor, fontSize: 20, fontWeight: FontWeight.bold)), const SizedBox(height: 20),
             Wrap(spacing: 20, runSpacing: 20, alignment: WrapAlignment.center, children: List.generate(widget.playerCount, (i) {
                 bool isWinner = !_rolling && _vals[i] == maxVal;
                 return AnimatedScale(scale: isWinner ? 1.3 : (!_rolling ? 0.8 : 1.0), duration: const Duration(milliseconds: 400), curve: Curves.easeOutBack,
                   child: AnimatedOpacity(opacity: (!_rolling && !isWinner) ? 0.4 : 1.0, duration: const Duration(milliseconds: 400),
                     child: Column(mainAxisSize: MainAxisSize.min, children: [
-                        Stack(alignment: Alignment.center, children: [Icon(Icons.hexagon, size: 80, color: _rolling ? Colors.white.withValues(alpha: 0.1) : widget.playerColors[i]), Text("${_vals[i]}", style: TextStyle(color: _rolling ? Colors.white : Colors.black, fontSize: 30, fontWeight: FontWeight.bold))]),
+                        Stack(alignment: Alignment.center, children: [Icon(Icons.hexagon, size: 80, color: _rolling ? textColor.withValues(alpha: 0.1) : widget.playerColors[i]), Text("${_vals[i]}", style: TextStyle(color: _rolling ? textColor : Colors.black, fontSize: 30, fontWeight: FontWeight.bold))]),
                         const SizedBox(height: 5), Text(widget.playerNames[i], style: TextStyle(color: widget.playerColors[i], fontSize: 14, fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis),
                       ],
                     ),
@@ -358,15 +545,4 @@ class _DiceDialogState extends State<_DiceDialog> {
       ),
     );
   }
-}
-
-class GoogleD20IconPainter extends CustomPainter {
-  final Color color; GoogleD20IconPainter({required this.color});
-  @override void paint(Canvas canvas, Size size) {
-    final p = Paint()..color = color..style = PaintingStyle.stroke..strokeWidth = 2;
-    final path = Path();
-    path.moveTo(size.width/2, 0); path.lineTo(size.width, size.height*0.25); path.lineTo(size.width, size.height*0.75); path.lineTo(size.width/2, size.height); path.lineTo(0, size.height*0.75); path.lineTo(0, size.height*0.25); path.close(); path.moveTo(size.width/2, 0); path.lineTo(size.width/2, size.height);
-    canvas.drawPath(path, p);
-  }
-  @override bool shouldRepaint(CustomPainter oldDelegate) => false;
 }

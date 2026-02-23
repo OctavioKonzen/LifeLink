@@ -7,11 +7,14 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_svg/flutter_svg.dart'; 
 import 'card_detail_screen.dart';
 import '../../../data/providers/theme_provider.dart';
-import '../../../data/providers/deck_provider.dart'; // Importação do seu provider de decks
+import '../../../data/providers/deck_provider.dart'; 
+import '../../widgets/custom_back_button.dart'; // <-- IMPORT DO NOSSO BOTÃO
 
 class CardSearchScreen extends StatefulWidget {
   final int? targetDeckIndex; 
-  const CardSearchScreen({super.key, this.targetDeckIndex});
+  final int? replaceCardIndex;
+
+  const CardSearchScreen({super.key, this.targetDeckIndex, this.replaceCardIndex});
 
   @override
   State<CardSearchScreen> createState() => _CardSearchScreenState();
@@ -34,7 +37,6 @@ class _CardSearchScreenState extends State<CardSearchScreen> {
   final List<String> _selectedColors = []; 
   String? _selectedSet; 
 
-  // CABEÇALHO OBRIGATÓRIO DO SCRYFALL (Evita bloqueios)
   final Map<String, String> _scryfallHeaders = {
     'User-Agent': 'LifelinkApp/1.0',
     'Accept': '*/*'
@@ -70,7 +72,9 @@ class _CardSearchScreenState extends State<CardSearchScreen> {
         final data = jsonDecode(response.body);
         final List setsData = data['data'];
         if (mounted) {
-          setState(() => _allSets = setsData.map((s) => {'code': s['code'].toString(), 'name': s['name'].toString()}).toList());
+          setState(() {
+            _allSets = setsData.map((s) => {'code': s['code'].toString(), 'name': s['name'].toString()}).toList();
+          });
         }
       }
     } catch (e) { 
@@ -79,7 +83,10 @@ class _CardSearchScreenState extends State<CardSearchScreen> {
   }
 
   Future<void> _performSearch(String queryText) async {
-    if (!mounted) return;
+    if (!mounted) {
+      return;
+    }
+    
     setState(() {
       _isLoading = true;
       _searchResults = [];
@@ -109,7 +116,11 @@ class _CardSearchScreenState extends State<CardSearchScreen> {
   }
 
   Future<void> _fetchFromScryfall(String url, {bool isNextPage = false}) async {
-    if (isNextPage) setState(() => _isLoading = true);
+    if (isNextPage) {
+      setState(() {
+        _isLoading = true;
+      });
+    }
     
     try {
       final response = await http.get(Uri.parse(url), headers: _scryfallHeaders).timeout(const Duration(seconds: 15));
@@ -136,22 +147,18 @@ class _CardSearchScreenState extends State<CardSearchScreen> {
               'mana_cost': card['mana_cost'] ?? '',
               'type_line': card['type_line'] ?? '',
               'oracle_text': card['oracle_text'] ?? '',
+              'oracle_id': card['oracle_id'], 
               'setName': card['set_name'],
             });
           }
         }
         
         if (mounted) {
-          // ==========================================
-          // FILTRO MÁGICO: OCULTA CARTAS JÁ NO DECK
-          // ==========================================
-          if (widget.targetDeckIndex != null) {
+          if (widget.targetDeckIndex != null && widget.replaceCardIndex == null) {
             final deckProvider = context.read<DeckProvider>();
             if (widget.targetDeckIndex! < deckProvider.allDecks.length) {
               final existingCards = deckProvider.allDecks[widget.targetDeckIndex!].cards;
               final existingNames = existingCards.map((c) => c['name']?.toString() ?? '').toSet();
-              
-              // Remove as cartas que já estão na lista do deck
               newCards.removeWhere((card) => existingNames.contains(card['name']));
             }
           }
@@ -168,17 +175,17 @@ class _CardSearchScreenState extends State<CardSearchScreen> {
         }
       } else {
         if (mounted) {
-          setState(() {
-            _isLoading = false;
-            _errorMessage = "Scryfall bloqueou o acesso (Erro ${response.statusCode}).";
+          setState(() { 
+            _isLoading = false; 
+            _errorMessage = "Scryfall bloqueou o acesso."; 
           });
         }
       }
     } catch (e) { 
       if (mounted) {
-        setState(() {
-          _isLoading = false;
-          _errorMessage = "Erro de conexão: Não foi possível acessar a internet.";
+        setState(() { 
+          _isLoading = false; 
+          _errorMessage = "Erro de conexão."; 
         });
       }
     }
@@ -209,7 +216,11 @@ class _CardSearchScreenState extends State<CardSearchScreen> {
                     return GestureDetector(
                       onTap: () {
                         setModalState(() {
-                          isSel ? _selectedColors.remove(mana) : _selectedColors.add(mana);
+                          if (isSel) {
+                            _selectedColors.remove(mana);
+                          } else {
+                            _selectedColors.add(mana);
+                          }
                         });
                       },
                       child: Container(
@@ -258,7 +269,11 @@ class _CardSearchScreenState extends State<CardSearchScreen> {
                 child: Row(children: [
                   Expanded(child: OutlinedButton(
                     onPressed: () {
-                      setState(() { _selectedTypes.clear(); _selectedColors.clear(); _selectedSet = null; });
+                      setState(() { 
+                        _selectedTypes.clear(); 
+                        _selectedColors.clear(); 
+                        _selectedSet = null; 
+                      });
                       Navigator.pop(context);
                       _performSearch("");
                     }, 
@@ -293,7 +308,15 @@ class _CardSearchScreenState extends State<CardSearchScreen> {
           return FilterChip(
             label: Text(t, style: TextStyle(color: isSel ? Colors.white : textColor)),
             selected: isSel,
-            onSelected: (v) => setModalState(() => v ? _selectedTypes.add(t) : _selectedTypes.remove(t)),
+            onSelected: (v) {
+              setModalState(() {
+                if (v) {
+                  _selectedTypes.add(t);
+                } else {
+                  _selectedTypes.remove(t);
+                }
+              });
+            },
             selectedColor: Colors.blueAccent,
             checkmarkColor: Colors.white,
           );
@@ -311,7 +334,15 @@ class _CardSearchScreenState extends State<CardSearchScreen> {
         return ListTile(
           title: Text(set['name']!, style: TextStyle(color: isSel ? Colors.blueAccent : textColor)),
           trailing: isSel ? const Icon(Icons.check_circle, color: Colors.blueAccent) : null,
-          onTap: () => setModalState(() => _selectedSet = isSel ? null : set['code']),
+          onTap: () {
+            setModalState(() {
+              if (isSel) {
+                _selectedSet = null;
+              } else {
+                _selectedSet = set['code'];
+              }
+            });
+          },
         );
       },
     );
@@ -325,12 +356,13 @@ class _CardSearchScreenState extends State<CardSearchScreen> {
     return Scaffold(
       backgroundColor: theme.backgroundColor,
       appBar: AppBar(
+        automaticallyImplyLeading: false, // REMOVE A SETA
         backgroundColor: Colors.transparent, elevation: 0,
         title: TextField(
           controller: _searchController,
           style: TextStyle(color: textColor),
           decoration: InputDecoration(
-            hintText: "Buscar carta...",
+            hintText: widget.replaceCardIndex != null ? "Buscar substituta..." : "Buscar carta...",
             hintStyle: TextStyle(color: textColor.withValues(alpha: 0.5)),
             border: InputBorder.none,
             prefixIcon: Icon(Icons.search, color: textColor.withValues(alpha: 0.5)),
@@ -341,40 +373,57 @@ class _CardSearchScreenState extends State<CardSearchScreen> {
           },
         ),
       ),
-      body: _isLoading && _searchResults.isEmpty && _errorMessage == null 
-        ? const Center(child: CircularProgressIndicator()) 
-        : _errorMessage != null 
-          ? Center(child: Padding(
-              padding: const EdgeInsets.all(20.0),
-              child: Text(_errorMessage!, style: const TextStyle(color: Colors.redAccent, fontSize: 16, fontWeight: FontWeight.bold), textAlign: TextAlign.center),
-            ))
-          : _searchResults.isEmpty 
-            ? const Center(child: Text("Nenhuma carta encontrada"))
-            : GridView.builder(
-                controller: _scrollController,
-                padding: const EdgeInsets.all(12),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 3, childAspectRatio: 0.68, crossAxisSpacing: 10, mainAxisSpacing: 10),
-                itemCount: _searchResults.length + (_hasMore ? 1 : 0),
-                itemBuilder: (context, index) {
-                  if (index == _searchResults.length) return const Center(child: CircularProgressIndicator());
-                  final card = _searchResults[index];
-                  return GestureDetector(
-                    onTap: () => Navigator.push(context, MaterialPageRoute(
-                      builder: (context) => CardDetailScreen(card: card, targetDeckIndex: widget.targetDeckIndex)
-                    )),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(10),
-                      child: CachedNetworkImage(
-                        imageUrl: card['imageUrl'], 
-                        httpHeaders: const {'User-Agent': 'LifelinkApp/1.0', 'Accept': '*/*'},
-                        fit: BoxFit.cover,
-                        placeholder: (c, u) => Container(color: Colors.black12),
-                        errorWidget: (c, u, e) => const Icon(Icons.broken_image, color: Colors.grey),
-                      ),
+      // STACK PARA SOBREPOR O BOTÃO
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: _isLoading && _searchResults.isEmpty && _errorMessage == null 
+              ? const Center(child: CircularProgressIndicator()) 
+              : _errorMessage != null 
+                ? Center(child: Padding(
+                    padding: const EdgeInsets.all(20.0),
+                    child: Text(_errorMessage!, style: const TextStyle(color: Colors.redAccent, fontSize: 16, fontWeight: FontWeight.bold), textAlign: TextAlign.center),
+                  ))
+                : _searchResults.isEmpty 
+                  ? const Center(child: Text("Nenhuma carta encontrada"))
+                  : GridView.builder(
+                      controller: _scrollController,
+                      padding: const EdgeInsets.all(12),
+                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 3, childAspectRatio: 0.68, crossAxisSpacing: 10, mainAxisSpacing: 10),
+                      itemCount: _searchResults.length + (_hasMore ? 1 : 0),
+                      itemBuilder: (context, index) {
+                        if (index == _searchResults.length) {
+                          return const Center(child: CircularProgressIndicator());
+                        }
+                        
+                        final card = _searchResults[index];
+                        return GestureDetector(
+                          onTap: () {
+                            Navigator.push(context, MaterialPageRoute(
+                              builder: (context) => CardDetailScreen(
+                                card: card, 
+                                targetDeckIndex: widget.targetDeckIndex,
+                                replaceCardIndex: widget.replaceCardIndex, 
+                              )
+                            ));
+                          },
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(10),
+                            child: CachedNetworkImage(
+                              imageUrl: card['imageUrl'], 
+                              httpHeaders: const {'User-Agent': 'LifelinkApp/1.0', 'Accept': '*/*'},
+                              fit: BoxFit.cover,
+                              placeholder: (c, u) => Container(color: Colors.black12),
+                              errorWidget: (c, u, e) => const Icon(Icons.broken_image, color: Colors.grey),
+                            ),
+                          ),
+                        );
+                      },
                     ),
-                  );
-                },
-              ),
+          ),
+          const CustomBackButton(), // O NOSSO BOTÃO!
+        ],
+      ),
       floatingActionButton: FloatingActionButton(
         backgroundColor: Colors.blueAccent,
         onPressed: () => _showFilters(context, theme.backgroundColor, textColor),
