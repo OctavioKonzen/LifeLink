@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../../data/providers/deck_provider.dart';
 import '../../../data/providers/theme_provider.dart';
+import '../../../data/providers/xp_provider.dart'; // IMPORT DO XP PROVIDER
 import 'deck_detail_screen.dart';
 import 'community_decks_screen.dart'; 
 import '../../widgets/custom_back_button.dart';
@@ -82,6 +83,10 @@ class _MyDecksScreenState extends State<MyDecksScreen> {
               onPressed: () {
                 if (nameController.text.trim().isNotEmpty) {
                   context.read<DeckProvider>().createDeck(nameController.text.trim(), selectedType);
+                  
+                  // GATILHO: AUMENTA CONTADOR DE DECKS CRIADOS
+                  context.read<XpProvider>().incrementDecksCreated();
+                  
                   Navigator.pop(ctx);
                 }
               },
@@ -100,7 +105,6 @@ class _MyDecksScreenState extends State<MyDecksScreen> {
     final isLight = theme.backgroundColor.computeLuminance() > 0.5;
     final textColor = isLight ? Colors.black87 : Colors.white;
 
-    // A MÁGICA DE CENTRALIZAÇÃO: O Stack agora envolve o Scaffold todo!
     return Stack(
       children: [
         Scaffold(
@@ -141,7 +145,6 @@ class _MyDecksScreenState extends State<MyDecksScreen> {
             },
           ),
         ),
-        // O Botão fica aqui fora e centraliza no ecrã todo independentemente de AppBars!
         const Material(
           type: MaterialType.transparency,
           child: CustomBackButton(),

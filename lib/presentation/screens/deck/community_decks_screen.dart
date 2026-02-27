@@ -55,7 +55,6 @@ class _CommunityDecksScreenState extends State<CommunityDecksScreen> {
     List<String> urlsToTry = kIsWeb 
       ? [
           'https://api.allorigins.win/raw?url=${Uri.encodeComponent(url)}',
-          'https://api.codetabs.com/v1/proxy?quest=${Uri.encodeComponent(url)}',
           'https://corsproxy.io/?${Uri.encodeComponent(url)}',
         ]
       : [url];
@@ -71,10 +70,16 @@ class _CommunityDecksScreenState extends State<CommunityDecksScreen> {
         continue;
       }
     }
-    throw Exception("Falha em todos os caminhos de rede");
+    throw Exception("Falha de rede");
   }
 
   Future<void> _fetchOfficialDecks() async {
+    if (!mounted) return;
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
     try {
       final response = await _fetchWithRetry('https://mtgjson.com/api/v5/DeckList.json');
       final data = jsonDecode(response.body);
@@ -86,11 +91,11 @@ class _CommunityDecksScreenState extends State<CommunityDecksScreen> {
 
       for (var deck in allDecks) {
         final type = (deck['type'] ?? '').toString().toLowerCase();
-        if (type.contains('secret lair')) {
-          continue;
-        }
+        final name = (deck['name'] ?? '').toString().toLowerCase();
 
-        if (type.contains('commander')) {
+        if (name.contains('avatar') || name.contains('aang') || name.contains('zuko') || type.contains('secret lair')) {
+          others.add(deck);
+        } else if (type.contains('commander')) {
           commander.add(deck);
         } else if (type.contains('challenger')) {
           challenger.add(deck);
@@ -99,15 +104,10 @@ class _CommunityDecksScreenState extends State<CommunityDecksScreen> {
         }
       }
 
-      int compareDecks(dynamic a, dynamic b) {
-        final dateA = (a['releaseDate'] ?? '').toString();
-        final dateB = (b['releaseDate'] ?? '').toString();
-        return dateB.compareTo(dateA);
-      }
-
-      commander.sort(compareDecks);
-      challenger.sort(compareDecks);
-      others.sort(compareDecks);
+      int compare(a, b) => (b['releaseDate'] ?? '').toString().compareTo((a['releaseDate'] ?? '').toString());
+      commander.sort(compare);
+      challenger.sort(compare);
+      others.sort(compare);
 
       if (mounted) {
         setState(() {
@@ -119,7 +119,10 @@ class _CommunityDecksScreenState extends State<CommunityDecksScreen> {
       }
     } catch (e) {
       if (mounted) {
-        setState(() { _errorMessage = "Erro de conexão."; _isLoading = false; });
+        setState(() { 
+          _errorMessage = "Erro ao carregar lista de decks.\nVerifique sua conexão."; 
+          _isLoading = false; 
+        });
       }
     }
   }
@@ -133,24 +136,19 @@ class _CommunityDecksScreenState extends State<CommunityDecksScreen> {
   }
 
   Future<void> _processQueue() async {
-    if (_isProcessingQueue) {
-      return;
-    }
+    if (_isProcessingQueue) return;
     _isProcessingQueue = true;
-
     while (_queue.isNotEmpty) {
       if (!mounted) {
         break;
       }
       String fileName = _queue.removeAt(0);
       _loadingCovers.add(fileName);
-
       try {
         final response = await _fetchWithRetry('https://mtgjson.com/api/v5/decks/$fileName.json');
         final data = jsonDecode(response.body)['data'];
         List<String> foundUrls = [];
         List<dynamic> candidates = [...(data['commander'] ?? []), ...(data['mainBoard'] ?? [])];
-
         for (var item in candidates) {
           if (foundUrls.length >= 3) {
             break;
@@ -160,22 +158,20 @@ class _CommunityDecksScreenState extends State<CommunityDecksScreen> {
             foundUrls.add('https://cards.scryfall.io/normal/front/${id[0]}/${id[1]}/$id.jpg');
           }
         }
-        while (foundUrls.length < 3) { 
-          foundUrls.add(_cardBackUrl); 
+        while (foundUrls.length < 3) {
+          foundUrls.add(_cardBackUrl);
         }
-
         if (mounted) {
-          setState(() { _coverCache[fileName] = foundUrls; });
+          setState(() => _coverCache[fileName] = foundUrls);
         }
       } catch (_) {}
-      await Future.delayed(const Duration(milliseconds: 400));
+      await Future.delayed(const Duration(milliseconds: 300));
     }
     _isProcessingQueue = false;
   }
 
   List<dynamic> _getFilteredDecks() {
     List<dynamic> baseList;
-    
     if (_selectedCategory == 0) {
       baseList = _commanderDecks;
     } else if (_selectedCategory == 1) {
@@ -184,14 +180,8 @@ class _CommunityDecksScreenState extends State<CommunityDecksScreen> {
       baseList = _otherDecks;
     }
 
-    if (_searchQuery.isEmpty) {
-      return baseList;
-    }
-
-    return baseList.where((deck) {
-      final name = (deck['name'] ?? '').toString().toLowerCase();
-      return name.contains(_searchQuery.toLowerCase());
-    }).toList();
+    if (_searchQuery.isEmpty) return baseList;
+    return baseList.where((deck) => deck['name'].toString().toLowerCase().contains(_searchQuery.toLowerCase())).toList();
   }
 
   @override
@@ -201,7 +191,6 @@ class _CommunityDecksScreenState extends State<CommunityDecksScreen> {
     final textColor = isLight ? Colors.black87 : Colors.white;
     final filteredDecks = _getFilteredDecks();
 
-    // A MÁGICA: Stack englobando o Scaffold inteiro
     return Stack(
       children: [
         Scaffold(
@@ -229,48 +218,35 @@ class _CommunityDecksScreenState extends State<CommunityDecksScreen> {
                         filled: true,
                         fillColor: isLight ? Colors.black.withValues(alpha: 0.05) : Colors.white.withValues(alpha: 0.05),
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none),
-                        contentPadding: const EdgeInsets.symmetric(vertical: 0),
                       ),
                       onChanged: (val) => setState(() => _searchQuery = val),
                     ),
                   ),
-                  
                   _buildCategorySelector(textColor),
-                  
                   Expanded(
                     child: _errorMessage != null
-                      ? Center(child: Text(_errorMessage!))
+                      ? Center(child: Text(_errorMessage!, textAlign: TextAlign.center, style: TextStyle(color: textColor)))
                       : filteredDecks.isEmpty
                         ? Center(child: Text("Nenhum deck encontrado.", style: TextStyle(color: textColor.withValues(alpha: 0.5))))
                         : GridView.builder(
                             padding: const EdgeInsets.all(16),
                             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: 2, 
-                              childAspectRatio: 0.75, 
-                              crossAxisSpacing: 16, 
-                              mainAxisSpacing: 16,
+                              crossAxisCount: 2, childAspectRatio: 0.75, crossAxisSpacing: 16, mainAxisSpacing: 16,
                             ),
                             itemCount: filteredDecks.length,
                             itemBuilder: (context, index) {
                               final deck = filteredDecks[index];
-                              final String fileName = deck['fileName'];
-                              if (!_coverCache.containsKey(fileName)) {
-                                _queueDeckCover(fileName);
+                              if (!_coverCache.containsKey(deck['fileName'])) {
+                                _queueDeckCover(deck['fileName']);
                               }
-                              final coverImages = _coverCache[fileName] ?? [_cardBackUrl, _cardBackUrl, _cardBackUrl];
-
-                              return _buildDeckCard(context, deck, coverImages, isLight, textColor);
+                              return _buildDeckCard(context, deck, _coverCache[deck['fileName']] ?? [_cardBackUrl, _cardBackUrl, _cardBackUrl], isLight, textColor);
                             },
                           ),
                   ),
                 ],
               ),
         ),
-        // O Botão fica aqui fora, calculando o centro real!
-        const Material(
-          type: MaterialType.transparency,
-          child: CustomBackButton(),
-        ),
+        const Material(type: MaterialType.transparency, child: CustomBackButton()),
       ],
     );
   }
@@ -285,45 +261,40 @@ class _CommunityDecksScreenState extends State<CommunityDecksScreen> {
           const SizedBox(width: 8),
           _categoryButton("Challenger", 1),
           const SizedBox(width: 8),
-          _categoryButton("Outros", 2),
+          _categoryButton("Avatar / Outros", 2),
         ],
       ),
     );
   }
 
   Widget _categoryButton(String label, int index) {
-    bool isSelected = _selectedCategory == index;
+    bool sel = _selectedCategory == index;
     return GestureDetector(
       onTap: () => setState(() => _selectedCategory = index),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 250),
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
         decoration: BoxDecoration(
-          color: isSelected ? Colors.blueAccent : Colors.blueAccent.withValues(alpha: 0.1),
+          color: sel ? Colors.blueAccent : Colors.blueAccent.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(25),
         ),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: isSelected ? Colors.white : Colors.blueAccent,
-            fontWeight: FontWeight.bold,
-            fontSize: 13,
-          ),
-        ),
+        child: Text(label, style: TextStyle(color: sel ? Colors.white : Colors.blueAccent, fontWeight: FontWeight.bold, fontSize: 13)),
       ),
     );
   }
 
   Widget _buildDeckCard(BuildContext context, dynamic deck, List<String> coverImages, bool isLight, Color textColor) {
     return GestureDetector(
-      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => CommunityDeckDetailScreen(deckData: deck))),
+      onTap: () {
+        Navigator.push(context, MaterialPageRoute(builder: (_) => CommunityDeckDetailScreen(
+          deckData: deck,
+        )));
+      },
       child: Container(
         decoration: BoxDecoration(
           color: isLight ? Colors.white : const Color(0xFF2A2A35),
           borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 10)
-          ]
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 10)]
         ),
         child: Column(
           children: [
@@ -333,10 +304,7 @@ class _CommunityDecksScreenState extends State<CommunityDecksScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(deck['name'] ?? "Deck", 
-                      style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 11), 
-                      maxLines: 1, 
-                      overflow: TextOverflow.ellipsis),
+                  Text(deck['name'] ?? "Deck", style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 11), maxLines: 1, overflow: TextOverflow.ellipsis),
                   Text(deck['releaseDate'] ?? "", style: const TextStyle(fontSize: 9, color: Colors.grey)),
                 ],
               ),

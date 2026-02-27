@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'data/providers/theme_provider.dart';
 import 'data/providers/game_provider.dart';
 import 'data/providers/deck_provider.dart';
+import 'data/providers/xp_provider.dart'; // ADICIONADO O XP PROVIDER AQUI
 
 // Importação dos Ecrãs (Screens)
 import 'presentation/screens/home/home_screen.dart'; 
@@ -26,6 +27,7 @@ void main() async {
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
         ChangeNotifierProvider(create: (_) => GameProvider()),
         ChangeNotifierProvider(create: (_) => DeckProvider()),
+        ChangeNotifierProvider(create: (_) => XpProvider()), // REGISTRADO AQUI
       ],
       child: const MyApp(),
     ),

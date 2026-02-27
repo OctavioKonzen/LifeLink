@@ -8,7 +8,8 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'card_detail_screen.dart';
 import '../../../data/providers/theme_provider.dart';
 import '../../../data/providers/deck_provider.dart'; 
-import '../../widgets/custom_back_button.dart'; // <-- IMPORT DO NOSSO BOTÃO
+import '../../../data/providers/xp_provider.dart'; // IMPORT DO XP PROVIDER
+import '../../widgets/custom_back_button.dart';
 
 class CardSearchScreen extends StatefulWidget {
   final int? targetDeckIndex; 
@@ -37,6 +38,31 @@ class _CardSearchScreenState extends State<CardSearchScreen> {
   final List<String> _selectedColors = []; 
   String? _selectedSet; 
 
+  List<String> _apiCardTypes = [
+    "Artifact", "Battle", "Creature", "Enchantment", "Instant", "Land", "Planeswalker", "Sorcery", 
+    "Basic", "Legendary", "Ongoing", "Snow", "World"
+  ];
+  List<String> _apiCreatureTypes = [
+    "Alien", "Angel", "Archer", "Artificer", "Assassin", "Avatar", "Barbarian", "Bear", "Beast", 
+    "Bird", "Boar", "Cat", "Centaur", "Cleric", "Construct", "Demon", "Dinosaur", "Dog", "Dragon", 
+    "Drake", "Druid", "Dwarf", "Eldrazi", "Elemental", "Elephant", "Elf", "Faerie", "Fish", "Fox", 
+    "Frog", "Fungus", "Giant", "God", "Golem", "Goblin", "Griffin", "Human", "Hydra", "Illusion", 
+    "Insect", "Juggernaut", "Kavu", "Kithkin", "Knight", "Kor", "Kraken", "Leviathan", "Lizard", 
+    "Manticore", "Mercenary", "Merfolk", "Minotaur", "Monk", "Mutant", "Myr", "Mystic", "Naga", 
+    "Ninja", "Noble", "Ogre", "Ooze", "Orc", "Pegasus", "Phyrexian", "Pilot", "Pirate", "Plant", 
+    "Ranger", "Rat", "Rebel", "Rogue", "Samurai", "Scout", "Shaman", "Shapeshifter", "Skeleton", 
+    "Slime", "Sliver", "Soldier", "Soltari", "Sphinx", "Spider", "Spirit", "Squirrel", "Thopter", 
+    "Treefolk", "Troll", "Turtle", "Unicorn", "Vampire", "Vedalken", "Wall", "Warrior", "Weird", 
+    "Werewolf", "Whale", "Wizard", "Wolf", "Wolverine", "Wurm", "Zombie"
+  ];
+  List<String> _apiOtherTypes = [
+    "Adventure", "Arcane", "Attraction", "Aura", "Background", "Blood", "Bobblehead", 
+    "Cartouche", "Clash", "Class", "Clue", "Contraption", "Curse", "Desert", "Equipment", 
+    "Food", "Fortification", "Gate", "Gold", "Incubator", "Junk", "Lair", "Lesson", 
+    "Locus", "Map", "Mine", "Power-Plant", "Powerstone", "Role", "Rune", "Saga", "Shard", 
+    "Shrine", "Sphere", "Tower", "Trap", "Treasure", "Urza's", "Vehicle"
+  ];
+
   final Map<String, String> _scryfallHeaders = {
     'User-Agent': 'LifelinkApp/1.0',
     'Accept': '*/*'
@@ -45,7 +71,7 @@ class _CardSearchScreenState extends State<CardSearchScreen> {
   @override
   void initState() {
     super.initState();
-    _fetchSets();
+    _fetchFiltersData(); 
     _performSearch(""); 
     
     _scrollController.addListener(() {
@@ -63,6 +89,36 @@ class _CardSearchScreenState extends State<CardSearchScreen> {
     _searchController.dispose();
     _scrollController.dispose();
     super.dispose();
+  }
+
+  Future<void> _fetchFiltersData() async {
+    _fetchSets(); 
+    
+    try {
+      final responses = await Future.wait([
+        http.get(Uri.parse('https://api.scryfall.com/catalog/supertypes'), headers: _scryfallHeaders),
+        http.get(Uri.parse('https://api.scryfall.com/catalog/card-types'), headers: _scryfallHeaders),
+        http.get(Uri.parse('https://api.scryfall.com/catalog/creature-types'), headers: _scryfallHeaders),
+        http.get(Uri.parse('https://api.scryfall.com/catalog/artifact-types'), headers: _scryfallHeaders),
+        http.get(Uri.parse('https://api.scryfall.com/catalog/enchantment-types'), headers: _scryfallHeaders),
+      ]);
+
+      if (mounted) {
+        setState(() {
+          _apiCardTypes = [
+            ...jsonDecode(responses[0].body)['data'],
+            ...jsonDecode(responses[1].body)['data'],
+          ];
+          _apiCreatureTypes = List<String>.from(jsonDecode(responses[2].body)['data']);
+          _apiOtherTypes = [
+            ...jsonDecode(responses[3].body)['data'],
+            ...jsonDecode(responses[4].body)['data'],
+          ];
+        });
+      }
+    } catch (e) {
+      debugPrint("Erro ao carregar catálogos, utilizando a lista base. Erro: $e");
+    }
   }
 
   Future<void> _fetchSets() async {
@@ -83,9 +139,10 @@ class _CardSearchScreenState extends State<CardSearchScreen> {
   }
 
   Future<void> _performSearch(String queryText) async {
-    if (!mounted) {
-      return;
-    }
+    if (!mounted) return;
+    
+    // GATILHO: AUMENTA O CONTADOR DE PESQUISAS DE CARTAS
+    context.read<XpProvider>().incrementSearches();
     
     setState(() {
       _isLoading = true;
@@ -117,9 +174,7 @@ class _CardSearchScreenState extends State<CardSearchScreen> {
 
   Future<void> _fetchFromScryfall(String url, {bool isNextPage = false}) async {
     if (isNextPage) {
-      setState(() {
-        _isLoading = true;
-      });
+      setState(() => _isLoading = true);
     }
     
     try {
@@ -177,7 +232,7 @@ class _CardSearchScreenState extends State<CardSearchScreen> {
         if (mounted) {
           setState(() { 
             _isLoading = false; 
-            _errorMessage = "Scryfall bloqueou o acesso."; 
+            _errorMessage = "Scryfall bloqueou o acesso ou carta não encontrada."; 
           });
         }
       }
@@ -257,8 +312,9 @@ class _CardSearchScreenState extends State<CardSearchScreen> {
                 child: PageView(
                   controller: pageController,
                   children: [
-                    _buildPage("Principais", ["Legendary", "Creature", "Artifact", "Enchantment", "Instant", "Sorcery", "Land", "Planeswalker", "Battle", "Snow"], setModalState, textColor),
-                    _buildPage("Raças", ["Dragon", "Elf", "Zombie", "Vampire", "Goblin", "Angel", "Demon", "God", "Sliver", "Eldrazi"], setModalState, textColor),
+                    _buildPage("Tipos & Super Tipos", _apiCardTypes, setModalState, textColor),
+                    _buildPage("Raças (Criaturas)", _apiCreatureTypes, setModalState, textColor),
+                    _buildPage("Artefatos & Encantamentos", _apiOtherTypes, setModalState, textColor),
                     _buildSetsPage(setModalState, textColor),
                   ],
                 ),
@@ -303,10 +359,10 @@ class _CardSearchScreenState extends State<CardSearchScreen> {
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text(title.toUpperCase(), style: const TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold, fontSize: 18)),
         const SizedBox(height: 15),
-        Wrap(spacing: 10, runSpacing: 10, children: options.map((t) {
+        Wrap(spacing: 8, runSpacing: 8, children: options.map((t) {
           bool isSel = _selectedTypes.contains(t);
           return FilterChip(
-            label: Text(t, style: TextStyle(color: isSel ? Colors.white : textColor)),
+            label: Text(t, style: TextStyle(color: isSel ? Colors.white : textColor, fontSize: 13)),
             selected: isSel,
             onSelected: (v) {
               setModalState(() {
@@ -326,25 +382,37 @@ class _CardSearchScreenState extends State<CardSearchScreen> {
   }
 
   Widget _buildSetsPage(StateSetter setModalState, Color textColor) {
-    return ListView.builder(
-      itemCount: _allSets.length,
-      itemBuilder: (context, index) {
-        final set = _allSets[index];
-        bool isSel = _selectedSet == set['code'];
-        return ListTile(
-          title: Text(set['name']!, style: TextStyle(color: isSel ? Colors.blueAccent : textColor)),
-          trailing: isSel ? const Icon(Icons.check_circle, color: Colors.blueAccent) : null,
-          onTap: () {
-            setModalState(() {
-              if (isSel) {
-                _selectedSet = null;
-              } else {
-                _selectedSet = set['code'];
-              }
-            });
-          },
-        );
-      },
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 20),
+          child: Text("EDIÇÕES / SETS", style: TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold, fontSize: 18)),
+        ),
+        const SizedBox(height: 10),
+        Expanded(
+          child: ListView.builder(
+            itemCount: _allSets.length,
+            itemBuilder: (context, index) {
+              final set = _allSets[index];
+              bool isSel = _selectedSet == set['code'];
+              return ListTile(
+                title: Text(set['name']!, style: TextStyle(color: isSel ? Colors.blueAccent : textColor)),
+                trailing: isSel ? const Icon(Icons.check_circle, color: Colors.blueAccent) : null,
+                onTap: () {
+                  setModalState(() {
+                    if (isSel) {
+                      _selectedSet = null;
+                    } else {
+                      _selectedSet = set['code'];
+                    }
+                  });
+                },
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 
@@ -353,82 +421,79 @@ class _CardSearchScreenState extends State<CardSearchScreen> {
     final theme = context.watch<ThemeProvider>();
     final textColor = theme.backgroundColor.computeLuminance() > 0.5 ? Colors.black : Colors.white;
 
-    return Scaffold(
-      backgroundColor: theme.backgroundColor,
-      appBar: AppBar(
-        automaticallyImplyLeading: false, // REMOVE A SETA
-        backgroundColor: Colors.transparent, elevation: 0,
-        title: TextField(
-          controller: _searchController,
-          style: TextStyle(color: textColor),
-          decoration: InputDecoration(
-            hintText: widget.replaceCardIndex != null ? "Buscar substituta..." : "Buscar carta...",
-            hintStyle: TextStyle(color: textColor.withValues(alpha: 0.5)),
-            border: InputBorder.none,
-            prefixIcon: Icon(Icons.search, color: textColor.withValues(alpha: 0.5)),
+    return Stack(
+      children: [
+        Scaffold(
+          backgroundColor: theme.backgroundColor,
+          appBar: AppBar(
+            automaticallyImplyLeading: false, 
+            backgroundColor: Colors.transparent, elevation: 0,
+            title: TextField(
+              controller: _searchController,
+              style: TextStyle(color: textColor),
+              decoration: InputDecoration(
+                hintText: widget.replaceCardIndex != null ? "Buscar substituta..." : "Buscar carta...",
+                hintStyle: TextStyle(color: textColor.withValues(alpha: 0.5)),
+                border: InputBorder.none,
+                prefixIcon: Icon(Icons.search, color: textColor.withValues(alpha: 0.5)),
+              ),
+              onChanged: (v) {
+                _debounce?.cancel();
+                _debounce = Timer(const Duration(milliseconds: 600), () => _performSearch(v));
+              },
+            ),
           ),
-          onChanged: (v) {
-            _debounce?.cancel();
-            _debounce = Timer(const Duration(milliseconds: 600), () => _performSearch(v));
-          },
-        ),
-      ),
-      // STACK PARA SOBREPOR O BOTÃO
-      body: Stack(
-        children: [
-          Positioned.fill(
-            child: _isLoading && _searchResults.isEmpty && _errorMessage == null 
-              ? const Center(child: CircularProgressIndicator()) 
-              : _errorMessage != null 
-                ? Center(child: Padding(
-                    padding: const EdgeInsets.all(20.0),
-                    child: Text(_errorMessage!, style: const TextStyle(color: Colors.redAccent, fontSize: 16, fontWeight: FontWeight.bold), textAlign: TextAlign.center),
-                  ))
-                : _searchResults.isEmpty 
-                  ? const Center(child: Text("Nenhuma carta encontrada"))
-                  : GridView.builder(
-                      controller: _scrollController,
-                      padding: const EdgeInsets.all(12),
-                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 3, childAspectRatio: 0.68, crossAxisSpacing: 10, mainAxisSpacing: 10),
-                      itemCount: _searchResults.length + (_hasMore ? 1 : 0),
-                      itemBuilder: (context, index) {
-                        if (index == _searchResults.length) {
-                          return const Center(child: CircularProgressIndicator());
-                        }
-                        
-                        final card = _searchResults[index];
-                        return GestureDetector(
-                          onTap: () {
-                            Navigator.push(context, MaterialPageRoute(
-                              builder: (context) => CardDetailScreen(
-                                card: card, 
-                                targetDeckIndex: widget.targetDeckIndex,
-                                replaceCardIndex: widget.replaceCardIndex, 
-                              )
-                            ));
-                          },
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(10),
-                            child: CachedNetworkImage(
-                              imageUrl: card['imageUrl'], 
-                              httpHeaders: const {'User-Agent': 'LifelinkApp/1.0', 'Accept': '*/*'},
-                              fit: BoxFit.cover,
-                              placeholder: (c, u) => Container(color: Colors.black12),
-                              errorWidget: (c, u, e) => const Icon(Icons.broken_image, color: Colors.grey),
-                            ),
+          body: _isLoading && _searchResults.isEmpty && _errorMessage == null 
+            ? const Center(child: CircularProgressIndicator()) 
+            : _errorMessage != null 
+              ? Center(child: Padding(
+                  padding: const EdgeInsets.all(20.0),
+                  child: Text(_errorMessage!, style: const TextStyle(color: Colors.redAccent, fontSize: 16, fontWeight: FontWeight.bold), textAlign: TextAlign.center),
+                ))
+              : _searchResults.isEmpty 
+                ? const Center(child: Text("Nenhuma carta encontrada"))
+                : GridView.builder(
+                    controller: _scrollController,
+                    padding: const EdgeInsets.all(12),
+                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 3, childAspectRatio: 0.68, crossAxisSpacing: 10, mainAxisSpacing: 10),
+                    itemCount: _searchResults.length + (_hasMore ? 1 : 0),
+                    itemBuilder: (context, index) {
+                      if (index == _searchResults.length) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
+                      
+                      final card = _searchResults[index];
+                      return GestureDetector(
+                        onTap: () {
+                          Navigator.push(context, MaterialPageRoute(
+                            builder: (context) => CardDetailScreen(
+                              card: card, 
+                              targetDeckIndex: widget.targetDeckIndex,
+                              replaceCardIndex: widget.replaceCardIndex, 
+                            )
+                          ));
+                        },
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(10),
+                          child: CachedNetworkImage(
+                            imageUrl: card['imageUrl'], 
+                            httpHeaders: const {'User-Agent': 'LifelinkApp/1.0', 'Accept': '*/*'},
+                            fit: BoxFit.cover,
+                            placeholder: (c, u) => Container(color: Colors.black12),
+                            errorWidget: (c, u, e) => const Icon(Icons.broken_image, color: Colors.grey),
                           ),
-                        );
-                      },
-                    ),
+                        ),
+                      );
+                    },
+                  ),
+          floatingActionButton: FloatingActionButton(
+            backgroundColor: Colors.blueAccent,
+            onPressed: () => _showFilters(context, theme.backgroundColor, textColor),
+            child: const Icon(Icons.filter_list, color: Colors.white),
           ),
-          const CustomBackButton(), // O NOSSO BOTÃO!
-        ],
-      ),
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: Colors.blueAccent,
-        onPressed: () => _showFilters(context, theme.backgroundColor, textColor),
-        child: const Icon(Icons.filter_list, color: Colors.white),
-      ),
+        ),
+        const CustomBackButton(),
+      ],
     );
   }
 }

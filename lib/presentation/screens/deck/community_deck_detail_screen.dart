@@ -8,11 +8,17 @@ import '../../../data/providers/theme_provider.dart';
 import '../../../data/providers/deck_provider.dart';
 import '../../../data/services/pdf_service.dart';
 import '../search/card_detail_screen.dart'; 
-import '../../widgets/custom_back_button.dart'; // IMPORT DO BOTÃO TRIANGULAR
+import '../../widgets/custom_back_button.dart';
 
 class CommunityDeckDetailScreen extends StatefulWidget {
   final Map<String, dynamic> deckData;
-  const CommunityDeckDetailScreen({super.key, required this.deckData});
+  final String? languageCode; // <-- Recebe a língua selecionada na tela anterior
+
+  const CommunityDeckDetailScreen({
+    super.key, 
+    required this.deckData, 
+    this.languageCode, // <-- Adicionado aqui
+  });
 
   @override
   State<CommunityDeckDetailScreen> createState() => _CommunityDeckDetailScreenState();
@@ -69,6 +75,7 @@ class _CommunityDeckDetailScreenState extends State<CommunityDeckDetailScreen> {
               'setName': item['setCode'] ?? '',
               'collectorNumber': item['number'] ?? '',
               'oracle_id': item['identifiers']?['oracleId'],
+              'usdPrice': '0.00', // <-- Adicionado para evitar erro na aba de preços da CardDetailScreen
             };
 
             for (int i = 0; i < qty; i++) {
@@ -132,86 +139,86 @@ class _CommunityDeckDetailScreenState extends State<CommunityDeckDetailScreen> {
     final isLight = theme.backgroundColor.computeLuminance() > 0.5;
     final textColor = isLight ? Colors.black87 : Colors.white;
 
-    return Scaffold(
-      backgroundColor: theme.backgroundColor,
-      appBar: AppBar(
-        automaticallyImplyLeading: false, // REMOVE A SETA NORMAL
-        backgroundColor: Colors.transparent, 
-        elevation: 0, 
-        iconTheme: IconThemeData(color: textColor),
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(widget.deckData['name'] ?? 'Deck', 
-                style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 16)),
-            if (!_isLoading && _cards.isNotEmpty)
-              Text("${_cards.length} cartas", style: const TextStyle(fontSize: 11, color: Colors.grey)),
-          ],
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.add_to_photos_rounded, color: Colors.greenAccent),
-            tooltip: "Salvar nos Meus Decks",
-            onPressed: _isLoading ? null : _handleSaveDeck,
+    return Stack(
+      children: [
+        Scaffold(
+          backgroundColor: theme.backgroundColor,
+          appBar: AppBar(
+            automaticallyImplyLeading: false, 
+            backgroundColor: Colors.transparent, 
+            elevation: 0, 
+            iconTheme: IconThemeData(color: textColor),
+            title: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(widget.deckData['name'] ?? 'Deck', 
+                    style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 16)),
+                if (!_isLoading && _cards.isNotEmpty)
+                  Text("${_cards.length} cartas", style: const TextStyle(fontSize: 11, color: Colors.grey)),
+              ],
+            ),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.add_to_photos_rounded, color: Colors.greenAccent),
+                tooltip: "Salvar nos Meus Decks",
+                onPressed: _isLoading ? null : _handleSaveDeck,
+              ),
+              IconButton(
+                icon: const Icon(Icons.picture_as_pdf, color: Colors.blueAccent),
+                onPressed: _isLoading ? null : _handleDownloadPdf,
+              ),
+            ],
           ),
-          IconButton(
-            icon: const Icon(Icons.picture_as_pdf, color: Colors.blueAccent),
-            onPressed: _isLoading ? null : _handleDownloadPdf,
-          ),
-        ],
-      ),
-      // STACK PARA SOBREPOR O NOSSO BOTÃO TRIANGULAR AQUI TAMBÉM
-      body: Stack(
-        children: [
-          Positioned.fill(
-            child: _isLoading 
-              ? const Center(child: CircularProgressIndicator())
-              : _errorMessage != null
-                ? Center(child: Text(_errorMessage!, style: const TextStyle(color: Colors.redAccent)))
-                : GridView.builder(
-                    padding: const EdgeInsets.all(16),
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 3, 
-                      childAspectRatio: 0.7, 
-                      crossAxisSpacing: 10, 
-                      mainAxisSpacing: 15,
-                    ),
-                    itemCount: _cards.length,
-                    itemBuilder: (context, index) {
-                      final cardData = _cards[index];
-                      final cardUrl = cardData['imageUrl'] as String;
-                      final gridSafeUrl = kIsWeb ? 'https://wsrv.nl/?url=${Uri.encodeComponent(cardUrl)}&w=300' : cardUrl;
+          body: _isLoading 
+            ? const Center(child: CircularProgressIndicator())
+            : _errorMessage != null
+              ? Center(child: Text(_errorMessage!, style: const TextStyle(color: Colors.redAccent)))
+              : GridView.builder(
+                  padding: const EdgeInsets.all(16),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 3, 
+                    childAspectRatio: 0.7, 
+                    crossAxisSpacing: 10, 
+                    mainAxisSpacing: 15,
+                  ),
+                  itemCount: _cards.length,
+                  itemBuilder: (context, index) {
+                    final cardData = _cards[index];
+                    final cardUrl = cardData['imageUrl'] as String;
+                    // O proxy na grid continua para não sobrecarregar a memória
+                    final gridSafeUrl = kIsWeb ? 'https://wsrv.nl/?url=${Uri.encodeComponent(cardUrl)}&w=300' : cardUrl;
 
-                      return GestureDetector(
-                        onTap: () {
-                          final Map<String, dynamic> safeCardData = Map.from(cardData);
-                          if (kIsWeb) {
-                            safeCardData['imageUrl'] = 'https://wsrv.nl/?url=${Uri.encodeComponent(cardUrl)}&w=800';
-                          }
-                          Navigator.push(context, MaterialPageRoute(builder: (context) => CardDetailScreen(card: safeCardData)));
-                        },
-                        child: Container(
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(8),
-                            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 5)],
-                          ),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(8),
-                            child: CachedNetworkImage(
-                              imageUrl: gridSafeUrl,
-                              fit: BoxFit.cover,
-                              placeholder: (context, url) => Container(color: Colors.black12),
-                              errorWidget: (context, url, error) => const Icon(Icons.broken_image, color: Colors.grey),
-                            ),
+                    return GestureDetector(
+                      onTap: () {
+                        final Map<String, dynamic> safeCardData = Map.from(cardData);
+                        
+                        // CORREÇÃO: Removemos a dupla codificação kIsWeb daqui.
+                        // Passamos a URL original e a CardDetailScreen se encarrega de usar o proxy com segurança.
+                        safeCardData['imageUrl'] = cardUrl; 
+                        
+                        Navigator.push(context, MaterialPageRoute(builder: (context) => CardDetailScreen(card: safeCardData)));
+                      },
+                      child: Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(8),
+                          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 5)],
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: CachedNetworkImage(
+                            imageUrl: gridSafeUrl,
+                            fit: BoxFit.cover,
+                            placeholder: (context, url) => Container(color: Colors.black12),
+                            errorWidget: (context, url, error) => const Icon(Icons.broken_image, color: Colors.grey),
                           ),
                         ),
-                      );
-                    },
-                  ),
-          ),
-          const CustomBackButton(), // O BOTÃO NOVO AQUI NO FIM
-        ],
-      ),
+                      ),
+                    );
+                  },
+                ),
+        ),
+        const CustomBackButton(),
+      ],
     );
   }
 

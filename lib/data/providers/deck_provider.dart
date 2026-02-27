@@ -68,12 +68,23 @@ class DeckProvider with ChangeNotifier {
     }
   }
 
-  // NOVA FUNÇÃO: Atualiza uma carta específica no deck (Usado para Substituir e Trocar Arte)
+  // Atualiza uma carta específica no deck (Usado para Trocar Arte)
   void updateCardInDeck(int deckIndex, int cardIndex, Map<String, dynamic> newCard) {
     if (deckIndex >= 0 && deckIndex < _allDecks.length) {
       if (cardIndex >= 0 && cardIndex < _allDecks[deckIndex].cards.length) {
         _allDecks[deckIndex].cards[cardIndex] = newCard;
         _saveDecks();
+      }
+    }
+  }
+
+  // NOVA FUNÇÃO: Substitui uma carta por outra diferente (Soluciona o erro do CardDetailScreen)
+  void replaceCardInDeck(int deckIndex, int cardIndex, Map<String, dynamic> newCard) {
+    if (deckIndex >= 0 && deckIndex < _allDecks.length) {
+      if (cardIndex >= 0 && cardIndex < _allDecks[deckIndex].cards.length) {
+        _allDecks[deckIndex].cards[cardIndex] = newCard;
+        _saveDecks();
+        notifyListeners(); // Força a tela a atualizar com a nova carta
       }
     }
   }

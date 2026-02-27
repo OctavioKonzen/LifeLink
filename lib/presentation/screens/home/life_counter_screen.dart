@@ -1,3 +1,4 @@
+// ignore_for_file: prefer_const_constructors
 import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
@@ -6,8 +7,9 @@ import 'package:provider/provider.dart';
 import 'package:audioplayers/audioplayers.dart'; 
 import '../../../data/providers/game_provider.dart';
 import '../../../data/providers/theme_provider.dart'; 
+import '../../../data/providers/xp_provider.dart'; 
 import '../../widgets/player_card_widget.dart';
-import '../../widgets/continuous_action_button.dart'; // <-- IMPORT CORRIGIDO PARA O TOPO!
+import '../../widgets/continuous_action_button.dart';
 
 class LifeCounterScreen extends StatefulWidget {
   const LifeCounterScreen({super.key});
@@ -27,8 +29,22 @@ class _LifeCounterScreenState extends State<LifeCounterScreen> {
   ];
 
   final AudioPlayer _audioSystem = AudioPlayer();
-  
   bool _isMenuOpen = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Esconde o relógio e a barra de bateria para não atrapalhar os cliques na borda
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+  }
+
+  @override
+  void dispose() {
+    // Restaura o relógio ao sair
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    _audioSystem.dispose();
+    super.dispose();
+  }
 
   void _checkGameStatus(BuildContext context, GameProvider game) {
     if (game.playerCount <= 1) return; 
@@ -55,6 +71,27 @@ class _LifeCounterScreenState extends State<LifeCounterScreen> {
     }
 
     if (aliveCount == 1 && winnerIndex != -1) {
+      final xpProvider = context.read<XpProvider>();
+      String? newBannerName = xpProvider.incrementMatches();
+
+      if (newBannerName != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.wallpaper, color: Colors.amberAccent),
+                const SizedBox(width: 10),
+                Text("NOVO BANNER: $newBannerName desbloqueado!"),
+              ],
+            ),
+            duration: const Duration(seconds: 4),
+            behavior: SnackBarBehavior.floating,
+            margin: EdgeInsets.only(bottom: MediaQuery.of(context).size.height * 0.45, left: 20, right: 20),
+            backgroundColor: Colors.black87,
+          ),
+        );
+      }
+
       Future.delayed(const Duration(milliseconds: 600), () {
         _audioSystem.play(AssetSource('sounds/victory.mp3'));
       });
@@ -188,7 +225,7 @@ class _LifeCounterScreenState extends State<LifeCounterScreen> {
       playerColor: _playerColors[index],
       game: game,
       onCommanderTap: () => _showCommanderDamageDialog(index),
-      onPoisonTap: () => _audioSystem.play(AssetSource('sounds/Poison.mp3')),
+      onPoisonTap: () => _audioSystem.play(AssetSource('sounds/ploc.mp3')),
       onStateChanged: () => _checkGameStatus(context, game), 
     );
   }
@@ -197,10 +234,7 @@ class _LifeCounterScreenState extends State<LifeCounterScreen> {
     return Row(
       children: List.generate(count, (i) {
         return Expanded(
-          child: Padding(
-            padding: const EdgeInsets.all(1.5),
-            child: _buildPlayerCard(start + i, quarterTurns, game),
-          ),
+          child: _buildPlayerCard(start + i, quarterTurns, game),
         );
       }),
     );
@@ -217,8 +251,8 @@ class _LifeCounterScreenState extends State<LifeCounterScreen> {
             flex: 3, 
             child: Row(
               children: [
-                Expanded(child: Padding(padding: const EdgeInsets.all(1.5), child: _buildPlayerCard(1, 1, game))), 
-                Expanded(child: Padding(padding: const EdgeInsets.all(1.5), child: _buildPlayerCard(2, 3, game))), 
+                Expanded(child: _buildPlayerCard(1, 1, game)), 
+                Expanded(child: _buildPlayerCard(2, 3, game)), 
               ],
             ),
           ),
@@ -246,20 +280,16 @@ class _LifeCounterScreenState extends State<LifeCounterScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = context.watch<ThemeProvider>();
-    
     final buttonBgColor = theme.backgroundColor; 
     final isLight = buttonBgColor.computeLuminance() > 0.5;
-    
     final buttonIconColor = isLight ? Colors.black87 : Colors.white;
     final borderColor = isLight ? Colors.black26 : Colors.white38;
 
     return Scaffold(
-      backgroundColor: buttonBgColor, 
+      backgroundColor: Colors.black, 
       body: Consumer<GameProvider>(
         builder: (context, game, child) {
-          
           final double dynamicYAlignment = game.playerCount == 3 ? 0.2 : 0.0;
-
           return Stack(
             children: [
               SafeArea(
@@ -358,7 +388,6 @@ class _LifeCounterScreenState extends State<LifeCounterScreen> {
                     )
                   : const SizedBox.shrink(key: ValueKey("Empty")),
               )
-
             ],
           );
         }
@@ -375,14 +404,8 @@ class EdgeTrianglePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = fillColor
-      ..style = PaintingStyle.fill;
-      
-    final borderPaint = Paint()
-      ..color = borderColor
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.0;
+    final paint = Paint()..color = fillColor..style = PaintingStyle.fill;
+    final borderPaint = Paint()..color = borderColor..style = PaintingStyle.stroke..strokeWidth = 2.0;
 
     final path = Path();
     path.moveTo(size.width, 0);               
@@ -395,9 +418,7 @@ class EdgeTrianglePainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant EdgeTrianglePainter oldDelegate) {
-    return oldDelegate.fillColor != fillColor || oldDelegate.borderColor != borderColor;
-  }
+  bool shouldRepaint(covariant EdgeTrianglePainter oldDelegate) => oldDelegate.fillColor != fillColor || oldDelegate.borderColor != borderColor;
 }
 
 class _CommanderAttackerItem extends StatefulWidget {
@@ -437,17 +458,16 @@ class _CommanderAttackerItemState extends State<_CommanderAttackerItem> {
     int actualDelta = newVal - current;
 
     if (actualDelta != 0) {
-      if (actualDelta > 0) {
-        if (newVal >= 21) {
-          _audio.play(AssetSource('sounds/death.mp3'));
-          HapticFeedback.vibrate(); 
-          widget.onStateChanged(); 
-          Navigator.pop(widget.dialogContext);
-          return;
-        } else {
-          _audio.play(AssetSource('sounds/damage.mp3'));
-        }
+      if (newVal >= 21 && actualDelta > 0) {
+        _audio.play(AssetSource('sounds/death.mp3'));
+        HapticFeedback.vibrate(); 
+        widget.onStateChanged(); 
+        Navigator.pop(widget.dialogContext);
+        return;
+      } else {
+        _audio.play(AssetSource('sounds/ploc.mp3'));
       }
+      
       setState(() => _cmdDelta += actualDelta);
       widget.onStateChanged(); 
       _cmdDeltaTimer?.cancel();
@@ -464,10 +484,7 @@ class _CommanderAttackerItemState extends State<_CommanderAttackerItem> {
   Widget build(BuildContext context) {
     if (widget.attackerIndex == widget.victimIndex) return const SizedBox.shrink();
     int dmg = widget.game.commanderDamage[widget.victimIndex][widget.attackerIndex];
-    
-    Color dmgColor = dmg >= 21 
-        ? Colors.redAccent 
-        : (dmg >= 15 ? Colors.orangeAccent : widget.textColor);
+    Color dmgColor = dmg >= 21 ? Colors.redAccent : (dmg >= 15 ? Colors.orangeAccent : widget.textColor);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),

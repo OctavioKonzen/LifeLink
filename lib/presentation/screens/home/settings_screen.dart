@@ -10,25 +10,12 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  final TextEditingController _nameController = TextEditingController();
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
-    if (_nameController.text.isEmpty) {
-      _nameController.text = themeProvider.playerName;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final themeProvider = context.watch<ThemeProvider>();
     final currentBg = themeProvider.backgroundColor;
     final bool isLight = currentBg.computeLuminance() > 0.5;
     final Color textColor = isLight ? Colors.black87 : Colors.white;
-    
-    // Verificador de Idioma
     final bool isPt = themeProvider.cardLanguage == 'pt';
 
     return Scaffold(
@@ -45,21 +32,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // NOME DO JOGADOR
-            TextField(
-              controller: _nameController,
-              style: TextStyle(color: textColor),
-              decoration: InputDecoration(
-                filled: true,
-                fillColor: isLight ? Colors.black.withValues(alpha: 0.05) : Colors.white10,
-                hintText: isPt ? "Nome do Jogador" : "Player Name",
-                hintStyle: TextStyle(color: textColor.withValues(alpha: 0.4)),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-              ),
-            ),
-            
-            const SizedBox(height: 30),
-            
             // CORES
             Text(isPt ? "COR DE FUNDO" : "BACKGROUND COLOR", style: TextStyle(color: textColor.withValues(alpha: 0.5), fontSize: 12, fontWeight: FontWeight.bold)),
             const SizedBox(height: 10),
@@ -113,22 +85,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                 ],
               ),
-            ),
-
-            const Spacer(),
-            
-            // BOTÃO SALVAR
-            ElevatedButton(
-              onPressed: () {
-                themeProvider.setPlayerName(_nameController.text);
-                Navigator.pop(context);
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: isLight ? Colors.black87 : Colors.white10,
-                minimumSize: const Size(double.infinity, 60),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              ),
-              child: Text(isPt ? "SALVAR" : "SAVE", style: const TextStyle(color: Colors.white)),
             ),
           ],
         ),

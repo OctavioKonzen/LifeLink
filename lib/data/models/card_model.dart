@@ -8,6 +8,7 @@ class CardModel {
   final String typeLine;
   final String oracleText;
   final String setName;
+  final String? price; // Novo campo para preço
 
   CardModel({
     required this.id,
@@ -19,10 +20,10 @@ class CardModel {
     required this.typeLine,
     required this.oracleText,
     required this.setName,
+    this.price,
   });
 
   factory CardModel.fromJson(Map<String, dynamic> json) {
-    // Lógica para pegar imagem de cartas normais ou de dupla face
     String? img = json['image_uris']?['normal'] ?? 
                  json['card_faces']?[0]['image_uris']?['normal'];
 
@@ -36,6 +37,7 @@ class CardModel {
       typeLine: json['type_line'] ?? '',
       oracleText: json['oracle_text'] ?? '',
       setName: json['set_name'] ?? '',
+      price: json['prices']?['usd'] ?? '0.00', // Captura o preço em USD
     );
   }
 }
