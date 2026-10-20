@@ -1,6 +1,6 @@
 // Atualização do app pelo próprio app (Android, APK fora da Play Store), igual
 // ao Pocketdex. Ao abrir, confere a última versão publicada em GitHub Releases
-// (github.com/OctavioKonzen/Magic/releases). Se for mais nova que a instalada,
+// (github.com/OctavioKonzen/LifeLink/releases). Se for mais nova que a instalada,
 // mostra a janela "Nova versão disponível" e, ao aceitar, baixa o APK e abre
 // o instalador do Android (a confirmação final é sempre do Android).
 //
@@ -26,7 +26,7 @@ class AppRelease {
 class UpdateService {
   UpdateService._();
 
-  static const _latest = 'https://api.github.com/repos/OctavioKonzen/Magic/releases/latest';
+  static const _latest = 'https://api.github.com/repos/OctavioKonzen/LifeLink/releases/latest';
   static const apk64Bits = 'LifeLink.apk';
   static const apk32Bits = 'LifeLink_32bits.apk';
   static bool _checked = false;

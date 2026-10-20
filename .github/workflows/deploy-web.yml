@@ -1,7 +1,7 @@
 name: Site
 
 # Site em React + Vite (web-site/), publicado no GitHub Pages:
-# https://octaviokonzen.github.io/Magic/
+# https://octaviokonzen.github.io/LifeLink/
 # Em pull request só confere (lint, testes e build); na main também publica.
 
 on:
