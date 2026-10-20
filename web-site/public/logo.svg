@@ -1,28 +1,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <!-- Logo do LifeLink: três cartas em leque; na da frente, as cinco cores e o 20 (a vida inicial). -->
-  <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2a2a35"/><stop offset="1" stop-color="#101016"/></linearGradient>
-    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f6d58a"/><stop offset="0.5" stop-color="#c79a3c"/><stop offset="1" stop-color="#8a6420"/></linearGradient>
-    <linearGradient id="face" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3b2a1a"/><stop offset="1" stop-color="#1a120b"/></linearGradient>
-    <linearGradient id="back" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5b3b22"/><stop offset="1" stop-color="#2b1a0e"/></linearGradient>
-  </defs>
-  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
-  <g transform="translate(256 300)">
-    <g transform="translate(-62 18) rotate(-24) translate(-92 -150)">
-      <rect width="184" height="258" rx="16" fill="url(#gold)" opacity="0.75"/>
-      <rect x="8" y="8" width="168" height="242" rx="11" fill="url(#back)"/>
-      <ellipse cx="92" cy="129" rx="52" ry="78" fill="none" stroke="url(#gold)" stroke-width="6"/>
-    </g>
-    <g transform="translate(62 18) rotate(24) translate(-92 -150)">
-      <rect width="184" height="258" rx="16" fill="url(#gold)" opacity="0.75"/>
-      <rect x="8" y="8" width="168" height="242" rx="11" fill="url(#back)"/>
-      <ellipse cx="92" cy="129" rx="52" ry="78" fill="none" stroke="url(#gold)" stroke-width="6"/>
-    </g>
-    <g transform="translate(0 -6) translate(-96 -170)">
-      <rect width="192" height="270" rx="16" fill="url(#gold)"/>
-      <rect x="10" y="10" width="172" height="250" rx="10" fill="url(#face)"/>
-      <circle cx="40" cy="38" r="10" fill="#f8f3d6"/><circle cx="68" cy="38" r="10" fill="#1e88e5"/><circle cx="96" cy="38" r="10" fill="#2b2b2b" stroke="#999" stroke-width="2"/><circle cx="124" cy="38" r="10" fill="#e53935"/><circle cx="152" cy="38" r="10" fill="#43a047"/>
-      <text x="96" y="182" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-weight="700" font-size="112" fill="url(#gold)">20</text>
-    </g>
-  </g>
-</svg>
+  <!-- Logo do LifeLink: um dado D20 dourado, com o 20 (a vida inicial) no meio. --><defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2a2a35"/><stop offset="1" stop-color="#101016"/></linearGradient><linearGradient id="gold" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f6d58a"/><stop offset="0.5" stop-color="#c79a3c"/><stop offset="1" stop-color="#8a6420"/></linearGradient></defs>
+<rect width="512" height="512" rx="112" fill="url(#bg)"/>
+<g transform="translate(256 256)">
+<polygon points="0,-178 154,-89 154,89 0,178 -154,89 -154,-89" fill="#1c1c24" stroke="url(#gold)" stroke-width="14" stroke-linejoin="round"/>
+<g stroke="url(#gold)" stroke-width="5" fill="none" stroke-linejoin="round" opacity="0.85">
+<polygon points="0,-110 95,55 -95,55"/><line x1="0" y1="-178" x2="0" y2="-110"/><line x1="154" y1="-89" x2="0" y2="-110"/><line x1="154" y1="-89" x2="95" y2="55"/><line x1="154" y1="89" x2="95" y2="55"/><line x1="0" y1="178" x2="95" y2="55"/><line x1="0" y1="178" x2="-95" y2="55"/><line x1="-154" y1="89" x2="-95" y2="55"/><line x1="-154" y1="-89" x2="-95" y2="55"/><line x1="-154" y1="-89" x2="0" y2="-110"/>
+</g>
+<text x="0" y="40" text-anchor="middle" font-family="Georgia, serif" font-weight="700" font-size="104" fill="#f6d58a">20</text>
+</g></svg>
