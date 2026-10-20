@@ -13,5 +13,3 @@ key.properties
 **/*.keystore
 **/*.jks
 
-# Firebase: vem do segredo GOOGLE_SERVICES_JSON no GitHub Actions.
-app/google-services.json

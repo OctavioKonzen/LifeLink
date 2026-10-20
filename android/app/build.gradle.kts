@@ -34,7 +34,8 @@ android {
     // Assinatura fixa das versões publicadas: o Android só instala uma
     // atualização por cima se ela vier assinada com a MESMA chave. A chave
     // vem de android/key.properties (no PC) ou das variáveis ANDROID_* (no
-    // GitHub Actions). Sem ela, usa a chave de debug.
+    // GitHub Actions, que decifra android/app/lifelink.jks.enc). Sem ela, usa
+    // a chave de debug.
     val keyProps = Properties().apply {
         val file = rootProject.file("key.properties")
         if (file.exists()) file.inputStream().use { load(it) }
