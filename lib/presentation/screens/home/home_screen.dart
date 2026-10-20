@@ -9,6 +9,7 @@ import 'life_counter_screen.dart';
 import 'settings_screen.dart'; 
 import 'match_history_screen.dart'; 
 import '../deck/my_decks_screen.dart';
+import '../deck/community_decks_screen.dart';
 import '../search/card_search_screen.dart'; 
 import '../search/today_prices_screen.dart'; 
 import 'news_web_screen.dart';
@@ -100,7 +101,7 @@ class _HomeScreenState extends State<HomeScreen> {
     void go(Widget screen) => Navigator.push(context, MaterialPageRoute(builder: (context) => screen));
     final tiles = [
       (isPt ? "Meus decks" : "My decks", Icons.layers, const Color(0xFF448AFF), () => go(const MyDecksScreen())),
-      (isPt ? "Cartas" : "Cards", Icons.search, const Color(0xFFB388FF), () => go(const CardSearchScreen())),
+      (isPt ? "Decks oficiais" : "Official decks", Icons.style, const Color(0xFFB388FF), () => go(const CommunityDecksScreen())),
       (isPt ? "Contador" : "Life", Icons.favorite, const Color(0xFFFF5252), () => go(const LifeCounterScreen())),
       (isPt ? "Preços" : "Prices", Icons.monetization_on, const Color(0xFFFFA000), () => go(const TodayPricesScreen())),
       (isPt ? "Missões" : "Missions", Icons.auto_awesome, const Color(0xFF26A69A), () => go(const ArenaMissionsScreen())),
