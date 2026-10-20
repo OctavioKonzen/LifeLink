@@ -9,6 +9,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../../../data/providers/deck_provider.dart';
 import '../../../data/providers/theme_provider.dart';
+import '../../../data/services/scryfall_service.dart';
 import '../../../data/repositories/card_repository.dart';
 import '../../../data/providers/xp_provider.dart'; 
 import '../../widgets/custom_back_button.dart'; 
@@ -64,9 +65,25 @@ class _CardDetailScreenState extends State<CardDetailScreen> with SingleTickerPr
     super.dispose();
   }
 
-  String _getSafeUrl(String url) {
-    if (!kIsWeb || url.isEmpty || url.contains('wikimedia')) return url;
-    return 'https://wsrv.nl/?url=${Uri.encodeComponent(url)}';
+  // Imagem principal em PNG (melhor qualidade do Scryfall). Enquanto ela
+  // carrega, aparece a "normal", que já veio da lista e está no cache.
+  Widget _buildMainImage(String url) {
+    final normal = CardImages.sized(url, 'normal');
+    final best = CardImages.best(url);
+    final fallback = CachedNetworkImage(
+      imageUrl: normal,
+      fit: BoxFit.cover,
+      placeholder: (c, u) => Container(color: Colors.black12),
+      errorWidget: (c, u, e) => const Center(child: Icon(Icons.broken_image, size: 50)),
+    );
+    if (best == normal) return fallback;
+    return CachedNetworkImage(
+      imageUrl: best,
+      fit: BoxFit.cover,
+      fadeInDuration: const Duration(milliseconds: 200),
+      placeholder: (c, u) => fallback,
+      errorWidget: (c, u, e) => fallback,
+    );
   }
 
   void _onPanUpdate(DragUpdateDetails details) {
@@ -203,7 +220,7 @@ class _CardDetailScreenState extends State<CardDetailScreen> with SingleTickerPr
                               child: ClipRRect(
                                 borderRadius: BorderRadius.circular(16),
                                 child: CachedNetworkImage(
-                                  imageUrl: _getSafeUrl(vCard['imageUrl']),
+                                  imageUrl: CardImages.sized(vCard['imageUrl'], 'large'),
                                   fit: BoxFit.contain,
                                   placeholder: (context, url) => Center(child: CircularProgressIndicator()),
                                   errorWidget: (context, url, error) => Icon(Icons.broken_image, size: 50),
@@ -306,7 +323,7 @@ class _CardDetailScreenState extends State<CardDetailScreen> with SingleTickerPr
 
     bool isFrontVisible = math.cos(_currentAngle) > 0;
     final rarityColor = _getRarityColor(_currentCard['rarity'] ?? '');
-    final String mainCardSafeUrl = _getSafeUrl(_currentCard['imageUrl'] ?? '');
+    final String mainCardUrl = _currentCard['imageUrl'] ?? '';
     final bool isEditingExistingCard = widget.existingCardIndex != null;
     final bool isReplacingCard = widget.replaceCardIndex != null;
 
@@ -339,8 +356,8 @@ class _CardDetailScreenState extends State<CardDetailScreen> with SingleTickerPr
                           child: AspectRatio(
                             aspectRatio: 0.71,
                             child: isFrontVisible 
-                              ? ClipRRect(borderRadius: BorderRadius.circular(16), child: CachedNetworkImage(imageUrl: mainCardSafeUrl, fit: BoxFit.cover))
-                              : Transform(transform: Matrix4.identity()..rotateY(math.pi), alignment: FractionalOffset.center, child: ClipRRect(borderRadius: BorderRadius.circular(16), child: Image.asset('assets/images/traseira_carta.jpg', fit: BoxFit.cover))),
+                              ? ClipRRect(borderRadius: BorderRadius.circular(16), child: _buildMainImage(mainCardUrl))
+                              : Transform(transform: Matrix4.identity()..rotateY(math.pi), alignment: FractionalOffset.center, child: ClipRRect(borderRadius: BorderRadius.circular(16), child: CachedNetworkImage(imageUrl: CardImages.cardBack, fit: BoxFit.cover))),
                           ),
                         ),
                       ),

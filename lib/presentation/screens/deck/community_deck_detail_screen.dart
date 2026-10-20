@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -185,8 +184,6 @@ class _CommunityDeckDetailScreenState extends State<CommunityDeckDetailScreen> {
                   itemBuilder: (context, index) {
                     final cardData = _cards[index];
                     final cardUrl = cardData['imageUrl'] as String;
-                    // O proxy na grid continua para não sobrecarregar a memória
-                    final gridSafeUrl = kIsWeb ? 'https://wsrv.nl/?url=${Uri.encodeComponent(cardUrl)}&w=300' : cardUrl;
 
                     return GestureDetector(
                       onTap: () {
@@ -206,7 +203,7 @@ class _CommunityDeckDetailScreenState extends State<CommunityDeckDetailScreen> {
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(8),
                           child: CachedNetworkImage(
-                            imageUrl: gridSafeUrl,
+                            imageUrl: cardUrl,
                             fit: BoxFit.cover,
                             placeholder: (context, url) => Container(color: Colors.black12),
                             errorWidget: (context, url, error) => const Icon(Icons.broken_image, color: Colors.grey),
