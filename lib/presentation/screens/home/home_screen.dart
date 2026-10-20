@@ -55,13 +55,25 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
-  /// A logo do LifeLink (o D20) com o nome embaixo.
+  /// A logo "LIFE LINK" em neon (a original do app).
   Widget _buildLogo(Color textColor) {
-    return Column(children: [
-      Image.asset('assets/logo/lifelink.png', width: 120, height: 120),
-      const SizedBox(height: 6),
-      Text("LIFELINK", style: TextStyle(color: textColor, fontSize: 30, fontWeight: FontWeight.w900, letterSpacing: 2)),
-    ]);
+    return SizedBox(
+      height: 160, width: double.infinity,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Transform.rotate(angle: 0.7, child: Icon(Icons.colorize_rounded, size: 100, color: Colors.grey[400], shadows: [Shadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 10)])),
+          Positioned(
+            top: 15, left: MediaQuery.of(context).size.width * 0.22,
+            child: Transform.rotate(angle: -0.15, child: Text('LIFE', style: TextStyle(fontSize: 52, fontWeight: FontWeight.w900, fontStyle: FontStyle.italic, color: textColor, letterSpacing: -2, shadows: [Shadow(color: Colors.blueAccent.withValues(alpha: 0.6), blurRadius: 15)]))),
+          ),
+          Positioned(
+            bottom: 15, right: MediaQuery.of(context).size.width * 0.18,
+            child: Transform.rotate(angle: 0.1, child: Text('LINK', style: TextStyle(fontSize: 60, fontWeight: FontWeight.w900, fontStyle: FontStyle.italic, color: Colors.redAccent, letterSpacing: -4, shadows: [Shadow(color: Colors.redAccent.withValues(alpha: 0.7), blurRadius: 20), const Shadow(color: Colors.orangeAccent, blurRadius: 5)]))),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildSearchBar(BuildContext context, Color cardColor, Color textColor, bool isPt) {
@@ -84,11 +96,11 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   /// Os botões das áreas, coloridos, como no Pocketdex.
-  Widget _buildMenuGrid(BuildContext context, bool isPt) {
+  Widget _buildMenuGrid(BuildContext context, bool isPt, Color cardColor) {
     void go(Widget screen) => Navigator.push(context, MaterialPageRoute(builder: (context) => screen));
     final tiles = [
-      (isPt ? "Meus decks" : "My decks", Icons.layers, const Color(0xFF7C4DFF), () => go(const MyDecksScreen())),
-      (isPt ? "Cartas" : "Cards", Icons.search, const Color(0xFF448AFF), () => go(const CardSearchScreen())),
+      (isPt ? "Meus decks" : "My decks", Icons.layers, const Color(0xFF448AFF), () => go(const MyDecksScreen())),
+      (isPt ? "Cartas" : "Cards", Icons.search, const Color(0xFFB388FF), () => go(const CardSearchScreen())),
       (isPt ? "Contador" : "Life", Icons.favorite, const Color(0xFFFF5252), () => go(const LifeCounterScreen())),
       (isPt ? "Preços" : "Prices", Icons.monetization_on, const Color(0xFFFFA000), () => go(const TodayPricesScreen())),
       (isPt ? "Missões" : "Missions", Icons.auto_awesome, const Color(0xFF26A69A), () => go(const ArenaMissionsScreen())),
@@ -98,38 +110,43 @@ class _HomeScreenState extends State<HomeScreen> {
     for (var i = 0; i < tiles.length; i += 2) {
       if (i > 0) rows.add(const SizedBox(height: 14));
       rows.add(Row(children: [
-        Expanded(child: _buildMenuTile(tiles[i].$1, tiles[i].$2, tiles[i].$3, tiles[i].$4)),
+        Expanded(child: _buildMenuTile(tiles[i].$1, tiles[i].$2, tiles[i].$3, tiles[i].$4, cardColor)),
         const SizedBox(width: 14),
-        Expanded(child: _buildMenuTile(tiles[i + 1].$1, tiles[i + 1].$2, tiles[i + 1].$3, tiles[i + 1].$4)),
+        Expanded(child: _buildMenuTile(tiles[i + 1].$1, tiles[i + 1].$2, tiles[i + 1].$3, tiles[i + 1].$4, cardColor)),
       ]));
     }
     return Column(children: rows);
   }
 
-  /// Um botão colorido com o ícone grande e transparente no canto e a sombra
-  /// mais escura embaixo (o "degrau" dos botões do Pocketdex).
-  Widget _buildMenuTile(String title, IconData icon, Color color, VoidCallback onTap) {
-    final shade = Color.lerp(color, Colors.black, 0.3)!;
+  /// Um botão escuro com o brilho neon da cor da área, o ícone grande e
+  /// transparente no canto e o nome em cima (organização do Pocketdex).
+  Widget _buildMenuTile(String title, IconData icon, Color color, VoidCallback onTap, Color cardColor) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
         height: 104,
         decoration: BoxDecoration(
-          color: color,
-          borderRadius: BorderRadius.circular(24),
-          boxShadow: [BoxShadow(color: shade, offset: const Offset(0, 6))],
+          color: cardColor,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: color.withValues(alpha: 0.45), width: 1.2),
+          boxShadow: [BoxShadow(color: color.withValues(alpha: 0.28), blurRadius: 14)],
         ),
         clipBehavior: Clip.antiAlias,
         child: Stack(children: [
-          Positioned(right: -18, bottom: -22, child: Icon(icon, size: 110, color: Colors.white.withValues(alpha: 0.22))),
+          Positioned(right: -14, bottom: -18, child: Icon(icon, size: 100, color: color.withValues(alpha: 0.22))),
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 18, 12, 12),
-            child: Text(title, style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w800, shadows: [Shadow(color: Colors.black26, offset: Offset(0, 2), blurRadius: 3)])),
+            padding: const EdgeInsets.fromLTRB(18, 16, 12, 12),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Icon(icon, color: color, size: 26, shadows: [Shadow(color: color.withValues(alpha: 0.8), blurRadius: 10)]),
+              const SizedBox(height: 8),
+              Text(title.toUpperCase(), style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w800, letterSpacing: 0.5)),
+            ]),
           ),
         ]),
       ),
     );
   }
+
   Widget _buildDynamicAvatar(XpProvider xpProvider, double size) {
     final borderData = XpProvider.allBorders.firstWhere((b) => b['id'] == xpProvider.selectedBorderId, orElse: () => XpProvider.allBorders[0]);
     
@@ -157,7 +174,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final bgColor = themeProvider.backgroundColor;
     final bool isLight = bgColor.computeLuminance() > 0.5;
     final Color textColor = isLight ? Colors.black87 : Colors.white;
-    final Color cardColor = isLight ? Colors.black.withValues(alpha: 0.05) : Color.lerp(bgColor, Colors.black, 0.18)!;
+    final Color cardColor = isLight ? Colors.black.withValues(alpha: 0.05) : Color.lerp(bgColor, Colors.white, 0.03)!;
     final bool isPt = themeProvider.cardLanguage == 'pt';
 
     final List<Map<String, dynamic>> newsList = [
@@ -170,15 +187,10 @@ class _HomeScreenState extends State<HomeScreen> {
       key: _scaffoldKey,
       backgroundColor: bgColor,
       drawer: _buildDrawer(context, bgColor, textColor, isLight, isPt, themeProvider, xpProvider),
-      // Estilo do Pocketdex: o D20 grande e transparente no fundo, a logo no
-      // topo, a busca e os botões coloridos das áreas em duas colunas.
+      // Organização do Pocketdex (busca e botões das áreas em duas colunas)
+      // com as cores do LifeLink: fundo escuro, botões com brilho neon.
       body: Stack(
         children: [
-          Positioned(
-            right: -120,
-            bottom: -80,
-            child: Opacity(opacity: 0.06, child: Image.asset('assets/logo/lifelink.png', width: 420, height: 420)),
-          ),
           SafeArea(
             child: SingleChildScrollView(
               child: Padding(
@@ -192,7 +204,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     const SizedBox(height: 24),
                     _buildSearchBar(context, cardColor, textColor, isPt),
                     const SizedBox(height: 16),
-                    _buildMenuGrid(context, isPt),
+                    _buildMenuGrid(context, isPt, cardColor),
                     const SizedBox(height: 28),
                     _buildNewsCarousel(newsList),
                     const SizedBox(height: 24),
