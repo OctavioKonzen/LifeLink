@@ -3,14 +3,39 @@ import SearchPage from './pages/SearchPage'
 import PricesPage from './pages/PricesPage'
 import DecksPage from './pages/DecksPage'
 import LifeCounterPage from './pages/LifeCounterPage'
+import MyDecksPage from './pages/MyDecksPage'
+import ProfilePage from './pages/ProfilePage'
+import AccountPage from './pages/AccountPage'
+import { useAuth } from './lib/auth'
+import { APK_URL } from './lib/appRelease'
 
 // Mesmas áreas do menu do app (home_screen.dart).
 const SECTIONS = [
   { path: '/', label: 'Cartas', color: '#448aff' },
+  { path: '/meus-decks', label: 'Meus decks', color: '#b388ff' },
   { path: '/precos', label: 'Preços de hoje', color: '#ffc107' },
   { path: '/decks', label: 'Decks oficiais', color: '#69f0ae' },
   { path: '/contador', label: 'Contador de vida', color: '#ff5252' },
+  { path: '/perfil', label: 'Perfil', color: '#40c4ff' },
 ]
+
+/** Botão da conta no topo: foto ou inicial quando conectado. */
+function AccountButton() {
+  const { status, user } = useAuth()
+  if (status === 'disabled') return null
+  return (
+    <NavLink to="/conta" className="flex shrink-0 items-center gap-2 rounded-full bg-white/10 py-1 pl-1 pr-3 text-sm font-bold hover:bg-white/20">
+      {status === 'signedIn' && user.photo ? (
+        <img src={user.photo} alt="" className="h-7 w-7 rounded-full" referrerPolicy="no-referrer" />
+      ) : (
+        <span className="grid h-7 w-7 place-items-center rounded-full bg-accent text-xs">
+          {status === 'signedIn' ? (user.name || user.email || '?')[0].toUpperCase() : '👤'}
+        </span>
+      )}
+      {status === 'signedIn' ? (user.name || 'Conta').split(' ')[0] : 'Entrar'}
+    </NavLink>
+  )
+}
 
 function Header() {
   return (
@@ -36,6 +61,7 @@ function Header() {
             </NavLink>
           ))}
         </nav>
+        <AccountButton />
       </div>
     </header>
   )
@@ -51,10 +77,17 @@ export default function App() {
           <Route path="/precos" element={<PricesPage />} />
           <Route path="/decks" element={<DecksPage />} />
           <Route path="/contador" element={<LifeCounterPage />} />
+          <Route path="/meus-decks" element={<MyDecksPage />} />
+          <Route path="/perfil" element={<ProfilePage />} />
+          <Route path="/conta" element={<AccountPage />} />
           <Route path="*" element={<SearchPage />} />
         </Routes>
       </main>
       <footer className="mx-auto max-w-6xl px-4 pb-8 pt-4 text-xs text-muted">
+        <a href={APK_URL} className="mb-3 inline-block rounded-full bg-emerald-600 px-4 py-2 text-sm font-bold text-white hover:brightness-110">
+          📱 Baixar o app para Android (APK)
+        </a>
+        <br />
         Dados e imagens das cartas:{' '}
         <a className="underline" href="https://scryfall.com" target="_blank" rel="noreferrer">
           Scryfall

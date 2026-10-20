@@ -14,6 +14,7 @@ import {
   sets as loadSets,
   symbolUrl,
 } from '../lib/scryfall'
+import { incrementSearches } from '../lib/xp'
 
 const COLORS = ['W', 'U', 'B', 'R', 'G', 'C']
 
@@ -169,6 +170,12 @@ export default function SearchPage() {
       clearTimeout(timer)
     }
   }, [text])
+
+  // Cada busca feita conta para as missões (igual ao app).
+  const firstQuery = useRef(query)
+  useEffect(() => {
+    if (query !== firstQuery.current) incrementSearches()
+  }, [query])
 
   useEffect(() => {
     let alive = true

@@ -1,0 +1,21 @@
+rules_version = '2';
+
+// Regras do banco do Magic (Firestore). Cada pessoa só lê e grava os
+// próprios dados: users/{uid} (perfil, preferências e contador) e
+// users/{uid}/decks/{id} (um documento por deck).
+// Para usar: Console do Firebase → Firestore Database → Regras → colar e Publicar.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isOwner(uid) {
+      return request.auth != null && request.auth.uid == uid;
+    }
+
+    match /users/{uid} {
+      allow read, write: if isOwner(uid);
+
+      match /decks/{deckId} {
+        allow read, write: if isOwner(uid);
+      }
+    }
+  }
+}

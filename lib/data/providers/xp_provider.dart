@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../account/user_data.dart';
 
 class XpProvider extends ChangeNotifier {
   int _xp = 0;
@@ -98,9 +99,58 @@ class XpProvider extends ChangeNotifier {
     "Ilusionista Nato", "Domador de Dragões", "Sobrevivente do Apocalipse", "Deus do Magic"
   ];
 
+  /// Termina quando o perfil salvo no aparelho foi carregado.
+  late final Future<void> ready;
+
   XpProvider() {
-    _loadData();
+    ready = _loadData();
     _startTimeTracking();
+    UserData.instance.register(SyncedSection(key: 'profile', read: toSync, apply: applySync));
+  }
+
+  Map<String, dynamic> toSync() => {
+        'xp': _xp,
+        'level': _level,
+        'tier': _currentTier,
+        'claimedMissions': _claimedMissions,
+        'unlockedAvatars': _unlockedAvatars,
+        'unlockedBorders': _unlockedBorders,
+        'unlockedTitles': _unlockedTitles,
+        'unlockedBanners': _unlockedBanners,
+        'selectedAvatar': _selectedAvatar,
+        'selectedBorder': _selectedBorderId,
+        'selectedTitle': _selectedTitle,
+        'selectedBanner': _selectedBannerId,
+        'totalMatches': _totalMatchesPlayed,
+        'statDecks': _statDecksCreated,
+        'statCards': _statCardsAdded,
+        'statSearches': _statSearches,
+        'statArts': _statArtsViewed,
+      };
+
+  Future<void> applySync(Map<String, dynamic>? v) async {
+    int i(String k, int d) => (v?[k] as num?)?.toInt() ?? d;
+    List<String> l(String k, List<String> d) => v?[k] is List ? [for (final x in v![k]) x.toString()] : d;
+    String s(String k, String d) => v?[k]?.toString() ?? d;
+    _xp = i('xp', 0);
+    _level = i('level', 1);
+    _currentTier = i('tier', 1);
+    _claimedMissions = l('claimedMissions', ["0", "0", "0", "0", "0"]);
+    _unlockedAvatars = l('unlockedAvatars', []);
+    _unlockedBorders = l('unlockedBorders', ["0"]);
+    _unlockedTitles = l('unlockedTitles', []);
+    _unlockedBanners = l('unlockedBanners', ["0"]);
+    _selectedAvatar = s('selectedAvatar', "");
+    _selectedBorderId = s('selectedBorder', "0");
+    _selectedTitle = s('selectedTitle', "");
+    _selectedBannerId = s('selectedBanner', "0");
+    _totalMatchesPlayed = i('totalMatches', 0);
+    _statDecksCreated = i('statDecks', 0);
+    _statCardsAdded = i('statCards', 0);
+    _statSearches = i('statSearches', 0);
+    _statArtsViewed = i('statArts', 0);
+    await _writePrefs();
+    notifyListeners();
   }
 
   Future<void> _loadData() async {
@@ -126,6 +176,11 @@ class XpProvider extends ChangeNotifier {
   }
 
   Future<void> _saveData() async {
+    await _writePrefs();
+    UserData.instance.changed('profile');
+  }
+
+  Future<void> _writePrefs() async {
     final prefs = await SharedPreferences.getInstance();
     prefs.setInt('user_xp', _xp);
     prefs.setInt('user_level', _level);

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../data/providers/theme_provider.dart';
+import '../../../data/services/update_service.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -27,7 +28,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         elevation: 0, 
         foregroundColor: textColor
       ),
-      body: Padding(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(20.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -84,6 +85,30 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     onTap: () => themeProvider.setCardLanguage('en'),
                   ),
                 ],
+              ),
+            ),
+
+            const SizedBox(height: 30),
+
+            // VERSÃO DO APP E ATUALIZAÇÃO (GitHub Releases)
+            Text(isPt ? "VERSÃO DO APP" : "APP VERSION", style: TextStyle(color: textColor.withValues(alpha: 0.5), fontSize: 12, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 10),
+            Container(
+              decoration: BoxDecoration(
+                color: isLight ? Colors.black.withValues(alpha: 0.05) : Colors.white10, 
+                borderRadius: BorderRadius.circular(12)
+              ),
+              child: ListTile(
+                title: FutureBuilder<String>(
+                  future: UpdateService.currentVersion(),
+                  builder: (context, snap) => Text(isPt ? "Versão ${snap.data ?? '...'}" : "Version ${snap.data ?? '...'}", style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
+                ),
+                trailing: UpdateService.supported
+                    ? TextButton(
+                        onPressed: () => UpdateService.checkNow(context),
+                        child: Text(isPt ? "Procurar atualização" : "Check for update"),
+                      )
+                    : null,
               ),
             ),
           ],

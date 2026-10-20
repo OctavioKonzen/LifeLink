@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
@@ -29,11 +31,31 @@ android {
         versionName = flutter.versionName
     }
 
+    // Assinatura fixa das versões publicadas: o Android só instala uma
+    // atualização por cima se ela vier assinada com a MESMA chave. A chave
+    // vem de android/key.properties (no PC) ou das variáveis ANDROID_* (no
+    // GitHub Actions). Sem ela, usa a chave de debug.
+    val keyProps = Properties().apply {
+        val file = rootProject.file("key.properties")
+        if (file.exists()) file.inputStream().use { load(it) }
+    }
+    fun key(name: String, env: String): String? = keyProps.getProperty(name) ?: System.getenv(env)
+    val storeFilePath = key("storeFile", "ANDROID_KEYSTORE_PATH")
+
+    signingConfigs {
+        if (storeFilePath != null) {
+            create("release") {
+                storeFile = file(storeFilePath)
+                storePassword = key("storePassword", "ANDROID_KEYSTORE_PASSWORD")
+                keyAlias = key("keyAlias", "ANDROID_KEY_ALIAS")
+                keyPassword = key("keyPassword", "ANDROID_KEY_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
         }
     }
 }
@@ -46,4 +68,11 @@ kotlin {
 
 flutter {
     source = "../.."
+}
+
+// Firebase (login e dados da conta): o arquivo google-services.json vem do
+// Console do Firebase (app Android com.octaviokonzen.magic). Sem ele o app
+// compila e funciona sem login.
+if (file("google-services.json").exists()) {
+    apply(plugin = "com.google.gms.google-services")
 }
