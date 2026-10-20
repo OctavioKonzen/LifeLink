@@ -23,7 +23,7 @@ function Step({ onClick, children, label }) {
       type="button"
       onClick={onClick}
       aria-label={label}
-      className="grid h-12 w-12 place-items-center rounded-full bg-black/25 text-2xl font-black hover:bg-black/40 active:scale-95"
+      className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-black/25 text-xl font-black hover:bg-black/40 active:scale-95"
     >
       {children}
     </button>
@@ -36,34 +36,46 @@ function Player({ i, game, update }) {
   const dead = isDead(game, i)
   const others = Array.from({ length: game.players }, (_, j) => j).filter((j) => j !== i)
 
+  // Cada jogador ocupa o seu pedaço da tela; o número cresce com o espaço
+  // (unidades cq, do tamanho deste quadro).
   return (
-    <div className="rounded-2xl p-4 text-white shadow-lg" style={{ background: COLORS[i], opacity: dead ? 0.55 : 1 }}>
+    <div
+      className="relative flex min-h-0 min-w-0 flex-1 flex-col rounded-2xl p-3 text-white shadow-lg [container-type:size]"
+      style={{ background: COLORS[i], opacity: dead ? 0.55 : 1 }}
+    >
       <input
         value={game.names[i]}
         onChange={(e) => update((g) => ({ ...g, names: g.names.map((n, k) => (k === i ? e.target.value : n)) }))}
-        className="w-full bg-transparent text-center font-bold outline-none"
+        className="w-full bg-transparent text-center text-lg font-bold outline-none"
         aria-label="Nome do jogador"
       />
-      <div className="my-2 flex items-center justify-between">
-        <Step label="Tirar 5 de vida" onClick={() => update((g) => ({ ...g, lives: g.lives.map((v, k) => (k === i ? v - 5 : v)) }))}>
-          −5
-        </Step>
-        <Step label="Tirar 1 de vida" onClick={() => update((g) => ({ ...g, lives: g.lives.map((v, k) => (k === i ? v - 1 : v)) }))}>
-          −
-        </Step>
-        <div className="text-6xl font-black tabular-nums drop-shadow">{dead ? '☠' : life}</div>
-        <Step label="Somar 1 de vida" onClick={() => update((g) => ({ ...g, lives: g.lives.map((v, k) => (k === i ? v + 1 : v)) }))}>
-          +
-        </Step>
-        <Step label="Somar 5 de vida" onClick={() => update((g) => ({ ...g, lives: g.lives.map((v, k) => (k === i ? v + 5 : v)) }))}>
-          +5
-        </Step>
+      {/* Botões em coluna dos dois lados: cabem até nos quadros estreitos (6 jogadores). */}
+      <div className="flex min-h-0 flex-1 items-center justify-between gap-1">
+        <div className="flex flex-col gap-2">
+          <Step label="Tirar 1 de vida" onClick={() => update((g) => ({ ...g, lives: g.lives.map((v, k) => (k === i ? v - 1 : v)) }))}>
+            −
+          </Step>
+          <Step label="Tirar 5 de vida" onClick={() => update((g) => ({ ...g, lives: g.lives.map((v, k) => (k === i ? v - 5 : v)) }))}>
+            −5
+          </Step>
+        </div>
+        <div className="font-black leading-none tabular-nums drop-shadow" style={{ fontSize: 'min(30cqw, 52cqh)' }}>
+          {dead ? '☠' : life}
+        </div>
+        <div className="flex flex-col gap-2">
+          <Step label="Somar 1 de vida" onClick={() => update((g) => ({ ...g, lives: g.lives.map((v, k) => (k === i ? v + 1 : v)) }))}>
+            +
+          </Step>
+          <Step label="Somar 5 de vida" onClick={() => update((g) => ({ ...g, lives: g.lives.map((v, k) => (k === i ? v + 5 : v)) }))}>
+            +5
+          </Step>
+        </div>
       </div>
-      <button type="button" onClick={() => setDetails((d) => !d)} className="w-full rounded-full bg-black/20 py-1 text-sm font-semibold">
-        ☣ {game.poison[i]} veneno · ⚔ dano de comandante {details ? '▲' : '▼'}
+      <button type="button" onClick={() => setDetails((d) => !d)} className="w-full truncate rounded-full bg-black/20 px-2 py-1 text-sm font-semibold">
+        ☣ {game.poison[i]} · ⚔ Comandante {details ? '▲' : '▼'}
       </button>
       {details && (
-        <div className="mt-3 space-y-2 text-sm">
+        <div className="absolute inset-x-3 top-10 bottom-12 z-10 space-y-2 overflow-y-auto rounded-xl bg-black/55 p-2 text-sm backdrop-blur">
           <Row
             label="Veneno"
             value={game.poison[i]}
@@ -111,8 +123,31 @@ function Row({ label, value, onChange }) {
   )
 }
 
+// Quantos jogadores vão em cada linha. Tela larga (computador, celular
+// deitado): mais lado a lado; tela alta (celular em pé): mais um embaixo do outro.
+const ROWS_WIDE = { 2: [2], 3: [3], 4: [2, 2], 5: [3, 2], 6: [3, 3] }
+const ROWS_TALL = { 2: [1, 1], 3: [1, 2], 4: [2, 2], 5: [1, 2, 2], 6: [2, 2, 2] }
+
+export function rowsFor(players, wide) {
+  const sizes = (wide ? ROWS_WIDE : ROWS_TALL)[players] || [players]
+  let next = 0
+  return sizes.map((n) => Array.from({ length: n }, () => next++))
+}
+
+function useWide() {
+  const get = () => window.innerWidth >= window.innerHeight
+  const [wide, setWide] = useState(get)
+  useEffect(() => {
+    const onResize = () => setWide(get())
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [])
+  return wide
+}
+
 export default function LifeCounterPage() {
   const game = view(useUserData((s) => s.game))
+  const wide = useWide()
   const setGame = (update) => updateSection('game', (g) => toApp(update(view(g))))
   const [banner, setBanner] = useState(null)
 
@@ -130,9 +165,11 @@ export default function LifeCounterPage() {
     }
   }, [alive.length])
 
+  // A página ocupa a altura que sobra embaixo da barra de cima (72px) e as
+  // vidas ficam com tudo o que sobra embaixo dos botões.
   return (
-    <div>
-      <div className="mb-4 flex flex-wrap items-center gap-3">
+    <div className="flex flex-col" style={{ height: 'calc(100dvh - 72px - 24px)', minHeight: 420 }}>
+      <div className="mb-3 flex shrink-0 flex-wrap items-center gap-3">
         <h1 className="mr-auto text-2xl font-black">Contador de vida</h1>
         <label className="flex items-center gap-2 text-sm">
           Jogadores
@@ -162,13 +199,19 @@ export default function LifeCounterPage() {
         </button>
       </div>
       {alive.length === 1 && (
-        <p className="mb-3 rounded-xl bg-amber-400/15 p-3 text-center font-bold text-amber-300">
+        <p className="mb-3 shrink-0 rounded-xl bg-amber-400/15 p-3 text-center font-bold text-amber-300">
           🏆 {game.names[alive[0]]} venceu! +50 XP{banner ? ` · Novo banner: ${banner}` : ''}
         </p>
       )}
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {Array.from({ length: game.players }, (_, i) => (
-          <Player key={i} i={i} game={game} update={setGame} />
+      {/* A tela inteira para as vidas, dividida em linhas conforme o número
+          de jogadores e o formato da tela. */}
+      <div className="flex min-h-0 flex-1 flex-col gap-3">
+        {rowsFor(game.players, wide).map((row, r) => (
+          <div key={r} className="flex min-h-0 flex-1 gap-3">
+            {row.map((i) => (
+              <Player key={i} i={i} game={game} update={setGame} />
+            ))}
+          </div>
         ))}
       </div>
     </div>

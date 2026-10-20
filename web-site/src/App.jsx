@@ -172,6 +172,30 @@ function TopBar() {
   )
 }
 
+/** O conteúdo da página; o contador de vida usa a largura toda da tela. */
+function Main({ children }) {
+  const { pathname } = useLocation()
+  const full = pathname === '/contador'
+  return (
+    <>
+      <main className={full ? 'px-3 py-3 sm:px-6' : 'mx-auto max-w-6xl px-4 py-5'}>{children}</main>
+      {!full && (
+        <footer className="mx-auto max-w-6xl px-4 pb-8 pt-4 text-xs text-muted">
+          Dados e imagens das cartas:{' '}
+          <a className="underline" href="https://scryfall.com" target="_blank" rel="noreferrer">
+            Scryfall
+          </a>
+          . Decks oficiais:{' '}
+          <a className="underline" href="https://mtgjson.com" target="_blank" rel="noreferrer">
+            MTGJSON
+          </a>
+          . Magic: The Gathering é marca da Wizards of the Coast; este site não tem ligação com ela.
+        </footer>
+      )}
+    </>
+  )
+}
+
 /** A troca de página: um fade curto (sem corte seco). */
 function PageFade({ children }) {
   const { pathname } = useLocation()
@@ -206,7 +230,7 @@ export default function App() {
   return (
     <HashRouter>
       <TopBar />
-      <main className="mx-auto max-w-6xl px-4 py-5">
+      <Main>
         <PageFade>
           <Routes>
             <Route path="/" element={<SearchPage />} />
@@ -219,18 +243,7 @@ export default function App() {
             <Route path="*" element={<SearchPage />} />
           </Routes>
         </PageFade>
-      </main>
-      <footer className="mx-auto max-w-6xl px-4 pb-8 pt-4 text-xs text-muted">
-        Dados e imagens das cartas:{' '}
-        <a className="underline" href="https://scryfall.com" target="_blank" rel="noreferrer">
-          Scryfall
-        </a>
-        . Decks oficiais:{' '}
-        <a className="underline" href="https://mtgjson.com" target="_blank" rel="noreferrer">
-          MTGJSON
-        </a>
-        . Magic: The Gathering é marca da Wizards of the Coast; este site não tem ligação com ela.
-      </footer>
+      </Main>
     </HashRouter>
   )
 }
