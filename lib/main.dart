@@ -166,6 +166,23 @@ class MyApp extends StatelessWidget {
         brightness: themeProvider.backgroundColor.computeLuminance() > 0.5 ? Brightness.light : Brightness.dark,
         colorSchemeSeed: Colors.blue,
         scaffoldBackgroundColor: themeProvider.backgroundColor,
+        // Títulos grandes e em negrito nas telas, e campos e botões
+        // arredondados (estilo do Pocketdex, com as cores do LifeLink).
+        appBarTheme: AppBarTheme(
+          centerTitle: false,
+          titleTextStyle: TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.w800,
+            color: themeProvider.backgroundColor.computeLuminance() > 0.5 ? Colors.black87 : Colors.white,
+          ),
+        ),
+        inputDecorationTheme: InputDecorationTheme(
+          filled: true,
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(18), borderSide: BorderSide.none),
+        ),
+        elevatedButtonTheme: ElevatedButtonThemeData(
+          style: ElevatedButton.styleFrom(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18))),
+        ),
       ),
       // Sem estar logado, a primeira tela é sempre a de login (a mesma conta
       // do site). Sem Firebase configurado, o login fica desligado e o app

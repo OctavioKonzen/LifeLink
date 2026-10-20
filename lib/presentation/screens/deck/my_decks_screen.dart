@@ -8,6 +8,7 @@ import '../../../data/providers/xp_provider.dart'; // IMPORT DO XP PROVIDER
 import 'deck_detail_screen.dart';
 import 'community_decks_screen.dart'; 
 import '../../widgets/custom_back_button.dart';
+import '../../widgets/neon.dart';
 
 class MyDecksScreen extends StatefulWidget {
   const MyDecksScreen({super.key});
@@ -111,7 +112,7 @@ class _MyDecksScreenState extends State<MyDecksScreen> {
           backgroundColor: theme.backgroundColor,
           appBar: AppBar(
             automaticallyImplyLeading: false, 
-            title: Text("MEUS DECKS", style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
+            title: Text("Meus decks", style: TextStyle(color: textColor)),
             backgroundColor: Colors.transparent,
             elevation: 0,
             iconTheme: IconThemeData(color: textColor),
@@ -157,12 +158,12 @@ class _MyDecksScreenState extends State<MyDecksScreen> {
     return GestureDetector(
       onTap: _showCreateDeckDialog,
       child: Container(
-        decoration: BoxDecoration(
-          color: isLight ? Colors.black.withValues(alpha: 0.05) : Colors.white.withValues(alpha: 0.05),
-          borderRadius: BorderRadius.circular(20), 
-          border: Border.all(color: color.withValues(alpha: 0.1), width: 2)
-        ),
-        child: Icon(Icons.add, size: 40, color: color.withValues(alpha: 0.3)),
+        decoration: neonDecoration(AreaColors.decks, neonSurface(context, context.read<ThemeProvider>().backgroundColor)),
+        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+          Icon(Icons.add, size: 44, color: AreaColors.decks, shadows: [Shadow(color: AreaColors.decks.withValues(alpha: 0.8), blurRadius: 12)]),
+          const SizedBox(height: 6),
+          Text("NOVO DECK", style: TextStyle(color: color, fontWeight: FontWeight.w800, letterSpacing: 0.5)),
+        ]),
       ),
     );
   }
@@ -171,11 +172,7 @@ class _MyDecksScreenState extends State<MyDecksScreen> {
     return GestureDetector(
       onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => DeckDetailScreen(deckIndex: index))),
       child: Container(
-        decoration: BoxDecoration(
-          color: isLight ? Colors.white : const Color(0xFF2A2A35),
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 10)]
-        ),
+        decoration: neonDecoration(AreaColors.decks, neonSurface(context, context.read<ThemeProvider>().backgroundColor), glow: 0.15),
         child: Column(
           children: [
             Expanded(

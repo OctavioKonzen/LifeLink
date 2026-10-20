@@ -69,7 +69,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             automaticallyImplyLeading: false,
             backgroundColor: Colors.transparent,
             elevation: 0,
-            title: Text("Meu Perfil",
+            title: Text("Meu perfil",
                 style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
             actions: [
               TextButton(

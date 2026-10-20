@@ -8,6 +8,7 @@ import '../../../data/repositories/card_repository.dart';
 import '../../../data/models/card_model.dart';
 import '../../widgets/custom_back_button.dart';
 import 'card_detail_screen.dart';
+import '../../widgets/neon.dart';
 
 class TodayPricesScreen extends StatefulWidget {
   const TodayPricesScreen({super.key});
@@ -121,10 +122,7 @@ class _TodayPricesScreenState extends State<TodayPricesScreen> {
   Widget _buildCardTile(CardModel card, int index, Color textColor, bool isLight) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: isLight ? Colors.black.withValues(alpha: 0.05) : Colors.white10,
-        borderRadius: BorderRadius.circular(12),
-      ),
+      decoration: neonDecoration(AreaColors.prices, neonSurface(context, context.read<ThemeProvider>().backgroundColor), radius: 16, glow: 0.12),
       child: ListTile(
         onTap: () {
           Navigator.push(context, MaterialPageRoute(
