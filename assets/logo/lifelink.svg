@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Logo do LifeLink: um dado D20 dourado, com o 20 (a vida inicial) no meio. --><defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2a2a35"/><stop offset="1" stop-color="#101016"/></linearGradient><linearGradient id="gold" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f6d58a"/><stop offset="0.5" stop-color="#c79a3c"/><stop offset="1" stop-color="#8a6420"/></linearGradient></defs>
+<rect width="512" height="512" rx="112" fill="url(#bg)"/>
+<g transform="translate(256 256)">
+<polygon points="0,-178 154,-89 154,89 0,178 -154,89 -154,-89" fill="#1c1c24" stroke="url(#gold)" stroke-width="14" stroke-linejoin="round"/>
+<g stroke="url(#gold)" stroke-width="5" fill="none" stroke-linejoin="round" opacity="0.85">
+<polygon points="0,-110 95,55 -95,55"/><line x1="0" y1="-178" x2="0" y2="-110"/><line x1="154" y1="-89" x2="0" y2="-110"/><line x1="154" y1="-89" x2="95" y2="55"/><line x1="154" y1="89" x2="95" y2="55"/><line x1="0" y1="178" x2="95" y2="55"/><line x1="0" y1="178" x2="-95" y2="55"/><line x1="-154" y1="89" x2="-95" y2="55"/><line x1="-154" y1="-89" x2="-95" y2="55"/><line x1="-154" y1="-89" x2="0" y2="-110"/>
+</g>
+<text x="0" y="40" text-anchor="middle" font-family="Georgia, serif" font-weight="700" font-size="104" fill="#f6d58a">20</text>
+</g></svg>

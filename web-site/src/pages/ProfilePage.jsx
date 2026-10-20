@@ -5,7 +5,7 @@ import { xpForNextLevel } from '../lib/xp'
 
 function Stat({ label, value }) {
   return (
-    <div className="rounded-xl bg-white/5 p-3 text-center">
+    <div className="rounded-xl bg-text/5 p-3 text-center">
       <div className="text-2xl font-black">{value}</div>
       <div className="text-xs text-muted">{label}</div>
     </div>
@@ -27,15 +27,15 @@ export default function ProfilePage() {
         {profile.selectedAvatar ? (
           <img src={profile.selectedAvatar} alt="" className="h-24 w-24 rounded-full object-cover ring-4 ring-accent" />
         ) : (
-          <div className="grid h-24 w-24 place-items-center rounded-full bg-white/10 text-4xl">🧙</div>
+          <div className="grid h-24 w-24 place-items-center rounded-full bg-text/10 text-4xl">🧙</div>
         )}
         <div className="min-w-0 flex-1">
           <div className="truncate text-2xl font-black">{user?.name || 'Jogador'}</div>
           {profile.selectedTitle && <div className="font-bold text-amber-300">{profile.selectedTitle}</div>}
           <div className="mt-2 text-sm text-muted">
-            Nível <b className="text-white">{profile.level}</b> · {profile.xp} / {end} XP
+            Nível <b className="text-text">{profile.level}</b> · {profile.xp} / {end} XP
           </div>
-          <div className="mt-1 h-2.5 overflow-hidden rounded-full bg-white/10">
+          <div className="mt-1 h-2.5 overflow-hidden rounded-full bg-text/10">
             <div className="h-full rounded-full bg-accent" style={{ width: `${progress * 100}%` }} />
           </div>
         </div>
