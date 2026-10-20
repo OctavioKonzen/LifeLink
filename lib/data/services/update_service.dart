@@ -27,8 +27,8 @@ class UpdateService {
   UpdateService._();
 
   static const _latest = 'https://api.github.com/repos/OctavioKonzen/Magic/releases/latest';
-  static const apk64Bits = 'Magic.apk';
-  static const apk32Bits = 'Magic_32bits.apk';
+  static const apk64Bits = 'LifeLink.apk';
+  static const apk32Bits = 'LifeLink_32bits.apk';
   static bool _checked = false;
 
   /// "1.10.0" > "1.9.2"
@@ -121,7 +121,7 @@ class _UpdateDialogState extends State<_UpdateDialog> {
       _progress = 0;
       _error = null;
     });
-    OtaUpdate().execute(widget.release.apkUrl, destinationFilename: 'magic-${widget.release.version}.apk').listen(
+    OtaUpdate().execute(widget.release.apkUrl, destinationFilename: 'lifelink-${widget.release.version}.apk').listen(
       (event) {
         if (!mounted) return;
         switch (event.status) {
@@ -133,7 +133,7 @@ class _UpdateDialogState extends State<_UpdateDialog> {
           case OtaStatus.PERMISSION_NOT_GRANTED_ERROR:
             setState(() {
               _progress = null;
-              _error = 'Permita que o Magic instale apps (o Android vai pedir) e tente de novo.';
+              _error = 'Permita que o LifeLink instale apps (o Android vai pedir) e tente de novo.';
             });
           default:
             setState(() {

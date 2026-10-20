@@ -1,5 +1,5 @@
 name: magic
-description: "Contador de vida, busca de cartas, decks e preços de Magic: The Gathering."
+description: "LifeLink: contador de vida, busca de cartas, decks e preços de Magic: The Gathering."
 publish_to: 'none'
 version: 1.0.0+1
 

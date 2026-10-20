@@ -63,7 +63,7 @@ class MyApp extends StatelessWidget {
     final themeProvider = Provider.of<ThemeProvider>(context);
 
     return MaterialApp(
-      title: 'MTG Life Counter',
+      title: 'LifeLink',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,

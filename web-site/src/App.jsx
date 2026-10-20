@@ -42,7 +42,7 @@ function Header() {
     <header className="sticky top-0 z-30 border-b border-line bg-bg/95 backdrop-blur">
       <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-6 gap-y-2 px-4 py-3">
         <NavLink to="/" className="text-xl font-black tracking-wide">
-          MAGIC
+          LIFELINK
         </NavLink>
         <nav className="-mx-1 flex flex-1 gap-1 overflow-x-auto">
           {SECTIONS.map((s) => (

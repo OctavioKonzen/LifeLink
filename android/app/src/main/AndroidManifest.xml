@@ -5,7 +5,7 @@
     <!-- Atualização pelo próprio app (ota_update) -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>
     <application
-        android:label="Magic"
+        android:label="LifeLink"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

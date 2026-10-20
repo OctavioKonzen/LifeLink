@@ -1,6 +1,6 @@
 // Liga o Firebase (login e dados da conta — o mesmo projeto do site).
 //   • Android: usa android/app/google-services.json (baixado do Console do
-//     Firebase, app com.octaviokonzen.magic).
+//     Firebase, app com.octaviokonzen.lifelink).
 //   • Web (só para testes): configuração passada com --dart-define=FIREBASE_*.
 // Sem configuração, o app funciona normalmente, só que sem login.
 

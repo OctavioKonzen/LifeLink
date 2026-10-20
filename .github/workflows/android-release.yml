@@ -84,8 +84,8 @@ jobs:
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           if [ -n "$KEYSTORE" ]; then
-            echo "$KEYSTORE" | base64 -d > "$RUNNER_TEMP/magic.jks"
-            export ANDROID_KEYSTORE_PATH="$RUNNER_TEMP/magic.jks"
+            echo "$KEYSTORE" | base64 -d > "$RUNNER_TEMP/lifelink.jks"
+            export ANDROID_KEYSTORE_PATH="$RUNNER_TEMP/lifelink.jks"
           fi
           if [ -n "$GOOGLE_SERVICES" ]; then
             printf '%s' "$GOOGLE_SERVICES" > android/app/google-services.json
@@ -93,11 +93,11 @@ jobs:
             echo "::warning::Sem GOOGLE_SERVICES_JSON: o APK sai sem login (conta)."
           fi
           # Um APK por tipo de celular (bem menor que um com os dois):
-          # Magic.apk para 64 bits (quase todos) e outro para os de 32 bits.
+          # LifeLink.apk para 64 bits (quase todos) e outro para os de 32 bits.
           flutter build apk --release --split-per-abi --target-platform android-arm,android-arm64
-          cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk Magic.apk
-          cp build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk Magic_32bits.apk
-          ls -lh Magic*.apk
+          cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk LifeLink.apk
+          cp build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk LifeLink_32bits.apk
+          ls -lh LifeLink*.apk
 
       - name: Publicar versão
         if: steps.check.outputs.skip == 'false' && steps.check.outputs.publish == 'true'
@@ -105,7 +105,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ steps.check.outputs.version }}
         run: |
-          # O nome fixo Magic.apk deixa o link
-          # releases/latest/download/Magic.apk sempre apontando para a última.
-          gh release create "apk-$VERSION" Magic.apk Magic_32bits.apk \
-            --target "$(git rev-parse HEAD)" --title "Magic $VERSION" --notes "$(git log -1 --pretty=%B)" --latest
+          # O nome fixo LifeLink.apk deixa o link
+          # releases/latest/download/LifeLink.apk sempre apontando para a última.
+          gh release create "apk-$VERSION" LifeLink.apk LifeLink_32bits.apk \
+            --target "$(git rev-parse HEAD)" --title "LifeLink $VERSION" --notes "$(git log -1 --pretty=%B)" --latest

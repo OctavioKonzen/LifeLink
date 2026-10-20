@@ -7,7 +7,7 @@ plugins {
 }
 
 android {
-    namespace = "com.octaviokonzen.magic"
+    namespace = "com.octaviokonzen.lifelink"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -18,7 +18,7 @@ android {
 
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.octaviokonzen.magic"
+        applicationId = "com.octaviokonzen.lifelink"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
@@ -71,7 +71,7 @@ flutter {
 }
 
 // Firebase (login e dados da conta): o arquivo google-services.json vem do
-// Console do Firebase (app Android com.octaviokonzen.magic). Sem ele o app
+// Console do Firebase (app Android com.octaviokonzen.lifelink). Sem ele o app
 // compila e funciona sem login.
 if (file("google-services.json").exists()) {
     apply(plugin = "com.google.gms.google-services")
