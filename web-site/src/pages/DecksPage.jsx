@@ -3,6 +3,8 @@ import CardImage from '../components/CardImage'
 import CardModal from '../components/CardModal'
 import { ErrorBox, Modal, Spinner } from '../components/ui'
 import { coverIds, deck as loadDeck, deckCards, deckList, imageFor } from '../lib/mtgjson'
+import { fromMtgjson } from '../lib/deckCards'
+import { saveDeck } from '../lib/userData'
 
 const CATEGORIES = ['Commander', 'Challenger', 'Avatar / Outros']
 
@@ -41,6 +43,13 @@ function DeckModal({ info, onClose }) {
     )
   }, [info.fileName])
   const total = state.cards?.reduce((n, c) => n + c.count, 0)
+  const [saved, setSaved] = useState(false)
+  // Igual ao "Salvar nos Meus Decks" do app: uma carta por cópia.
+  const save = () => {
+    const cards = state.cards.flatMap((c) => Array.from({ length: c.count }, () => fromMtgjson(c.item, imageFor(c.scryfallId) || '')))
+    saveDeck({ id: String(Date.now()), name: info.name || 'Novo Deck', type: info.type || 'Casual', cards })
+    setSaved(true)
+  }
   return (
     <Modal onClose={onClose} wide>
       <h2 className="pr-10 text-2xl font-black">{info.name}</h2>
@@ -48,6 +57,16 @@ function DeckModal({ info, onClose }) {
         {info.type} · {info.releaseDate}
         {total ? ` · ${total} cartas` : ''}
       </p>
+      {state.cards?.length > 0 && (
+        <button
+          type="button"
+          disabled={saved}
+          onClick={save}
+          className="mb-4 rounded-full bg-emerald-600 px-4 py-2 text-sm font-bold hover:brightness-110 disabled:opacity-60"
+        >
+          {saved ? '✓ Salvo em Meus decks' : '+ Salvar nos Meus decks'}
+        </button>
+      )}
       {state.loading ? (
         <Spinner />
       ) : state.error ? (

@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../account/user_data.dart';
 
 class DeckModel {
   String id;
@@ -12,18 +13,51 @@ class DeckModel {
 
   Map<String, dynamic> toMap() => {'id': id, 'name': name, 'type': type, 'cards': cards};
   factory DeckModel.fromMap(Map<String, dynamic> map) => DeckModel(
-    id: map['id'], 
-    name: map['name'], 
-    type: map['type'], 
-    cards: List<Map<String, dynamic>>.from(map['cards'])
+    id: map['id'].toString(), 
+    name: map['name'] ?? 'Deck', 
+    type: map['type'] ?? 'Casual', 
+    cards: [for (final c in (map['cards'] as List? ?? const [])) Map<String, dynamic>.from(c as Map)]
   );
 }
 
-class DeckProvider with ChangeNotifier {
+class DeckProvider with ChangeNotifier implements SyncedDecks {
   List<DeckModel> _allDecks = [];
   List<DeckModel> get allDecks => _allDecks;
 
-  DeckProvider() { _loadDecks(); }
+  /// Termina quando os decks salvos no aparelho foram carregados.
+  late final Future<void> ready;
+
+  DeckProvider() {
+    ready = _loadDecks();
+    UserData.instance.decks = this;
+  }
+
+  // Avisa a conta (AccountSync) qual deck mudou.
+  void _changed(int deckIndex) {
+    if (deckIndex >= 0 && deckIndex < _allDecks.length) UserData.instance.deckChanged(_allDecks[deckIndex].id);
+  }
+
+  @override
+  Map<String, Map<String, dynamic>> readDecks() => {for (final d in _allDecks) d.id: d.toMap()};
+
+  @override
+  Future<void> applyDecks(Map<String, Map<String, dynamic>> remote, {Set<String> keep = const {}}) async {
+    final local = {for (final d in _allDecks) d.id: d};
+    final merged = <DeckModel>[
+      for (final e in remote.entries)
+        if (!keep.contains(e.key)) DeckModel.fromMap({...e.value, 'id': e.key}),
+      for (final id in keep)
+        if (local[id] != null) local[id]!,
+    ]..sort((a, b) => a.id.compareTo(b.id));
+    _allDecks = merged;
+    await _saveDecks();
+  }
+
+  @override
+  Future<void> clearDecks() async {
+    _allDecks = [];
+    await _saveDecks();
+  }
 
   void createDeck(String name, String type) {
     _allDecks.add(DeckModel(
@@ -32,6 +66,7 @@ class DeckProvider with ChangeNotifier {
       type: type, 
       cards: []
     ));
+    _changed(_allDecks.length - 1);
     _saveDecks();
   }
 
@@ -42,11 +77,13 @@ class DeckProvider with ChangeNotifier {
       type: type,
       cards: List<Map<String, dynamic>>.from(newCards),
     ));
+    _changed(_allDecks.length - 1);
     _saveDecks();
   }
 
   void deleteDeck(int index) {
     if (index >= 0 && index < _allDecks.length) {
+      UserData.instance.deckChanged(_allDecks[index].id, deleted: true);
       _allDecks.removeAt(index);
       _saveDecks();
     }
@@ -55,6 +92,7 @@ class DeckProvider with ChangeNotifier {
   void addCardToDeck(int deckIndex, Map<String, dynamic> card) {
     if (deckIndex >= 0 && deckIndex < _allDecks.length) {
       _allDecks[deckIndex].cards.add(card);
+      _changed(deckIndex);
       _saveDecks();
     }
   }
@@ -63,6 +101,7 @@ class DeckProvider with ChangeNotifier {
     if (deckIndex >= 0 && deckIndex < _allDecks.length) {
       if (cardIndex >= 0 && cardIndex < _allDecks[deckIndex].cards.length) {
         _allDecks[deckIndex].cards.removeAt(cardIndex);
+        _changed(deckIndex);
         _saveDecks();
       }
     }
@@ -73,6 +112,7 @@ class DeckProvider with ChangeNotifier {
     if (deckIndex >= 0 && deckIndex < _allDecks.length) {
       if (cardIndex >= 0 && cardIndex < _allDecks[deckIndex].cards.length) {
         _allDecks[deckIndex].cards[cardIndex] = newCard;
+        _changed(deckIndex);
         _saveDecks();
       }
     }
@@ -83,6 +123,7 @@ class DeckProvider with ChangeNotifier {
     if (deckIndex >= 0 && deckIndex < _allDecks.length) {
       if (cardIndex >= 0 && cardIndex < _allDecks[deckIndex].cards.length) {
         _allDecks[deckIndex].cards[cardIndex] = newCard;
+        _changed(deckIndex);
         _saveDecks();
         notifyListeners(); // Força a tela a atualizar com a nova carta
       }

@@ -1,11 +1,11 @@
 {
-    "name": "magic",
-    "short_name": "magic",
+    "name": "LifeLink",
+    "short_name": "LifeLink",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "description": "Contador de vida, busca de cartas, decks e preços de Magic: The Gathering.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

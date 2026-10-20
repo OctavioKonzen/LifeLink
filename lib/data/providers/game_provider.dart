@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../account/user_data.dart';
 
 class GameProvider with ChangeNotifier {
   int _playerCount = 2;
@@ -17,8 +18,42 @@ class GameProvider with ChangeNotifier {
   List<List<int>> get commanderDamage => _commanderDamage;
   List<String> get playerNames => _playerNames;
 
+  /// Termina quando a partida salva no aparelho foi carregada.
+  late final Future<void> ready;
+
   GameProvider() {
-    _loadGame();
+    ready = _loadGame();
+    UserData.instance.register(SyncedSection(key: 'game', read: toSync, apply: applySync));
+  }
+
+  Map<String, dynamic> toSync() => {
+        'playerCount': _playerCount,
+        'startingLife': _startingLife,
+        'lives': _lives,
+        'poison': _poison,
+        'commanderDamage': _commanderDamage,
+        'playerNames': _playerNames,
+      };
+
+  static List<int> _ints(dynamic v, int fill) {
+    final list = [for (final x in (v as List? ?? const [])) (x as num).toInt()];
+    while (list.length < 6) {
+      list.add(fill);
+    }
+    return list;
+  }
+
+  Future<void> applySync(Map<String, dynamic>? v) async {
+    _playerCount = (v?['playerCount'] as num?)?.toInt() ?? 2;
+    _startingLife = (v?['startingLife'] as num?)?.toInt() ?? 40;
+    _lives = _ints(v?['lives'], _startingLife);
+    _poison = _ints(v?['poison'], 0);
+    final cmd = (v?['commanderDamage'] as List?) ?? const [];
+    _commanderDamage = List.generate(6, (i) => _ints(i < cmd.length ? cmd[i] : null, 0));
+    final names = [for (final n in (v?['playerNames'] as List? ?? const [])) n.toString()];
+    _playerNames = List.generate(6, (i) => i < names.length ? names[i] : "Player ${i + 1}");
+    await _save();
+    notifyListeners();
   }
 
   void updateLife(int index, int delta) {
@@ -70,14 +105,19 @@ class GameProvider with ChangeNotifier {
   }
 
   Future<void> _saveAndNotify() async {
+    notifyListeners();
+    await _save();
+    UserData.instance.changed('game');
+  }
+
+  Future<void> _save() async {
     final prefs = await SharedPreferences.getInstance();
     prefs.setInt('playerCount', _playerCount);
     prefs.setInt('startingLife', _startingLife);
     prefs.setString('lives', jsonEncode(_lives));
     prefs.setString('poison', jsonEncode(_poison));
     prefs.setString('commanderDamage', jsonEncode(_commanderDamage));
-    prefs.setString('playerNames', jsonEncode(_playerNames));
-    notifyListeners();
+    await prefs.setString('playerNames', jsonEncode(_playerNames));
   }
 
   Future<void> _loadGame() async {

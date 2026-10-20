@@ -61,6 +61,7 @@ export function deckCards(data) {
           name: item.name,
           count: Number(item.count) || 1,
           scryfallId: item.identifiers?.scryfallId,
+          item,
         })
       }
     }

@@ -1,32 +1,19 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { defaultGame, updateSection, useUserData } from '../lib/userData'
+import { incrementMatches } from '../lib/xp'
 
 // O mesmo contador do app (game_provider.dart): 2 a 6 jogadores, vida 20 ou
 // 40 (Commander), veneno até 10 e dano de comandante até 21, que também tira
-// vida. Fica guardado no navegador.
+// vida. É a mesma partida do app: com a conta, o que muda aqui aparece lá.
 
-const KEY = 'life_counter_v1'
 const COLORS = ['#ef4444', '#3b82f6', '#22c55e', '#eab308', '#a855f7', '#f97316']
 
-function newGame(players, startingLife, names) {
-  return {
-    players,
-    startingLife,
-    names: names || Array.from({ length: 6 }, (_, i) => `Jogador ${i + 1}`),
-    lives: Array(6).fill(startingLife),
-    poison: Array(6).fill(0),
-    commander: Array.from({ length: 6 }, () => Array(6).fill(0)),
-  }
-}
+// Formato do app (users/{uid}.data.game) → nomes curtos usados nesta tela.
+const view = (g) => ({ players: g.playerCount, startingLife: g.startingLife, names: g.playerNames, lives: g.lives, poison: g.poison, commander: g.commanderDamage })
+const toApp = (v) => ({ playerCount: v.players, startingLife: v.startingLife, playerNames: v.names, lives: v.lives, poison: v.poison, commanderDamage: v.commander })
+const newGame = (players, startingLife, names) => view(defaultGame(startingLife, players, names))
 
-function load() {
-  try {
-    const saved = JSON.parse(localStorage.getItem(KEY))
-    if (saved?.lives?.length === 6) return saved
-  } catch {
-    // Sem jogo salvo ou armazenamento bloqueado.
-  }
-  return newGame(2, 40)
-}
+const isDead = (g, i) => g.lives[i] <= 0 || g.poison[i] >= 10 || g.commander[i].some((d) => d >= 21)
 
 const clamp = (v, min, max) => Math.min(max, Math.max(min, v))
 
@@ -46,7 +33,7 @@ function Step({ onClick, children, label }) {
 function Player({ i, game, update }) {
   const [details, setDetails] = useState(false)
   const life = game.lives[i]
-  const dead = life <= 0 || game.poison[i] >= 10 || game.commander[i].some((d) => d >= 21)
+  const dead = isDead(game, i)
   const others = Array.from({ length: game.players }, (_, j) => j).filter((j) => j !== i)
 
   return (
@@ -125,15 +112,23 @@ function Row({ label, value, onChange }) {
 }
 
 export default function LifeCounterPage() {
-  const [game, setGame] = useState(load)
+  const game = view(useUserData((s) => s.game))
+  const setGame = (update) => updateSection('game', (g) => toApp(update(view(g))))
+  const [banner, setBanner] = useState(null)
 
+  // Sobrou um só jogador vivo: a partida conta para o perfil (+50 XP), uma
+  // vez por partida, como no app.
+  const alive = Array.from({ length: game.players }, (_, i) => i).filter((i) => !isDead(game, i))
+  const counted = useRef(alive.length === 1) // partida que já tinha acabado não conta de novo
   useEffect(() => {
-    try {
-      localStorage.setItem(KEY, JSON.stringify(game))
-    } catch {
-      // Navegação privada: o jogo só não fica salvo.
+    if (alive.length === 1 && !counted.current) {
+      counted.current = true
+      const unlocked = incrementMatches()
+      if (unlocked) setBanner(unlocked)
+    } else if (alive.length > 1) {
+      counted.current = false
     }
-  }, [game])
+  }, [alive.length])
 
   return (
     <div>
@@ -166,6 +161,11 @@ export default function LifeCounterPage() {
           Reiniciar
         </button>
       </div>
+      {alive.length === 1 && (
+        <p className="mb-3 rounded-xl bg-amber-400/15 p-3 text-center font-bold text-amber-300">
+          🏆 {game.names[alive[0]]} venceu! +50 XP{banner ? ` · Novo banner: ${banner}` : ''}
+        </p>
+      )}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {Array.from({ length: game.players }, (_, i) => (
           <Player key={i} i={i} game={game} update={setGame} />

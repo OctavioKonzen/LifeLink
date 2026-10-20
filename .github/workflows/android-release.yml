@@ -1,0 +1,105 @@
+name: App Android (APK)
+
+# Gera o APK assinado do app e publica em GitHub Releases, igual ao Pocketdex.
+# Roda quando a versão do pubspec.yaml muda na main (ou pelo botão Run
+# workflow em Actions → App Android (APK)). O app confere essa página ao
+# abrir e oferece a atualização (lib/data/services/update_service.dart); o
+# site tem o botão "Baixar o APK".
+#
+# A chave de assinatura fica no repositório, criptografada
+# (android/app/lifelink.jks.enc, criada pelo workflow "Chave do APK"), e a
+# senha dela no secret ANDROID_KEYSTORE_PASSWORD. O Firebase do app vem de
+# android/app/google-services.json.
+# Sem a chave, o APK é gerado só como teste e não é publicado (uma versão
+# assinada com outra chave não instalaria por cima nas próximas).
+
+on:
+  push:
+    branches: [main]
+    paths: ['pubspec.yaml']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: android-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Versão e secrets
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PW: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          VERSION=$(sed -n 's/^version: *//p' pubspec.yaml | cut -d+ -f1)
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          if gh release view "apk-$VERSION" > /dev/null 2>&1; then
+            echo "A versão $VERSION já está publicada. Para publicar outra, aumente a versão no pubspec.yaml."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+          if [ "$GITHUB_REF" = 'refs/heads/main' ] && [ -n "$PW" ] && [ -f android/app/lifelink.jks.enc ]; then
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::Falta a chave de assinatura (android/app/lifelink.jks.enc ou o secret ANDROID_KEYSTORE_PASSWORD): o APK é gerado só como teste e não é publicado."
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/setup-java@v4
+        if: steps.check.outputs.skip == 'false'
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: subosito/flutter-action@v2
+        if: steps.check.outputs.skip == 'false'
+        with:
+          channel: stable
+          cache: true
+
+      - name: Conferir o app (análise e testes)
+        if: steps.check.outputs.skip == 'false'
+        run: |
+          flutter pub get
+          flutter analyze --no-fatal-infos
+          flutter test
+
+      - name: Gerar APK assinado
+        if: steps.check.outputs.skip == 'false'
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          if [ -n "$ANDROID_KEYSTORE_PASSWORD" ] && [ -f android/app/lifelink.jks.enc ]; then
+            openssl enc -d -aes-256-cbc -pbkdf2 -iter 600000 -in android/app/lifelink.jks.enc \
+              -out "$RUNNER_TEMP/lifelink.jks" -pass env:ANDROID_KEYSTORE_PASSWORD
+            export ANDROID_KEYSTORE_PATH="$RUNNER_TEMP/lifelink.jks"
+            export ANDROID_KEY_ALIAS=lifelink ANDROID_KEY_PASSWORD="$ANDROID_KEYSTORE_PASSWORD"
+          fi
+          if [ ! -f android/app/google-services.json ]; then
+            echo "::warning::Sem android/app/google-services.json: o APK sai sem login (conta)."
+          fi
+          # Um APK por tipo de celular (bem menor que um com os dois):
+          # LifeLink.apk para 64 bits (quase todos) e outro para os de 32 bits.
+          flutter build apk --release --split-per-abi --target-platform android-arm,android-arm64
+          cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk LifeLink.apk
+          cp build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk LifeLink_32bits.apk
+          ls -lh LifeLink*.apk
+
+      - name: Publicar versão
+        if: steps.check.outputs.skip == 'false' && steps.check.outputs.publish == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.check.outputs.version }}
+        run: |
+          # O nome fixo LifeLink.apk deixa o link
+          # releases/latest/download/LifeLink.apk sempre apontando para a última.
+          gh release create "apk-$VERSION" LifeLink.apk LifeLink_32bits.apk \
+            --target "$(git rev-parse HEAD)" --title "LifeLink $VERSION" --notes "$(git log -1 --pretty=%B)" --latest

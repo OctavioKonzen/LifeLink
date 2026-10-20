@@ -13,6 +13,9 @@ import {
   search,
   typeLine,
 } from '../lib/scryfall'
+import { toDeckCard } from '../lib/deckCards'
+import { deckList, saveDeck, useUserData } from '../lib/userData'
+import { incrementArtsViewed, incrementCardsAdded } from '../lib/xp'
 
 const LANGS = [
   ['pt', 'Português'],
@@ -133,6 +136,47 @@ function Versions({ card, onPick }) {
   )
 }
 
+/** Adiciona a carta a um dos "Meus decks" (os mesmos do app, com a conta). */
+function AddToDeck({ card }) {
+  const decks = deckList(useUserData((s) => s.decks))
+  const [deckId, setDeckId] = useState('')
+  const [done, setDone] = useState(null)
+  const target = decks.find((d) => d.id === deckId) || decks[decks.length - 1]
+  if (!decks.length) {
+    return <p className="mt-5 text-sm text-muted">Crie um deck em "Meus decks" para adicionar cartas.</p>
+  }
+  return (
+    <div className="mt-5 flex flex-wrap items-center gap-2">
+      <select
+        value={target.id}
+        onChange={(e) => {
+          setDeckId(e.target.value)
+          setDone(null)
+        }}
+        className="min-w-0 flex-1 rounded-lg border border-line bg-card px-2 py-2 text-sm"
+      >
+        {decks.map((d) => (
+          <option key={d.id} value={d.id}>
+            {d.name} ({d.cards.length})
+          </option>
+        ))}
+      </select>
+      <button
+        type="button"
+        onClick={() => {
+          saveDeck({ ...target, cards: [...target.cards, toDeckCard(card)] })
+          incrementCardsAdded(1)
+          setDone(target.name)
+        }}
+        className="rounded-full bg-accent px-4 py-2 text-sm font-bold hover:brightness-110"
+      >
+        + Adicionar ao deck
+      </button>
+      {done && <span className="w-full text-sm font-bold text-emerald-400">Adicionada em {done}!</span>}
+    </div>
+  )
+}
+
 /** Página da carta por cima da tela. Aceita a carta da API ou só o id dela. */
 export default function CardModal({ card: initial, id, onClose }) {
   const [card, setCard] = useState(initial || null)
@@ -145,6 +189,7 @@ export default function CardModal({ card: initial, id, onClose }) {
   }, [id, initial])
 
   const pick = (v) => {
+    if (v.id !== card.id) incrementArtsViewed()
     setCard(v)
     setBack(false)
   }
@@ -222,6 +267,8 @@ export default function CardModal({ card: initial, id, onClose }) {
                 </div>
               </section>
             )}
+
+            <AddToDeck card={card} />
 
             <a href={card.scryfall_uri} target="_blank" rel="noreferrer" className="mt-5 inline-block text-sm text-accent underline">
               Ver no Scryfall

@@ -1,4 +1,4 @@
-package com.octaviokonzen.magic
+package com.octaviokonzen.lifelink
 
 import io.flutter.embedding.android.FlutterActivity
 

@@ -14,6 +14,8 @@ import '../search/today_prices_screen.dart';
 import 'news_web_screen.dart';
 import 'arena_missions_screen.dart';
 import 'profile_screen.dart'; 
+import 'account_screen.dart';
+import '../../../data/account/auth_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -297,6 +299,18 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               },
               child: _buildDynamicAvatar(xp, 72),
             ),
+          ),
+          ListTile(
+            leading: Icon(Icons.account_circle, color: textColor),
+            title: Text(isPt ? "Conta (app e site)" : "Account (app & site)", style: TextStyle(color: textColor)),
+            subtitle: Text(
+              AuthService.instance.user?.email ?? (isPt ? "Entrar para sincronizar" : "Sign in to sync"),
+              style: TextStyle(color: textColor.withValues(alpha: 0.5), fontSize: 12),
+            ),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(context, MaterialPageRoute(builder: (context) => const AccountScreen()));
+            },
           ),
           ListTile(
             leading: Icon(Icons.person, color: textColor),

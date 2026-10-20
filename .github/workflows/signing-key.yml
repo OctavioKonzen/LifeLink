@@ -1,0 +1,73 @@
+name: Chave do APK
+
+# Cria, uma vez só, a chave que assina o APK do LifeLink, sem precisar de
+# computador. O Android só instala uma atualização por cima se ela vier
+# assinada com a MESMA chave, então ela nunca pode mudar nem se perder.
+#
+# A chave fica no próprio repositório, CRIPTOGRAFADA (AES-256) com a senha do
+# secret ANDROID_KEYSTORE_PASSWORD: android/app/lifelink.jks.enc. Sem a senha,
+# o arquivo não serve para nada; com ela, o repositório é o backup da chave.
+# O SHA-1 (vai no Firebase, para o login com Google no celular) aparece no
+# resumo desta execução.
+#
+# Precisa do secret ANDROID_KEYSTORE_PASSWORD (Settings → Secrets and
+# variables → Actions), uma senha longa que você guarda.
+
+# Roda pelo botão Run workflow (Actions → Chave do APK), depois de criar o
+# secret: assim não falha sozinho num push antes de a senha existir.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: signing-key
+  cancel-in-progress: false
+
+jobs:
+  key:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Criar a chave (se ainda não existe)
+        env:
+          PW: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          ENC=android/app/lifelink.jks.enc
+          if [ -z "$PW" ]; then
+            echo "::error::Falta o secret ANDROID_KEYSTORE_PASSWORD. Crie em Settings → Secrets and variables → Actions e rode de novo."
+            exit 1
+          fi
+          if [ ${#PW} -lt 16 ]; then
+            echo "::error::A senha do ANDROID_KEYSTORE_PASSWORD precisa ter pelo menos 16 caracteres (ela protege a chave guardada no repositório)."
+            exit 1
+          fi
+          if [ -f "$ENC" ]; then
+            echo "A chave já existe ($ENC): nada a fazer."
+            openssl enc -d -aes-256-cbc -pbkdf2 -iter 600000 -in "$ENC" -out "$RUNNER_TEMP/k.jks" -pass env:PW
+          else
+            keytool -genkeypair -keystore "$RUNNER_TEMP/k.jks" -storetype PKCS12 -keyalg RSA -keysize 2048 \
+              -validity 10000 -alias lifelink -storepass "$PW" -keypass "$PW" -dname "CN=LifeLink, O=OctavioKonzen, C=BR"
+            openssl enc -aes-256-cbc -pbkdf2 -iter 600000 -salt -in "$RUNNER_TEMP/k.jks" -out "$ENC" -pass env:PW
+            git config user.name OctavioKonzen
+            git config user.email 131984455+OctavioKonzen@users.noreply.github.com
+            git add "$ENC"
+            git commit -m "Adiciona a chave do APK (criptografada)"
+            git push origin "HEAD:${GITHUB_REF_NAME}"
+          fi
+          SHA1=$(keytool -list -v -keystore "$RUNNER_TEMP/k.jks" -alias lifelink -storepass "$PW" | sed -n 's/^\s*SHA1: //p')
+          rm -f "$RUNNER_TEMP/k.jks"
+          echo "SHA-1 da chave: $SHA1"
+          {
+            echo "## Chave do APK"
+            echo ""
+            echo "SHA-1 (cole no Firebase → Configurações do projeto → app Android → Adicionar impressão digital):"
+            echo ""
+            echo "\`$SHA1\`"
+          } >> "$GITHUB_STEP_SUMMARY"
