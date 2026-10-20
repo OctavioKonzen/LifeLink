@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { resetPassword, signIn, signInWithGoogle, signUp, useAuth } from '../lib/auth'
 import { deleteAccount, logout } from '../lib/sync'
-import { APK_URL } from '../lib/appRelease'
 
 /** Conta (a mesma do app): entrar, criar conta, sair e excluir. */
 export default function AccountPage() {
@@ -143,9 +142,6 @@ export default function AccountPage() {
         {error && <p className="mt-4 text-center font-bold text-red-400">{error}</p>}
         {notice && <p className="mt-4 text-center font-bold text-emerald-400">{notice}</p>}
       </div>
-      <a href={APK_URL} className="mt-6 block rounded-2xl bg-emerald-600 py-3 text-center font-bold hover:brightness-110">
-        📱 Baixar o app para Android (APK)
-      </a>
     </div>
   )
 }
