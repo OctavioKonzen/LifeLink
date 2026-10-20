@@ -3,7 +3,7 @@ import { resetPassword, signIn, signInWithGoogle, signUp, useAuth } from '../lib
 import { deleteAccount, logout } from '../lib/sync'
 
 /** Conta (a mesma do app): entrar, criar conta, sair e excluir. */
-export default function AccountPage() {
+export default function AccountPage({ bare = false }) {
   const { status, user } = useAuth()
   const [creating, setCreating] = useState(false)
   const [form, setForm] = useState({ name: '', email: '', password: '' })
@@ -55,11 +55,11 @@ export default function AccountPage() {
           <div className="text-xl font-black">{user.name}</div>
           <div className="text-sm text-muted">{user.email}</div>
         </div>
-        <p className="max-w-md text-sm text-white/70">
+        <p className="max-w-md text-sm text-text/70">
           Seus decks, perfil, nível, missões, preferências e a partida do contador ficam na conta. O que você muda aqui aparece no app na hora, e
           vice-versa.
         </p>
-        <button type="button" disabled={busy} onClick={() => run(logout)} className="rounded-full border border-white/30 px-6 py-2 font-bold hover:bg-white/10">
+        <button type="button" disabled={busy} onClick={() => run(logout)} className="rounded-full border border-text/30 px-6 py-2 font-bold hover:bg-text/10">
           Sair da conta
         </button>
         <button
@@ -85,19 +85,19 @@ export default function AccountPage() {
           run(() => (creating ? signUp(form.name, form.email, form.password) : signIn(form.email, form.password)))
         }}
       >
-        <p className="text-center text-sm text-white/70">Entre para usar os mesmos decks e o mesmo perfil no site e no app.</p>
+        <p className="text-center text-sm text-text/70">Entre para usar os mesmos decks e o mesmo perfil no site e no app.</p>
         <button
           type="button"
           disabled={busy}
           onClick={() => run(signInWithGoogle)}
-          className="flex items-center justify-center gap-2 rounded-xl bg-white py-3 font-bold text-black hover:bg-white/90"
+          className="flex items-center justify-center gap-2 rounded-xl bg-white py-3 font-bold text-black ring-1 ring-black/10 hover:bg-white/90"
         >
           <span className="text-lg font-black text-blue-600">G</span> Entrar com Google
         </button>
         <div className="flex items-center gap-2 text-xs text-muted">
-          <div className="h-px flex-1 bg-white/15" />
+          <div className="h-px flex-1 bg-text/15" />
           ou com e-mail
-          <div className="h-px flex-1 bg-white/15" />
+          <div className="h-px flex-1 bg-text/15" />
         </div>
         {creating && field('name', 'Seu nome')}
         {field('email', 'E-mail', 'email')}
@@ -135,8 +135,9 @@ export default function AccountPage() {
 
   return (
     <div className="mx-auto max-w-md">
-      <h1 className="mb-5 text-center text-2xl font-black">Conta</h1>
-      <div className="rounded-2xl bg-surface p-5">
+      {!bare && <h1 className="mb-5 text-center text-2xl font-black">Conta</h1>}
+      <div className="rounded-2xl bg-surface p-5 shadow-xl ring-1 ring-line">
+        {bare && <h1 className="mb-4 text-center text-2xl font-black">Entrar</h1>}
         {body}
         {busy && <p className="mt-4 text-center text-sm text-muted">Aguarde...</p>}
         {error && <p className="mt-4 text-center font-bold text-red-400">{error}</p>}

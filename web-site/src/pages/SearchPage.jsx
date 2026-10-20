@@ -64,7 +64,7 @@ function Chips({ title, options, selected, onToggle, filter = '' }) {
             key={t}
             type="button"
             onClick={() => onToggle(t)}
-            className={`rounded-full px-3 py-1 text-xs font-semibold ${selected.includes(t) ? 'bg-accent text-white' : 'bg-white/10 hover:bg-white/20'}`}
+            className={`rounded-full px-3 py-1 text-xs font-semibold ${selected.includes(t) ? 'bg-accent text-white' : 'bg-text/10 hover:bg-text/20'}`}
           >
             {t}
           </button>
@@ -121,7 +121,7 @@ function Filters({ filters, setFilters, catalogs, onClose }) {
         <button
           type="button"
           onClick={() => setFilters({ types: [], colors: [], set: null })}
-          className="flex-1 rounded-full border border-white/30 py-2 text-sm font-bold hover:bg-white/10"
+          className="flex-1 rounded-full border border-text/30 py-2 text-sm font-bold hover:bg-text/10"
         >
           Limpar
         </button>
@@ -265,7 +265,7 @@ export default function SearchPage() {
                   type="button"
                   onMouseDown={(e) => e.preventDefault()}
                   onClick={() => submit(item, typing)}
-                  className="flex w-full items-center gap-3 px-4 py-2.5 text-left hover:bg-white/10"
+                  className="flex w-full items-center gap-3 px-4 py-2.5 text-left hover:bg-text/10"
                 >
                   <span className="text-muted">{typing ? '🔍' : '🕘'}</span>
                   {item}
@@ -277,7 +277,7 @@ export default function SearchPage() {
         <button
           type="button"
           onClick={() => setShowFilters((s) => !s)}
-          className={`rounded-2xl px-4 font-bold ${showFilters || activeFilters ? 'bg-accent' : 'bg-surface hover:bg-white/10'}`}
+          className={`rounded-2xl px-4 font-bold ${showFilters || activeFilters ? 'bg-accent' : 'bg-surface hover:bg-text/10'}`}
         >
           Filtros{activeFilters ? ` (${activeFilters})` : ''}
         </button>

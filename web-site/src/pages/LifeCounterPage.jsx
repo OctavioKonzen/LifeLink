@@ -149,7 +149,7 @@ export default function LifeCounterPage() {
         <button
           type="button"
           onClick={() => setGame((g) => newGame(g.players, g.startingLife === 40 ? 20 : 40, g.names))}
-          className="rounded-full bg-white/10 px-4 py-1.5 text-sm font-bold hover:bg-white/20"
+          className="rounded-full bg-text/10 px-4 py-1.5 text-sm font-bold hover:bg-text/20"
         >
           {game.startingLife === 40 ? 'Commander (40)' : 'Normal (20)'}
         </button>

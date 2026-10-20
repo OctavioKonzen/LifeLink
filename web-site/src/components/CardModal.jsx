@@ -41,7 +41,7 @@ const LEGALITY = {
   legal: ['Legal', 'bg-emerald-600'],
   restricted: ['Restrita', 'bg-sky-600'],
   banned: ['Banida', 'bg-red-600'],
-  not_legal: ['Não', 'bg-white/10 text-white/50'],
+  not_legal: ['Não', 'bg-text/10 text-text/50'],
 }
 
 /**
@@ -70,7 +70,7 @@ function BestImage({ card, back }) {
 function Price({ label, value, prefix }) {
   if (!value) return null
   return (
-    <div className="rounded-xl bg-white/5 px-3 py-2">
+    <div className="rounded-xl bg-text/5 px-3 py-2">
       <div className="text-xs text-muted">{label}</div>
       <div className="text-lg font-black text-emerald-400">
         {prefix} {value}
@@ -206,7 +206,7 @@ export default function CardModal({ card: initial, id, onClose }) {
               <button
                 type="button"
                 onClick={() => setBack((b) => !b)}
-                className="mt-3 w-full rounded-full bg-white/10 py-2 text-sm font-bold hover:bg-white/20"
+                className="mt-3 w-full rounded-full bg-text/10 py-2 text-sm font-bold hover:bg-text/20"
               >
                 ↻ Ver o outro lado
               </button>
@@ -218,8 +218,8 @@ export default function CardModal({ card: initial, id, onClose }) {
               <ManaText text={manaCost(card)} size={22} />
             </div>
             {card.printed_name && card.printed_name !== card.name && <p className="text-sm text-muted">{card.name}</p>}
-            <p className="mt-2 font-semibold text-white/80">{typeLine(card)}</p>
-            <div className="oracle mt-3 rounded-xl bg-white/5 p-3 leading-relaxed">
+            <p className="mt-2 font-semibold text-text/80">{typeLine(card)}</p>
+            <div className="oracle mt-3 rounded-xl bg-text/5 p-3 leading-relaxed">
               <ManaText text={oracleText(card)} size={15} />
               {card.flavor_text && <p className="mt-3 italic text-muted">{card.flavor_text}</p>}
             </div>

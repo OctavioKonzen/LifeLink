@@ -11,7 +11,7 @@ export default function CardImage({ src, alt, className = '', eager = false }) {
       loading={eager ? 'eager' : 'lazy'}
       decoding="async"
       onError={() => setFailed(true)}
-      className={`aspect-[488/680] w-full rounded-[4.5%] bg-white/5 object-cover ${className}`}
+      className={`aspect-[488/680] w-full rounded-[4.5%] bg-text/5 object-cover ${className}`}
     />
   )
 }

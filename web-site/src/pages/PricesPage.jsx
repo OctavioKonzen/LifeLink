@@ -52,7 +52,7 @@ export default function PricesPage() {
               <button
                 type="button"
                 onClick={() => setOpen(c)}
-                className="flex w-full items-center gap-3 rounded-xl bg-white/5 p-2 text-left hover:bg-white/10"
+                className="flex w-full items-center gap-3 rounded-xl bg-text/5 p-2 text-left hover:bg-text/10"
               >
                 <img src={imageOf(c, 'small')} alt="" loading="lazy" className="h-[70px] w-[50px] shrink-0 rounded object-cover" />
                 <div className="min-w-0 flex-1">
@@ -64,7 +64,7 @@ export default function PricesPage() {
                 </div>
                 <div className="text-right">
                   <div className="font-black text-emerald-400">US$ {c.prices.usd ?? c.prices.usd_foil}</div>
-                  {!query && <div className="text-[10px] text-white/30">#{i + 1}</div>}
+                  {!query && <div className="text-[10px] text-text/30">#{i + 1}</div>}
                 </div>
               </button>
             </li>

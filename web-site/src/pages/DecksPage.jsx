@@ -167,7 +167,7 @@ export default function DecksPage() {
             <button
               type="button"
               onClick={() => setLimit((l) => l + 60)}
-              className="mx-auto mt-6 block rounded-full bg-white/10 px-6 py-2 font-bold hover:bg-white/20"
+              className="mx-auto mt-6 block rounded-full bg-text/10 px-6 py-2 font-bold hover:bg-text/20"
             >
               Mostrar mais ({shown.length - limit})
             </button>
