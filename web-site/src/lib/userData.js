@@ -41,7 +41,7 @@ export const defaultGame = (startingLife = 40, playerCount = 2, playerNames) => 
   playerNames: playerNames || Array.from({ length: 6 }, (_, i) => `Player ${i + 1}`),
 })
 
-export const defaultSettings = () => ({ bgColor: 0xff1e1e24, playerName: 'Player 1', cardLanguage: 'pt' })
+export const defaultSettings = () => ({ bgColor: 0xff363636, playerName: 'Player 1', cardLanguage: 'pt' })
 
 const defaults = () => ({ settings: defaultSettings(), profile: defaultProfile(), game: defaultGame(), decks: {} })
 

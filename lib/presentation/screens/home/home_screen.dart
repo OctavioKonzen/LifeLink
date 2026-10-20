@@ -24,14 +24,12 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMixin {
+class _HomeScreenState extends State<HomeScreen> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   late PageController _pageController;
   
   int _currentIndex = 0; 
   Timer? _carouselTimer;
-  late AnimationController _pulseController;
-  late Animation<double> _pulseAnimation;
 
   @override
   void initState() {
@@ -39,8 +37,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     _pageController = PageController(viewportFraction: 0.85, initialPage: 999);
     _startCarouselTimer();
     
-    _pulseController = AnimationController(vsync: this, duration: const Duration(seconds: 2))..repeat(reverse: true);
-    _pulseAnimation = Tween<double>(begin: 1.0, end: 1.05).animate(CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut));
   }
 
   void _startCarouselTimer() {
@@ -55,34 +51,85 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   @override
   void dispose() {
     _carouselTimer?.cancel();
-    _pulseController.dispose();
     _pageController.dispose();
     super.dispose();
   }
 
-  Widget _buildVersusLogo(Color textColor) {
-    return ScaleTransition(
-      scale: _pulseAnimation,
-      child: SizedBox(
-        height: 160, width: double.infinity,
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            Transform.rotate(angle: 0.7, child: Icon(Icons.colorize_rounded, size: 100, color: Colors.grey[400], shadows: [Shadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 10)])),
-            Positioned(
-              top: 15, left: MediaQuery.of(context).size.width * 0.22, 
-              child: Transform.rotate(angle: -0.15, child: Text('LIFE', style: TextStyle(fontSize: 52, fontWeight: FontWeight.w900, fontStyle: FontStyle.italic, color: textColor, letterSpacing: -2, shadows: [Shadow(color: Colors.blueAccent.withValues(alpha: 0.6), blurRadius: 15)]))),
-            ),
-            Positioned(
-              bottom: 15, right: MediaQuery.of(context).size.width * 0.18,
-              child: Transform.rotate(angle: 0.1, child: Text('LINK', style: TextStyle(fontSize: 60, fontWeight: FontWeight.w900, fontStyle: FontStyle.italic, color: Colors.redAccent, letterSpacing: -4, shadows: [Shadow(color: Colors.redAccent.withValues(alpha: 0.7), blurRadius: 20), const Shadow(color: Colors.orangeAccent, blurRadius: 5)]))),
-            ),
-          ],
+  /// A logo do LifeLink (o D20) com o nome embaixo.
+  Widget _buildLogo(Color textColor) {
+    return Column(children: [
+      Image.asset('assets/logo/lifelink.png', width: 120, height: 120),
+      const SizedBox(height: 6),
+      Text("LIFELINK", style: TextStyle(color: textColor, fontSize: 30, fontWeight: FontWeight.w900, letterSpacing: 2)),
+    ]);
+  }
+
+  Widget _buildSearchBar(BuildContext context, Color cardColor, Color textColor, bool isPt) {
+    return Material(
+      color: cardColor,
+      borderRadius: BorderRadius.circular(22),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(22),
+        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const CardSearchScreen())),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+          child: Row(children: [
+            Icon(Icons.search, color: textColor.withValues(alpha: 0.6), size: 28),
+            const SizedBox(width: 16),
+            Text(isPt ? "Procurar carta" : "Search card", style: TextStyle(color: textColor.withValues(alpha: 0.6), fontSize: 18)),
+          ]),
         ),
       ),
     );
   }
 
+  /// Os botões das áreas, coloridos, como no Pocketdex.
+  Widget _buildMenuGrid(BuildContext context, bool isPt) {
+    void go(Widget screen) => Navigator.push(context, MaterialPageRoute(builder: (context) => screen));
+    final tiles = [
+      (isPt ? "Meus decks" : "My decks", Icons.layers, const Color(0xFF7C4DFF), () => go(const MyDecksScreen())),
+      (isPt ? "Cartas" : "Cards", Icons.search, const Color(0xFF448AFF), () => go(const CardSearchScreen())),
+      (isPt ? "Contador" : "Life", Icons.favorite, const Color(0xFFFF5252), () => go(const LifeCounterScreen())),
+      (isPt ? "Preços" : "Prices", Icons.monetization_on, const Color(0xFFFFA000), () => go(const TodayPricesScreen())),
+      (isPt ? "Missões" : "Missions", Icons.auto_awesome, const Color(0xFF26A69A), () => go(const ArenaMissionsScreen())),
+      (isPt ? "Perfil" : "Profile", Icons.emoji_events, const Color(0xFF00B0FF), () => go(const ProfileScreen())),
+    ];
+    final rows = <Widget>[];
+    for (var i = 0; i < tiles.length; i += 2) {
+      if (i > 0) rows.add(const SizedBox(height: 14));
+      rows.add(Row(children: [
+        Expanded(child: _buildMenuTile(tiles[i].$1, tiles[i].$2, tiles[i].$3, tiles[i].$4)),
+        const SizedBox(width: 14),
+        Expanded(child: _buildMenuTile(tiles[i + 1].$1, tiles[i + 1].$2, tiles[i + 1].$3, tiles[i + 1].$4)),
+      ]));
+    }
+    return Column(children: rows);
+  }
+
+  /// Um botão colorido com o ícone grande e transparente no canto e a sombra
+  /// mais escura embaixo (o "degrau" dos botões do Pocketdex).
+  Widget _buildMenuTile(String title, IconData icon, Color color, VoidCallback onTap) {
+    final shade = Color.lerp(color, Colors.black, 0.3)!;
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        height: 104,
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [BoxShadow(color: shade, offset: const Offset(0, 6))],
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Stack(children: [
+          Positioned(right: -18, bottom: -22, child: Icon(icon, size: 110, color: Colors.white.withValues(alpha: 0.22))),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 18, 12, 12),
+            child: Text(title, style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w800, shadows: [Shadow(color: Colors.black26, offset: Offset(0, 2), blurRadius: 3)])),
+          ),
+        ]),
+      ),
+    );
+  }
   Widget _buildDynamicAvatar(XpProvider xpProvider, double size) {
     final borderData = XpProvider.allBorders.firstWhere((b) => b['id'] == xpProvider.selectedBorderId, orElse: () => XpProvider.allBorders[0]);
     
@@ -110,7 +157,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     final bgColor = themeProvider.backgroundColor;
     final bool isLight = bgColor.computeLuminance() > 0.5;
     final Color textColor = isLight ? Colors.black87 : Colors.white;
-    final Color cardColor = isLight ? Colors.black.withValues(alpha: 0.05) : const Color(0xFF1E1E24);
+    final Color cardColor = isLight ? Colors.black.withValues(alpha: 0.05) : Color.lerp(bgColor, Colors.black, 0.18)!;
     final bool isPt = themeProvider.cardLanguage == 'pt';
 
     final List<Map<String, dynamic>> newsList = [
@@ -123,47 +170,38 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       key: _scaffoldKey,
       backgroundColor: bgColor,
       drawer: _buildDrawer(context, bgColor, textColor, isLight, isPt, themeProvider, xpProvider),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildTopBar(context, cardColor, textColor, isPt, xpProvider),
-                const SizedBox(height: 10),
-                
-                _buildVersusLogo(textColor),
-                const SizedBox(height: 20),
-                
-                Row(
+      // Estilo do Pocketdex: o D20 grande e transparente no fundo, a logo no
+      // topo, a busca e os botões coloridos das áreas em duas colunas.
+      body: Stack(
+        children: [
+          Positioned(
+            right: -120,
+            bottom: -80,
+            child: Opacity(opacity: 0.06, child: Image.asset('assets/logo/lifelink.png', width: 420, height: 420)),
+          ),
+          SafeArea(
+            child: SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Expanded(child: GestureDetector(onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const MyDecksScreen())), child: _buildMenuCard(context, cardColor, textColor, icon: Icons.layers, title: isPt ? "MEUS DECKS" : "MY DECKS", glowColor: Colors.blue))),
-                    const SizedBox(width: 12),
-                    Expanded(child: GestureDetector(onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const CardSearchScreen())), child: _buildMenuCard(context, cardColor, textColor, icon: Icons.search, title: isPt ? "BUSCAR CARTAS" : "SEARCH CARDS", glowColor: Colors.purple))),
+                    _buildTopBar(context, cardColor, textColor, isPt, xpProvider),
+                    const SizedBox(height: 8),
+                    _buildLogo(textColor),
+                    const SizedBox(height: 24),
+                    _buildSearchBar(context, cardColor, textColor, isPt),
+                    const SizedBox(height: 16),
+                    _buildMenuGrid(context, isPt),
+                    const SizedBox(height: 28),
+                    _buildNewsCarousel(newsList),
+                    const SizedBox(height: 24),
                   ],
                 ),
-                const SizedBox(height: 12),
-                
-                _buildLifeCounterCard(context, cardColor, textColor, isPt),
-                
-                const SizedBox(height: 12),
-                
-                Row(
-                  children: [
-                    Expanded(child: GestureDetector(onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const ArenaMissionsScreen())), child: _buildMenuCard(context, cardColor, textColor, icon: Icons.auto_awesome, title: isPt ? "MISSÕES ARENA" : "ARENA DAILIES", glowColor: Colors.green))),
-                    const SizedBox(width: 12),
-                    Expanded(child: GestureDetector(onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const TodayPricesScreen())), child: _buildMenuCard(context, cardColor, textColor, icon: Icons.monetization_on, title: isPt ? "PREÇOS DE HOJE" : "TODAY'S PRICES", glowColor: Colors.amber))),
-                  ],
-                ),
-                
-                const SizedBox(height: 30),
-                _buildNewsCarousel(newsList),
-                const SizedBox(height: 24),
-              ],
+              ),
             ),
           ),
-        ),
+        ],
       ),
     );
   }
@@ -237,31 +275,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           children: List.generate(newsList.length, (index) => Container(width: 8, height: 8, margin: const EdgeInsets.symmetric(horizontal: 4), decoration: BoxDecoration(shape: BoxShape.circle, color: _currentIndex == index ? Colors.blue : Colors.grey.withValues(alpha: 0.5)))),
         ),
       ],
-    );
-  }
-
-  Widget _buildMenuCard(BuildContext context, Color cardColor, Color textColor, {required IconData icon, required String title, required Color glowColor}) {
-    return ScaleTransition(
-      scale: _pulseAnimation,
-      child: Container(
-        height: 100,
-        decoration: BoxDecoration(color: cardColor, borderRadius: BorderRadius.circular(16), boxShadow: [BoxShadow(color: glowColor.withValues(alpha: 0.15), blurRadius: 10)]),
-        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(icon, color: textColor, size: 30), Text(title, style: TextStyle(color: textColor, fontSize: 11, fontWeight: FontWeight.bold))]),
-      ),
-    );
-  }
-
-  Widget _buildLifeCounterCard(BuildContext context, Color cardColor, Color textColor, bool isPt) {
-    return ScaleTransition(
-      scale: _pulseAnimation,
-      child: GestureDetector(
-        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const LifeCounterScreen())),
-        child: Container(
-          height: 80, margin: const EdgeInsets.symmetric(vertical: 4),
-          decoration: BoxDecoration(color: cardColor, borderRadius: BorderRadius.circular(16), boxShadow: [BoxShadow(color: Colors.redAccent.withValues(alpha: 0.1), blurRadius: 8)]),
-          child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [const Icon(Icons.favorite, color: Colors.redAccent), const SizedBox(width: 12), Text(isPt ? "CONTADOR DE VIDA" : "LIFE COUNTER", style: TextStyle(color: textColor, fontWeight: FontWeight.bold))]),
-        ),
-      ),
     );
   }
 
