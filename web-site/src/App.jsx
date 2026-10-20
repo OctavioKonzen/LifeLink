@@ -41,7 +41,8 @@ function Header() {
   return (
     <header className="sticky top-0 z-30 border-b border-line bg-bg/95 backdrop-blur">
       <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-6 gap-y-2 px-4 py-3">
-        <NavLink to="/" className="text-xl font-black tracking-wide">
+        <NavLink to="/" className="flex items-center gap-2 text-xl font-black tracking-wide">
+          <img src="./logo.svg" alt="" className="h-8 w-8" />
           LIFELINK
         </NavLink>
         <nav className="-mx-1 flex flex-1 gap-1 overflow-x-auto">
@@ -68,6 +69,23 @@ function Header() {
 }
 
 export default function App() {
+  const { status } = useAuth()
+  // Sem estar logado, a primeira tela é sempre a de login (a mesma conta do
+  // app). Sem Firebase configurado, o login fica desligado e o site abre direto.
+  if (status === 'loading') {
+    return <div className="grid min-h-screen place-items-center text-muted">Carregando...</div>
+  }
+  if (status === 'signedOut') {
+    return (
+      <HashRouter>
+        <main className="mx-auto max-w-6xl px-4 py-10">
+          <img src="./logo.svg" alt="" className="mx-auto mb-3 h-28 w-28" />
+          <div className="mb-6 text-center text-3xl font-black tracking-wide">LIFELINK</div>
+          <AccountPage />
+        </main>
+      </HashRouter>
+    )
+  }
   return (
     <HashRouter>
       <Header />

@@ -16,6 +16,7 @@ import 'data/services/update_service.dart';
 
 // Importação dos Ecrãs (Screens)
 import 'presentation/screens/home/home_screen.dart'; 
+import 'presentation/screens/home/account_screen.dart';
 import 'presentation/screens/home/life_counter_screen.dart';
 
 void main() async {
@@ -73,10 +74,21 @@ class MyApp extends StatelessWidget {
         colorSchemeSeed: Colors.blue,
         scaffoldBackgroundColor: themeProvider.backgroundColor,
       ),
-      // Confere uma vez se saiu versão nova do app (GitHub Releases).
+      // Sem estar logado, a primeira tela é sempre a de login (a mesma conta
+      // do site). Sem Firebase configurado, o login fica desligado e o app
+      // abre direto. Confere uma vez se saiu versão nova (GitHub Releases).
       home: Builder(builder: (context) {
         WidgetsBinding.instance.addPostFrameCallback((_) => UpdateService.checkOnStart(context));
-        return const HomeScreen();
+        final status = context.watch<AuthService>().status;
+        switch (status) {
+          case AuthStatus.loading:
+            return const Scaffold(body: Center(child: CircularProgressIndicator()));
+          case AuthStatus.signedOut:
+            return const AccountScreen(start: true);
+          case AuthStatus.signedIn:
+          case AuthStatus.disabled:
+            return const HomeScreen();
+        }
       }), 
       routes: {
         '/home': (context) => const HomeScreen(),

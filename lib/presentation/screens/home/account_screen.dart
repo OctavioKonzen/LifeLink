@@ -5,8 +5,10 @@ import '../../../data/account/auth_service.dart';
 import '../../../data/providers/theme_provider.dart';
 
 /// Conta (a mesma do site): entrar, criar conta, sair e excluir.
+/// Com [start], é a primeira tela do app para quem não está logado.
 class AccountScreen extends StatefulWidget {
-  const AccountScreen({super.key});
+  final bool start;
+  const AccountScreen({super.key, this.start = false});
 
   @override
   State<AccountScreen> createState() => _AccountScreenState();
@@ -185,11 +187,22 @@ class _AccountScreenState extends State<AccountScreen> {
 
     return Scaffold(
       backgroundColor: bg,
-      appBar: AppBar(title: const Text("CONTA"), backgroundColor: Colors.transparent, elevation: 0, foregroundColor: textColor),
+      appBar: AppBar(
+        title: Text(widget.start ? "LIFELINK" : "CONTA", style: const TextStyle(fontWeight: FontWeight.w900, letterSpacing: 1)),
+        centerTitle: widget.start,
+        automaticallyImplyLeading: !widget.start,
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        foregroundColor: textColor,
+      ),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
           child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            if (widget.start) ...[
+              Center(child: Image.asset('assets/logo/lifelink.png', width: 120, height: 120)),
+              const SizedBox(height: 24),
+            ],
             body,
             if (_busy) const Padding(padding: EdgeInsets.only(top: 16), child: Center(child: CircularProgressIndicator())),
             if (_error != null)
