@@ -51,9 +51,12 @@ class _CommunityDecksScreenState extends State<CommunityDecksScreen> {
     super.dispose();
   }
 
+  // Direto no MTGJSON. Os proxies ficam só de reserva na versão web, caso o
+  // navegador bloqueie (CORS); no celular nunca são usados.
   Future<http.Response> _fetchWithRetry(String url) async {
     List<String> urlsToTry = kIsWeb 
       ? [
+          url,
           'https://api.allorigins.win/raw?url=${Uri.encodeComponent(url)}',
           'https://corsproxy.io/?${Uri.encodeComponent(url)}',
         ]
@@ -337,10 +340,6 @@ class CommunityDeckCoverWidget extends StatelessWidget {
   }
 
   Widget _buildCardImg(String url, double w, double h) {
-    String safeUrl = url;
-    if (kIsWeb && !url.contains('wikimedia') && !url.contains('wsrv.nl')) {
-      safeUrl = 'https://wsrv.nl/?url=${Uri.encodeComponent(url)}';
-    }
     return Container(
       width: w, height: h,
       decoration: BoxDecoration(
@@ -350,7 +349,7 @@ class CommunityDeckCoverWidget extends StatelessWidget {
       child: ClipRRect(
         borderRadius: BorderRadius.circular(8), 
         child: CachedNetworkImage(
-          imageUrl: safeUrl, 
+          imageUrl: url, 
           httpHeaders: kIsWeb ? null : const {'User-Agent': 'LifelinkApp/2.0'},
           fit: BoxFit.cover,
           placeholder: (c, u) => Container(color: Colors.black26),

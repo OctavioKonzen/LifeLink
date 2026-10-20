@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../../data/providers/theme_provider.dart';
+import '../../../data/services/scryfall_service.dart';
 import '../../../data/repositories/card_repository.dart';
 import '../../../data/models/card_model.dart';
 import '../../widgets/custom_back_button.dart';
@@ -49,7 +50,13 @@ class _TodayPricesScreenState extends State<TodayPricesScreen> {
         });
       }
     } catch (e) {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() {
+          _cards = [];
+          _isLoading = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+      }
     }
   }
 
@@ -138,7 +145,7 @@ class _TodayPricesScreenState extends State<TodayPricesScreen> {
         leading: ClipRRect(
           borderRadius: BorderRadius.circular(4),
           child: CachedNetworkImage(
-            imageUrl: card.imageUrl, 
+            imageUrl: CardImages.thumb(card.imageUrl), 
             width: 50, 
             height: 70,
             fit: BoxFit.cover,

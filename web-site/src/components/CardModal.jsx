@@ -1,0 +1,237 @@
+import { useEffect, useState } from 'react'
+import { Modal, Spinner } from './ui'
+import { ManaText } from './Mana'
+import CardImage from './CardImage'
+import {
+  RARITY_COLORS,
+  backImageOf,
+  cardById,
+  displayName,
+  imageOf,
+  manaCost,
+  oracleText,
+  search,
+  typeLine,
+} from '../lib/scryfall'
+
+const LANGS = [
+  ['pt', 'Português'],
+  ['en', 'English'],
+  ['ja', '日本語'],
+  ['es', 'Español'],
+  ['fr', 'Français'],
+  ['de', 'Deutsch'],
+  ['it', 'Italiano'],
+]
+
+const FORMATS = [
+  ['commander', 'Commander'],
+  ['standard', 'Standard'],
+  ['pioneer', 'Pioneer'],
+  ['modern', 'Modern'],
+  ['legacy', 'Legacy'],
+  ['vintage', 'Vintage'],
+  ['pauper', 'Pauper'],
+]
+
+const LEGALITY = {
+  legal: ['Legal', 'bg-emerald-600'],
+  restricted: ['Restrita', 'bg-sky-600'],
+  banned: ['Banida', 'bg-red-600'],
+  not_legal: ['Não', 'bg-white/10 text-white/50'],
+}
+
+/**
+ * Imagem em PNG (melhor qualidade do Scryfall). Enquanto ela carrega, aparece
+ * a "normal", que já veio da lista e está no cache do navegador.
+ */
+function BestImage({ card, back }) {
+  const normal = back ? backImageOf(card, 'normal') : imageOf(card, 'normal')
+  const png = back ? backImageOf(card, 'png') : imageOf(card, 'png')
+  const [loaded, setLoaded] = useState(false)
+  return (
+    <div className="relative">
+      <CardImage src={normal} alt={displayName(card)} eager />
+      {png && (
+        <img
+          src={png}
+          alt=""
+          onLoad={() => setLoaded(true)}
+          className={`absolute inset-0 aspect-[488/680] w-full rounded-[4.5%] object-cover transition-opacity duration-200 ${loaded ? 'opacity-100' : 'opacity-0'}`}
+        />
+      )}
+    </div>
+  )
+}
+
+function Price({ label, value, prefix }) {
+  if (!value) return null
+  return (
+    <div className="rounded-xl bg-white/5 px-3 py-2">
+      <div className="text-xs text-muted">{label}</div>
+      <div className="text-lg font-black text-emerald-400">
+        {prefix} {value}
+      </div>
+    </div>
+  )
+}
+
+function Versions({ card, onPick }) {
+  const [lang, setLang] = useState(card.lang === 'en' ? 'pt' : card.lang || 'pt')
+  const [state, setState] = useState({ loading: true, cards: [] })
+
+  useEffect(() => {
+    let alive = true
+    const q = card.oracle_id ? `oracleid:${card.oracle_id} lang:${lang}` : `!"${card.name}" lang:${lang}`
+    setState({ loading: true, cards: [] })
+    search(q, { order: 'released', unique: 'prints', multilingual: false })
+      .then((page) => alive && setState({ loading: false, cards: page.cards.filter((c) => imageOf(c, 'small')) }))
+      .catch((e) => alive && setState({ loading: false, cards: [], error: e.message }))
+    return () => {
+      alive = false
+    }
+  }, [card.oracle_id, card.name, lang])
+
+  return (
+    <section className="mt-6">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <h3 className="text-lg font-bold">Outras versões</h3>
+        <select
+          value={lang}
+          onChange={(e) => setLang(e.target.value)}
+          className="rounded-lg border border-line bg-card px-2 py-1 text-sm"
+        >
+          {LANGS.map(([code, name]) => (
+            <option key={code} value={code}>
+              {name}
+            </option>
+          ))}
+        </select>
+      </div>
+      {state.loading ? (
+        <Spinner className="py-4" />
+      ) : state.error ? (
+        <p className="text-sm text-red-400">{state.error}</p>
+      ) : state.cards.length === 0 ? (
+        <p className="text-sm text-muted">Nada encontrado neste idioma.</p>
+      ) : (
+        <div className="grid grid-cols-4 gap-2 sm:grid-cols-6">
+          {state.cards.map((v) => (
+            <button
+              key={v.id}
+              type="button"
+              onClick={() => onPick(v)}
+              title={`${v.set_name} #${v.collector_number}`}
+              className={`rounded-[5%] transition hover:scale-105 ${v.id === card.id ? 'ring-2 ring-accent' : ''}`}
+            >
+              <CardImage src={imageOf(v, 'normal')} alt={v.set_name} />
+            </button>
+          ))}
+        </div>
+      )}
+    </section>
+  )
+}
+
+/** Página da carta por cima da tela. Aceita a carta da API ou só o id dela. */
+export default function CardModal({ card: initial, id, onClose }) {
+  const [card, setCard] = useState(initial || null)
+  const [error, setError] = useState(null)
+  const [back, setBack] = useState(false)
+
+  useEffect(() => {
+    if (initial || !id) return
+    cardById(id).then(setCard, (e) => setError(e.message))
+  }, [id, initial])
+
+  const pick = (v) => {
+    setCard(v)
+    setBack(false)
+  }
+
+  return (
+    <Modal onClose={onClose} wide>
+      {!card ? (
+        error ? <p className="py-10 text-center text-red-400">{error}</p> : <Spinner />
+      ) : (
+        <div className="grid gap-6 md:grid-cols-[minmax(0,360px)_1fr]">
+          <div>
+            <BestImage key={`${card.id}-${back}`} card={card} back={back} />
+            {backImageOf(card) && (
+              <button
+                type="button"
+                onClick={() => setBack((b) => !b)}
+                className="mt-3 w-full rounded-full bg-white/10 py-2 text-sm font-bold hover:bg-white/20"
+              >
+                ↻ Ver o outro lado
+              </button>
+            )}
+          </div>
+          <div className="min-w-0 pr-8 md:pr-10">
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <h2 className="text-2xl font-black">{displayName(card)}</h2>
+              <ManaText text={manaCost(card)} size={22} />
+            </div>
+            {card.printed_name && card.printed_name !== card.name && <p className="text-sm text-muted">{card.name}</p>}
+            <p className="mt-2 font-semibold text-white/80">{typeLine(card)}</p>
+            <div className="oracle mt-3 rounded-xl bg-white/5 p-3 leading-relaxed">
+              <ManaText text={oracleText(card)} size={15} />
+              {card.flavor_text && <p className="mt-3 italic text-muted">{card.flavor_text}</p>}
+            </div>
+            {(card.power || card.card_faces?.[0]?.power) && (
+              <p className="mt-2 font-bold">
+                {card.power ?? card.card_faces[0].power}/{card.toughness ?? card.card_faces[0].toughness}
+              </p>
+            )}
+            {card.loyalty && <p className="mt-2 font-bold">Lealdade: {card.loyalty}</p>}
+
+            <p className="mt-3 text-sm text-muted">
+              {card.set_name} · #{card.collector_number} ·{' '}
+              <span className="font-bold capitalize" style={{ color: RARITY_COLORS[card.rarity] }}>
+                {card.rarity}
+              </span>
+              {card.artist && <> · Arte: {card.artist}</>}
+            </p>
+
+            <section className="mt-5">
+              <h3 className="mb-2 text-lg font-bold">Preços</h3>
+              {card.prices && Object.values(card.prices).some(Boolean) ? (
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                  <Price label="Normal" value={card.prices.usd} prefix="US$" />
+                  <Price label="Foil" value={card.prices.usd_foil} prefix="US$" />
+                  <Price label="Europa" value={card.prices.eur} prefix="€" />
+                  <Price label="MTGO" value={card.prices.tix} prefix="tix" />
+                </div>
+              ) : (
+                <p className="text-sm text-muted">Sem preço para esta versão. Tente a versão em inglês.</p>
+              )}
+            </section>
+
+            {card.legalities && (
+              <section className="mt-5">
+                <h3 className="mb-2 text-lg font-bold">Formatos</h3>
+                <div className="flex flex-wrap gap-2">
+                  {FORMATS.map(([key, name]) => {
+                    const [label, cls] = LEGALITY[card.legalities[key]] || LEGALITY.not_legal
+                    return (
+                      <span key={key} className={`rounded-full px-3 py-1 text-xs font-bold ${cls}`}>
+                        {name}: {label}
+                      </span>
+                    )
+                  })}
+                </div>
+              </section>
+            )}
+
+            <a href={card.scryfall_uri} target="_blank" rel="noreferrer" className="mt-5 inline-block text-sm text-accent underline">
+              Ver no Scryfall
+            </a>
+          </div>
+          <div className="md:col-span-2">
+            <Versions card={card} onPick={pick} />
+          </div>
+        </div>
+      )}
+    </Modal>
+  )
+}

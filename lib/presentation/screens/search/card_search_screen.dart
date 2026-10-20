@@ -1,7 +1,5 @@
 import 'dart:async';
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_svg/flutter_svg.dart'; 
@@ -9,6 +7,7 @@ import 'card_detail_screen.dart';
 import '../../../data/providers/theme_provider.dart';
 import '../../../data/providers/deck_provider.dart'; 
 import '../../../data/providers/xp_provider.dart'; // IMPORT DO XP PROVIDER
+import '../../../data/services/scryfall_service.dart';
 import '../../widgets/custom_back_button.dart';
 
 class CardSearchScreen extends StatefulWidget {
@@ -24,6 +23,8 @@ class CardSearchScreen extends StatefulWidget {
 class _CardSearchScreenState extends State<CardSearchScreen> {
   final TextEditingController _searchController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  final FocusNode _searchFocus = FocusNode();
+  final ScryfallService _scryfall = ScryfallService.instance;
   
   bool _isLoading = false;
   bool _hasMore = true;
@@ -33,6 +34,10 @@ class _CardSearchScreenState extends State<CardSearchScreen> {
   List<Map<String, dynamic>> _searchResults = [];
   List<Map<String, String>> _allSets = []; 
   Timer? _debounce;
+  Timer? _suggestDebounce;
+  List<String> _suggestions = [];
+  List<String> _recentSearches = [];
+  int _searchId = 0; // descarta respostas de buscas antigas
   
   final List<String> _selectedTypes = [];
   final List<String> _selectedColors = []; 
@@ -63,21 +68,22 @@ class _CardSearchScreenState extends State<CardSearchScreen> {
     "Shrine", "Sphere", "Tower", "Trap", "Treasure", "Urza's", "Vehicle"
   ];
 
-  final Map<String, String> _scryfallHeaders = {
-    'User-Agent': 'LifelinkApp/1.0',
-    'Accept': '*/*'
-  };
-
   @override
   void initState() {
     super.initState();
     _fetchFiltersData(); 
     _performSearch(""); 
+    _scryfall.recentSearches().then((list) {
+      if (mounted) setState(() => _recentSearches = list);
+    });
+    _searchFocus.addListener(() {
+      if (mounted) setState(() {});
+    });
     
     _scrollController.addListener(() {
       if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 400) {
         if (!_isLoading && _hasMore && _nextPageUrl != null) {
-          _fetchFromScryfall(_nextPageUrl!, isNextPage: true);
+          _fetchFromScryfall(nextPage: _nextPageUrl!);
         }
       }
     });
@@ -86,56 +92,71 @@ class _CardSearchScreenState extends State<CardSearchScreen> {
   @override
   void dispose() {
     _debounce?.cancel();
+    _suggestDebounce?.cancel();
     _searchController.dispose();
     _scrollController.dispose();
+    _searchFocus.dispose();
     super.dispose();
   }
 
+  // Tipos e coleções ficam guardados no celular por 7 dias (ScryfallService),
+  // então a busca abre sem esperar a internet.
   Future<void> _fetchFiltersData() async {
     _fetchSets(); 
-    
-    try {
-      final responses = await Future.wait([
-        http.get(Uri.parse('https://api.scryfall.com/catalog/supertypes'), headers: _scryfallHeaders),
-        http.get(Uri.parse('https://api.scryfall.com/catalog/card-types'), headers: _scryfallHeaders),
-        http.get(Uri.parse('https://api.scryfall.com/catalog/creature-types'), headers: _scryfallHeaders),
-        http.get(Uri.parse('https://api.scryfall.com/catalog/artifact-types'), headers: _scryfallHeaders),
-        http.get(Uri.parse('https://api.scryfall.com/catalog/enchantment-types'), headers: _scryfallHeaders),
-      ]);
 
-      if (mounted) {
-        setState(() {
-          _apiCardTypes = [
-            ...jsonDecode(responses[0].body)['data'],
-            ...jsonDecode(responses[1].body)['data'],
-          ];
-          _apiCreatureTypes = List<String>.from(jsonDecode(responses[2].body)['data']);
-          _apiOtherTypes = [
-            ...jsonDecode(responses[3].body)['data'],
-            ...jsonDecode(responses[4].body)['data'],
-          ];
-        });
-      }
-    } catch (e) {
-      debugPrint("Erro ao carregar catálogos, utilizando a lista base. Erro: $e");
-    }
+    final lists = await Future.wait([
+      _scryfall.catalog('supertypes'),
+      _scryfall.catalog('card-types'),
+      _scryfall.catalog('creature-types'),
+      _scryfall.catalog('artifact-types'),
+      _scryfall.catalog('enchantment-types'),
+    ]);
+    if (!mounted) return;
+    setState(() {
+      if (lists[0] != null && lists[1] != null) _apiCardTypes = [...lists[0]!, ...lists[1]!];
+      if (lists[2] != null) _apiCreatureTypes = lists[2]!;
+      if (lists[3] != null && lists[4] != null) _apiOtherTypes = [...lists[3]!, ...lists[4]!];
+    });
   }
 
   Future<void> _fetchSets() async {
-    try {
-      final response = await http.get(Uri.parse('https://api.scryfall.com/sets'), headers: _scryfallHeaders);
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        final List setsData = data['data'];
-        if (mounted) {
-          setState(() {
-            _allSets = setsData.map((s) => {'code': s['code'].toString(), 'name': s['name'].toString()}).toList();
-          });
-        }
-      }
-    } catch (e) { 
-      debugPrint("Erro ao carregar sets: $e");
+    final sets = await _scryfall.sets();
+    if (sets != null && mounted) {
+      setState(() => _allSets = sets);
     }
+  }
+
+  void _onSearchChanged(String v) {
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 600), () => _performSearch(v));
+    _suggestDebounce?.cancel();
+    if (v.trim().length < 2) {
+      setState(() => _suggestions = []);
+      return;
+    }
+    _suggestDebounce = Timer(const Duration(milliseconds: 200), () async {
+      final names = await _scryfall.autocomplete(v);
+      if (mounted && _searchController.text == v) {
+        setState(() => _suggestions = names.take(8).toList());
+      }
+    });
+  }
+
+  // Busca escolhida de propósito (Enter, sugestão ou recente): vai para as recentes.
+  void _submitSearch(String text, {bool exactName = false}) {
+    _debounce?.cancel();
+    _suggestDebounce?.cancel();
+    _searchController.text = text;
+    _searchController.selection = TextSelection.collapsed(offset: text.length);
+    _searchFocus.unfocus();
+    setState(() => _suggestions = []);
+    _rememberSearch(text);
+    _performSearch(exactName ? '!"$text"' : text);
+  }
+
+  Future<void> _rememberSearch(String text) async {
+    final list = await _scryfall.addRecentSearch(text);
+    if (mounted) setState(() => _recentSearches = list);
   }
 
   Future<void> _performSearch(String queryText) async {
@@ -152,7 +173,7 @@ class _CardSearchScreenState extends State<CardSearchScreen> {
       _errorMessage = null; 
     });
     
-    String q = queryText.trim().isEmpty ? "is:commander" : queryText;
+    String q = queryText.trim().isEmpty ? "is:commander" : ScryfallService.buildTextQuery(queryText);
     
     if (_selectedTypes.isNotEmpty) {
       final typeQuery = _selectedTypes.map((t) => 't:"$t"').join(" or ");
@@ -166,81 +187,75 @@ class _CardSearchScreenState extends State<CardSearchScreen> {
       q = "$q set:$_selectedSet";
     }
 
-    q = "$q order:name"; 
-
-    final url = 'https://api.scryfall.com/cards/search?q=${Uri.encodeComponent(q)}';
-    await _fetchFromScryfall(url);
+    await _fetchFromScryfall(query: q);
   }
 
-  Future<void> _fetchFromScryfall(String url, {bool isNextPage = false}) async {
+  Future<void> _fetchFromScryfall({String? query, String? nextPage}) async {
+    final isNextPage = nextPage != null;
+    final id = isNextPage ? _searchId : ++_searchId;
     if (isNextPage) {
       setState(() => _isLoading = true);
     }
     
     try {
-      final response = await http.get(Uri.parse(url), headers: _scryfallHeaders).timeout(const Duration(seconds: 15));
-      
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        final List cardsData = data['data'];
-        
-        _hasMore = data['has_more'] ?? false;
-        _nextPageUrl = _hasMore ? data['next_page'] : null;
+      final page = await _scryfall.search(query ?? '', nextPage: nextPage);
+      if (!mounted || id != _searchId) return;
 
-        List<Map<String, dynamic>> newCards = [];
-        for (var card in cardsData) {
-          String? imgUrl = card['image_uris']?['normal'] ?? 
-                           card['card_faces']?[0]['image_uris']?['normal'];
+      _hasMore = page.hasMore;
+      _nextPageUrl = page.nextPage;
 
-          if (imgUrl != null) {
-            newCards.add({
-              'id': card['id'],
-              'name': card['name'],
-              'imageUrl': imgUrl,
-              'rarity': card['rarity'],
-              'color_identity': (card['color_identity'] as List?)?.join('') ?? 'C',
-              'mana_cost': card['mana_cost'] ?? '',
-              'type_line': card['type_line'] ?? '',
-              'oracle_text': card['oracle_text'] ?? '',
-              'oracle_id': card['oracle_id'], 
-              'setName': card['set_name'],
-            });
-          }
-        }
-        
-        if (mounted) {
-          if (widget.targetDeckIndex != null && widget.replaceCardIndex == null) {
-            final deckProvider = context.read<DeckProvider>();
-            if (widget.targetDeckIndex! < deckProvider.allDecks.length) {
-              final existingCards = deckProvider.allDecks[widget.targetDeckIndex!].cards;
-              final existingNames = existingCards.map((c) => c['name']?.toString() ?? '').toSet();
-              newCards.removeWhere((card) => existingNames.contains(card['name']));
-            }
-          }
-
-          setState(() {
-            if (isNextPage) {
-              _searchResults.addAll(newCards);
-            } else {
-              _searchResults = newCards;
-            }
-            _isLoading = false;
-            _errorMessage = null; 
-          });
-        }
-      } else {
-        if (mounted) {
-          setState(() { 
-            _isLoading = false; 
-            _errorMessage = "Scryfall bloqueou o acesso ou carta não encontrada."; 
+      List<Map<String, dynamic>> newCards = [];
+      for (var card in page.cards) {
+        final imgUrl = CardImages.normalOf(card);
+        if (imgUrl != null) {
+          newCards.add({
+            'id': card['id'],
+            'name': card['printed_name'] ?? card['name'],
+            'imageUrl': imgUrl,
+            'rarity': card['rarity'],
+            'color_identity': (card['color_identity'] as List?)?.join('') ?? 'C',
+            'mana_cost': card['mana_cost'] ?? card['card_faces']?[0]?['mana_cost'] ?? '',
+            'type_line': card['printed_type_line'] ?? card['type_line'] ?? '',
+            'oracle_text': card['printed_text'] ?? card['oracle_text'] ?? card['card_faces']?[0]?['oracle_text'] ?? '',
+            'oracle_id': card['oracle_id'], 
+            'setName': card['set_name'],
+            'cmc': card['cmc'],
+            'power': card['power']?.toString(),
+            'toughness': card['toughness']?.toString(),
+            'collectorNumber': card['collector_number'],
+            'usdPrice': card['prices']?['usd'] ?? '0.00',
           });
         }
       }
-    } catch (e) { 
-      if (mounted) {
+
+      if (widget.targetDeckIndex != null && widget.replaceCardIndex == null) {
+        final deckProvider = context.read<DeckProvider>();
+        if (widget.targetDeckIndex! < deckProvider.allDecks.length) {
+          final existingCards = deckProvider.allDecks[widget.targetDeckIndex!].cards;
+          final existingNames = existingCards.map((c) => c['name']?.toString() ?? '').toSet();
+          newCards.removeWhere((card) => existingNames.contains(card['name']));
+        }
+      }
+
+      setState(() {
+        if (isNextPage) {
+          _searchResults.addAll(newCards);
+        } else {
+          _searchResults = newCards;
+        }
+        _isLoading = false;
+        _errorMessage = null; 
+      });
+    } on ScryfallException catch (e) {
+      if (mounted && id == _searchId) {
         setState(() { 
           _isLoading = false; 
-          _errorMessage = "Erro de conexão."; 
+          _hasMore = false;
+          if (isNextPage) {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+          } else {
+            _errorMessage = e.message;
+          }
         });
       }
     }
@@ -430,28 +445,119 @@ class _CardSearchScreenState extends State<CardSearchScreen> {
             backgroundColor: Colors.transparent, elevation: 0,
             title: TextField(
               controller: _searchController,
+              focusNode: _searchFocus,
               style: TextStyle(color: textColor),
+              textInputAction: TextInputAction.search,
               decoration: InputDecoration(
-                hintText: widget.replaceCardIndex != null ? "Buscar substituta..." : "Buscar carta...",
+                hintText: widget.replaceCardIndex != null ? "Buscar substituta..." : "Nome ou texto da carta...",
                 hintStyle: TextStyle(color: textColor.withValues(alpha: 0.5)),
                 border: InputBorder.none,
                 prefixIcon: Icon(Icons.search, color: textColor.withValues(alpha: 0.5)),
+                suffixIcon: _searchController.text.isEmpty
+                    ? null
+                    : IconButton(
+                        icon: Icon(Icons.close, color: textColor.withValues(alpha: 0.5)),
+                        tooltip: "Limpar",
+                        onPressed: () {
+                          _searchController.clear();
+                          _onSearchChanged('');
+                        },
+                      ),
               ),
               onChanged: (v) {
-                _debounce?.cancel();
-                _debounce = Timer(const Duration(milliseconds: 600), () => _performSearch(v));
+                setState(() {}); // mostra/esconde o botão de limpar
+                _onSearchChanged(v);
               },
+              onSubmitted: (v) => _submitSearch(v),
             ),
           ),
-          body: _isLoading && _searchResults.isEmpty && _errorMessage == null 
+          body: Stack(
+            children: [
+              _buildResults(textColor),
+              if (_searchFocus.hasFocus) _buildSuggestions(theme.backgroundColor, textColor),
+            ],
+          ),
+          floatingActionButton: FloatingActionButton(
+            backgroundColor: Colors.blueAccent,
+            onPressed: () => _showFilters(context, theme.backgroundColor, textColor),
+            child: const Icon(Icons.filter_list, color: Colors.white),
+          ),
+        ),
+        const CustomBackButton(),
+      ],
+    );
+  }
+
+  // Sugestões do Scryfall enquanto digita; com o campo vazio, as buscas recentes.
+  Widget _buildSuggestions(Color bgColor, Color textColor) {
+    final typing = _searchController.text.trim().isNotEmpty;
+    final items = typing ? _suggestions : _recentSearches;
+    if (items.isEmpty) return const SizedBox.shrink();
+
+    return Align(
+      alignment: Alignment.topCenter,
+      child: Material(
+        color: bgColor,
+        elevation: 8,
+        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(16)),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.45),
+          child: ListView(
+            shrinkWrap: true,
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            children: [
+              if (!typing)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 4, 0),
+                  child: Row(children: [
+                    Expanded(child: Text("BUSCAS RECENTES", style: TextStyle(color: textColor.withValues(alpha: 0.5), fontSize: 12, fontWeight: FontWeight.bold))),
+                    TextButton(
+                      onPressed: () async {
+                        await _scryfall.clearRecentSearches();
+                        if (mounted) setState(() => _recentSearches = []);
+                      },
+                      child: const Text("Limpar"),
+                    ),
+                  ]),
+                ),
+              ...items.map((text) => ListTile(
+                    dense: true,
+                    leading: Icon(typing ? Icons.search : Icons.history, color: textColor.withValues(alpha: 0.5), size: 20),
+                    title: Text(text, style: TextStyle(color: textColor)),
+                    onTap: () => _submitSearch(text, exactName: typing),
+                  )),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildResults(Color textColor) {
+    return _isLoading && _searchResults.isEmpty && _errorMessage == null 
             ? const Center(child: CircularProgressIndicator()) 
             : _errorMessage != null 
               ? Center(child: Padding(
                   padding: const EdgeInsets.all(20.0),
-                  child: Text(_errorMessage!, style: const TextStyle(color: Colors.redAccent, fontSize: 16, fontWeight: FontWeight.bold), textAlign: TextAlign.center),
+                  child: Column(mainAxisSize: MainAxisSize.min, children: [
+                    Text(_errorMessage!, style: const TextStyle(color: Colors.redAccent, fontSize: 16, fontWeight: FontWeight.bold), textAlign: TextAlign.center),
+                    const SizedBox(height: 16),
+                    OutlinedButton.icon(
+                      icon: const Icon(Icons.refresh),
+                      label: const Text("Tentar de novo"),
+                      onPressed: () => _performSearch(_searchController.text),
+                    ),
+                  ]),
                 ))
               : _searchResults.isEmpty 
-                ? const Center(child: Text("Nenhuma carta encontrada"))
+                ? Center(child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Text(
+                      "Nenhuma carta encontrada.\nTente outro nome, em português ou inglês, ou uma palavra do texto da carta.",
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: textColor.withValues(alpha: 0.6)),
+                    ),
+                  ))
                 : GridView.builder(
                     controller: _scrollController,
                     padding: const EdgeInsets.all(12),
@@ -465,6 +571,8 @@ class _CardSearchScreenState extends State<CardSearchScreen> {
                       final card = _searchResults[index];
                       return GestureDetector(
                         onTap: () {
+                          // Achou o que queria: a busca digitada vai para as recentes.
+                          if (_searchController.text.trim().isNotEmpty) _rememberSearch(_searchController.text);
                           Navigator.push(context, MaterialPageRoute(
                             builder: (context) => CardDetailScreen(
                               card: card, 
@@ -477,23 +585,14 @@ class _CardSearchScreenState extends State<CardSearchScreen> {
                           borderRadius: BorderRadius.circular(10),
                           child: CachedNetworkImage(
                             imageUrl: card['imageUrl'], 
-                            httpHeaders: const {'User-Agent': 'LifelinkApp/1.0', 'Accept': '*/*'},
                             fit: BoxFit.cover,
+                            fadeInDuration: const Duration(milliseconds: 150),
                             placeholder: (c, u) => Container(color: Colors.black12),
                             errorWidget: (c, u, e) => const Icon(Icons.broken_image, color: Colors.grey),
                           ),
                         ),
                       );
                     },
-                  ),
-          floatingActionButton: FloatingActionButton(
-            backgroundColor: Colors.blueAccent,
-            onPressed: () => _showFilters(context, theme.backgroundColor, textColor),
-            child: const Icon(Icons.filter_list, color: Colors.white),
-          ),
-        ),
-        const CustomBackButton(),
-      ],
-    );
+                  );
   }
 }

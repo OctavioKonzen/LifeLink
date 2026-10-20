@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../../data/providers/theme_provider.dart';
 import '../../../data/providers/xp_provider.dart';
+import '../../../data/services/scryfall_service.dart';
 import 'life_counter_screen.dart';
 import 'settings_screen.dart'; 
 import 'match_history_screen.dart'; 
@@ -111,9 +112,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     final bool isPt = themeProvider.cardLanguage == 'pt';
 
     final List<Map<String, dynamic>> newsList = [
-      {"image": "assets/images/banned.jpg", "tag": isPt ? "DESTAQUE" : "FEATURED", "title": isPt ? "Anúncio de Banidas\ne Restritas" : "Banned and Restricted\nAnnouncement", "tagColor": const Color(0xFF3B82F6), "url": "https://magic.wizards.com/en/news/announcements/banned-and-restricted-announcement-2024"},
-      {"image": "assets/images/mh3.jpg", "tag": "SPOILERS", "title": isPt ? "Prévias de Cartas\nModern Horizons 3" : "Modern Horizons 3\nCard Previews", "tagColor": const Color(0xFF8B5CF6), "url": "https://magic.wizards.com/en/news/card-image-gallery/modern-horizons-3"},
-      {"image": "assets/images/arena.jpg", "tag": isPt ? "EVENTOS" : "EVENTS", "title": isPt ? "Arena Open:\nGanhe \$2,000" : "Arena Open:\nWin \$2,000", "tagColor": const Color(0xFF10B981), "url": "https://magic.wizards.com/en/mtgarena"},
+      {"image": CardImages.artCropByName("Nadu, Winged Wisdom"), "tag": isPt ? "DESTAQUE" : "FEATURED", "title": isPt ? "Anúncio de Banidas\ne Restritas" : "Banned and Restricted\nAnnouncement", "tagColor": const Color(0xFF3B82F6), "url": "https://magic.wizards.com/en/news/announcements/banned-and-restricted-announcement-2024"},
+      {"image": CardImages.artCropByName("Ulamog, the Defiler"), "tag": "SPOILERS", "title": isPt ? "Prévias de Cartas\nModern Horizons 3" : "Modern Horizons 3\nCard Previews", "tagColor": const Color(0xFF8B5CF6), "url": "https://magic.wizards.com/en/news/card-image-gallery/modern-horizons-3"},
+      {"image": CardImages.artCropByName("Sheoldred, the Apocalypse"), "tag": isPt ? "EVENTOS" : "EVENTS", "title": isPt ? "Arena Open:\nGanhe \$2,000" : "Arena Open:\nWin \$2,000", "tagColor": const Color(0xFF10B981), "url": "https://magic.wizards.com/en/mtgarena"},
     ];
 
     return Scaffold(
@@ -209,7 +210,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   margin: const EdgeInsets.symmetric(horizontal: 8),
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(16),
-                    image: DecorationImage(image: AssetImage(item["image"]), fit: BoxFit.cover, colorFilter: ColorFilter.mode(Colors.black.withValues(alpha: 0.5), BlendMode.darken)),
+                    image: DecorationImage(image: CachedNetworkImageProvider(item["image"]), fit: BoxFit.cover, colorFilter: ColorFilter.mode(Colors.black.withValues(alpha: 0.5), BlendMode.darken)),
                   ),
                   child: Padding(
                     padding: const EdgeInsets.all(16.0),

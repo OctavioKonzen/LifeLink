@@ -1,12 +1,11 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:http/http.dart' as http;
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../../data/providers/deck_provider.dart';
 import '../../../data/providers/theme_provider.dart';
 import '../../../data/providers/xp_provider.dart';
 import '../../../data/services/pdf_service.dart';
+import '../../../data/services/scryfall_service.dart';
 import '../search/card_detail_screen.dart'; 
 import '../search/card_search_screen.dart';
 import '../../widgets/custom_back_button.dart';
@@ -88,36 +87,30 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
             ? 'oracleid:$oracleId lang:$langCode' 
             : '!"$name" lang:$langCode';
             
-        final url = 'https://api.scryfall.com/cards/search?q=${Uri.encodeQueryComponent(query)}&order=released&dir=desc';
-        
-        final response = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 10));
-        
-        if (response.statusCode == 200) {
-          final data = jsonDecode(response.body);
-          final List results = data['data'];
+        final page = await ScryfallService.instance.search(query, order: 'released', dir: 'desc', multilingual: false);
+        final List results = page.cards;
+
+        final validPrint = results.firstWhere(
+          (c) {
+            final status = c['image_status'];
+            return status != 'placeholder' && status != 'missing';
+          },
+          orElse: () => null
+        );
+
+        if (validPrint != null) {
+          String? imgUrl = validPrint['image_uris']?['normal'] ?? validPrint['card_faces']?[0]?['image_uris']?['normal'];
           
-          final validPrint = results.firstWhere(
-            (c) {
-              final status = c['image_status'];
-              return status != 'placeholder' && status != 'missing';
-            },
-            orElse: () => null
-          );
+          if (imgUrl != null) {
+            Map<String, dynamic> updatedCard = Map.from(card);
+            updatedCard['imageUrl'] = imgUrl;
+            updatedCard['name'] = validPrint['printed_name'] ?? validPrint['name'] ?? card['name'];
+            updatedCard['type_line'] = validPrint['printed_type_line'] ?? validPrint['type_line'] ?? card['type_line'];
+            updatedCard['oracle_text'] = validPrint['printed_text'] ?? validPrint['oracle_text'] ?? card['oracle_text'];
+            updatedCard['setName'] = (validPrint['set'] ?? card['setName']).toString().toUpperCase();
 
-          if (validPrint != null) {
-            String? imgUrl = validPrint['image_uris']?['normal'] ?? validPrint['card_faces']?[0]?['image_uris']?['normal'];
-            
-            if (imgUrl != null) {
-              Map<String, dynamic> updatedCard = Map.from(card);
-              updatedCard['imageUrl'] = imgUrl;
-              updatedCard['name'] = validPrint['printed_name'] ?? validPrint['name'] ?? card['name'];
-              updatedCard['type_line'] = validPrint['printed_type_line'] ?? validPrint['type_line'] ?? card['type_line'];
-              updatedCard['oracle_text'] = validPrint['printed_text'] ?? validPrint['oracle_text'] ?? card['oracle_text'];
-              updatedCard['setName'] = (validPrint['set'] ?? card['setName']).toString().toUpperCase();
-
-              provider.updateCardInDeck(widget.deckIndex, i, updatedCard);
-              translatedCount++;
-            }
+            provider.updateCardInDeck(widget.deckIndex, i, updatedCard);
+            translatedCount++;
           }
         }
       } catch (e) {
@@ -217,39 +210,35 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
       }
 
       try {
-        var url = Uri.parse('https://api.scryfall.com/cards/named?exact=${Uri.encodeQueryComponent(cardName)}');
-        var response = await http.get(url);
-
-        if (response.statusCode != 200) {
-          url = Uri.parse('https://api.scryfall.com/cards/named?fuzzy=${Uri.encodeQueryComponent(cardName)}');
-          response = await http.get(url);
+        final scryfall = ScryfallService.instance;
+        final name = Uri.encodeQueryComponent(cardName);
+        Map<String, dynamic>? data;
+        try {
+          data = await scryfall.getJson('https://api.scryfall.com/cards/named?exact=$name');
+        } on ScryfallException {
+          // Nome com erro de digitação: o Scryfall tenta adivinhar.
+          data = await scryfall.getJson('https://api.scryfall.com/cards/named?fuzzy=$name');
         }
 
-        if (response.statusCode == 200) {
-          final data = jsonDecode(response.body);
-          
-          Map<String, dynamic> cardObj = {
-            'name': data['name'] ?? 'Carta Desconhecida',
-            'imageUrl': data['image_uris']?['normal'] ?? data['card_faces']?[0]?['image_uris']?['normal'] ?? 'https://upload.wikimedia.org/wikipedia/en/a/aa/Magic_the_gathering-card_back.jpg',
-            'type_line': data['type_line'] ?? '',
-            'oracle_text': data['oracle_text'] ?? '',
-            'rarity': data['rarity'] ?? 'common',
-            'mana_cost': data['mana_cost'] ?? '',
-            'power': data['power']?.toString(),
-            'toughness': data['toughness']?.toString(),
-            'color_identity': (data['color_identity'] as List?)?.join('') ?? '',
-            'setName': (data['set'] ?? '').toString().toUpperCase(),
-            'collectorNumber': data['collector_number'] ?? '',
-            'oracle_id': data['oracle_id'],
-            'usdPrice': data['prices']?['usd'] ?? '0.00',
-          };
+        Map<String, dynamic> cardObj = {
+          'name': data['name'] ?? 'Carta Desconhecida',
+          'imageUrl': data['image_uris']?['normal'] ?? data['card_faces']?[0]?['image_uris']?['normal'] ?? 'https://upload.wikimedia.org/wikipedia/en/a/aa/Magic_the_gathering-card_back.jpg',
+          'type_line': data['type_line'] ?? '',
+          'oracle_text': data['oracle_text'] ?? '',
+          'rarity': data['rarity'] ?? 'common',
+          'mana_cost': data['mana_cost'] ?? '',
+          'power': data['power']?.toString(),
+          'toughness': data['toughness']?.toString(),
+          'color_identity': (data['color_identity'] as List?)?.join('') ?? '',
+          'setName': (data['set'] ?? '').toString().toUpperCase(),
+          'collectorNumber': data['collector_number'] ?? '',
+          'oracle_id': data['oracle_id'],
+          'usdPrice': data['prices']?['usd'] ?? '0.00',
+        };
 
-          for (int i = 0; i < qty; i++) {
-            provider.addCardToDeck(widget.deckIndex, cardObj);
-            addedCount++;
-          }
-        } else {
-          errorCount++; 
+        for (int i = 0; i < qty; i++) {
+          provider.addCardToDeck(widget.deckIndex, cardObj);
+          addedCount++;
         }
       } catch (e) {
         errorCount++;

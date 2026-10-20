@@ -5,6 +5,7 @@ import '../../../data/providers/theme_provider.dart';
 import '../../../data/providers/deck_provider.dart';
 import '../../../data/providers/xp_provider.dart';
 import '../../widgets/custom_back_button.dart';
+import '../../../data/services/scryfall_service.dart';
 
 class ArenaMissionsScreen extends StatefulWidget {
   const ArenaMissionsScreen({super.key});
@@ -44,7 +45,7 @@ class _ArenaMissionsScreenState extends State<ArenaMissionsScreen> {
 
     int avatarIndex = (tier - 1) % topCards.length;
     String cardName = topCards[avatarIndex];
-    String imageUrl = 'https://api.scryfall.com/cards/named?exact=${Uri.encodeComponent(cardName)}&format=image&version=art_crop';
+    String imageUrl = CardImages.artCropByName(cardName);
     
     return {'type': 'avatar', 'value': imageUrl, 'name': cardName, 'imageUrl': imageUrl};
   }

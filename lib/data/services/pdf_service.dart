@@ -5,17 +5,20 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:http/http.dart' as http;
 import 'package:printing/printing.dart';
+import 'scryfall_service.dart';
 
 class PdfService {
   
-  // Mágica Anti-CORS: Tenta baixar a imagem usando 4 caminhos diferentes
-  static Future<Uint8List?> _downloadImageBytes(String url) async {
+  // Baixa direto do Scryfall, no tamanho "large" (672×936, boa qualidade para
+  // imprimir). Na versão web, os proxies ficam só de reserva, caso o
+  // navegador bloqueie a imagem (CORS).
+  static Future<Uint8List?> _downloadImageBytes(String imageUrl) async {
+    final url = CardImages.sized(imageUrl, 'large');
     List<String> urlsToTry = kIsWeb 
       ? [
-          'https://api.codetabs.com/v1/proxy?quest=${Uri.encodeComponent(url)}',
+          url,
           'https://corsproxy.io/?${Uri.encodeComponent(url)}',
           'https://api.allorigins.win/raw?url=${Uri.encodeComponent(url)}',
-          url // Último caso, tenta direto
         ]
       : [url]; // No celular a conexão direta sempre funciona
 
