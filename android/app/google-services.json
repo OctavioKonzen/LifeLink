@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "807040389217",
+    "project_id": "lifelink-ad40f",
+    "storage_bucket": "lifelink-ad40f.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:807040389217:android:02631ca64910bd1bc95a20",
+        "android_client_info": {
+          "package_name": "com.octaviokonzen.lifelink"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDt_L0InT7NSYHufO4MaeSQW1UXUuTDrU8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
