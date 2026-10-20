@@ -149,7 +149,7 @@ export default function DecksPage() {
         <p className="py-12 text-center text-muted">Nenhum deck encontrado.</p>
       ) : (
         <>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-4">
             {shown.slice(0, limit).map((d) => (
               <button
                 key={d.fileName}
