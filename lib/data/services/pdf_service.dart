@@ -1,6 +1,6 @@
 import 'dart:math' as math;
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart'; 
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:http/http.dart' as http;
@@ -8,73 +8,76 @@ import 'package:printing/printing.dart';
 import 'scryfall_service.dart';
 
 class PdfService {
-  
-  // Baixa direto do Scryfall, no tamanho "large" (672×936, boa qualidade para
-  // imprimir). Na versão web, os proxies ficam só de reserva, caso o
-  // navegador bloqueie a imagem (CORS).
+  // Baixa direto do Scryfall, no tamanho "large" (672×936, boa qualidade para imprimir).
   static Future<Uint8List?> _downloadImageBytes(String imageUrl) async {
     final url = CardImages.sized(imageUrl, 'large');
-    List<String> urlsToTry = kIsWeb 
-      ? [
-          url,
-          'https://corsproxy.io/?${Uri.encodeComponent(url)}',
-          'https://api.allorigins.win/raw?url=${Uri.encodeComponent(url)}',
-        ]
-      : [url]; // No celular a conexão direta sempre funciona
-
-    for (String tryUrl in urlsToTry) {
+    for (var attempt = 0; attempt < 2; attempt++) {
       try {
-        final response = await http.get(Uri.parse(tryUrl)).timeout(const Duration(seconds: 10));
-        if (response.statusCode == 200 && response.bodyBytes.isNotEmpty) {
-          return response.bodyBytes;
-        }
-      } catch (e) {
-        debugPrint("Falha no proxy: $tryUrl");
-      }
+        final response = await http.get(Uri.parse(url), headers: CardImages.headers).timeout(const Duration(seconds: 15));
+        if (response.statusCode == 200 && response.bodyBytes.isNotEmpty) return response.bodyBytes;
+      } catch (_) {}
     }
-    return null; // Retorna nulo se todos falharem
+    return null;
   }
 
   static Future<void> generateAndPrintDeckPdf(BuildContext context, List<String> imageUrls) async {
+    // Cada imagem é baixada uma vez só (30 Forests = 1 download), 4 de cada vez.
+    final unique = imageUrls.toSet().toList();
+    final done = ValueNotifier<int>(0);
+    var cancelled = false;
+    var dialogOpen = true;
+    void closeDialog() {
+      if (dialogOpen && context.mounted) Navigator.of(context, rootNavigator: true).pop();
+      dialogOpen = false;
+    }
+
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => const AlertDialog(
-        backgroundColor: Color(0xFF1E1E24),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            CircularProgressIndicator(color: Colors.blueAccent),
-            SizedBox(height: 20),
-            Text(
-              "Baixando imagens das cartas...\n(O Web pode ser um pouco mais lento).",
-              style: TextStyle(color: Colors.white, fontSize: 14),
-              textAlign: TextAlign.center,
-            ),
-          ],
+      builder: (ctx) => AlertDialog(
+        content: ValueListenableBuilder<int>(
+          valueListenable: done,
+          builder: (_, n, _) => Column(mainAxisSize: MainAxisSize.min, children: [
+            LinearProgressIndicator(value: unique.isEmpty ? null : n / unique.length),
+            const SizedBox(height: 16),
+            Text('Baixando as imagens das cartas... $n de ${unique.length}', textAlign: TextAlign.center),
+          ]),
         ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              cancelled = true;
+              closeDialog();
+            },
+            child: const Text('Cancelar'),
+          ),
+        ],
       ),
     );
 
     try {
       final pdf = pw.Document();
-      final List<pw.MemoryImage> images = [];
-
-      for (String url in imageUrls) {
-        final bytes = await _downloadImageBytes(url);
-        
-        if (bytes != null) {
-          images.add(pw.MemoryImage(bytes));
-        } else {
-          debugPrint("Aviso: Não foi possível carregar a carta $url");
+      final bytesOf = <String, Uint8List?>{};
+      var next = 0;
+      Future<void> worker() async {
+        while (!cancelled && next < unique.length) {
+          final url = unique[next++];
+          bytesOf[url] = await _downloadImageBytes(url);
+          done.value++;
         }
-        await Future.delayed(const Duration(milliseconds: 100)); 
       }
 
+      await Future.wait([for (var k = 0; k < 4; k++) worker()]);
+      if (cancelled) return;
+
+      final memory = {for (final e in bytesOf.entries) if (e.value != null) e.key: pw.MemoryImage(e.value!)};
+      final images = [for (final url in imageUrls) if (memory[url] != null) memory[url]!];
+      final failed = unique.where((u) => bytesOf[u] == null).length;
+
       if (images.isEmpty) {
+        closeDialog();
         if (context.mounted) {
-          Navigator.pop(context);
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("O navegador bloqueou o download das imagens (CORS)."), backgroundColor: Colors.redAccent));
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Não deu para baixar as imagens. Verifique a internet e tente de novo.'), backgroundColor: Colors.redAccent));
         }
         return;
       }
@@ -118,19 +121,19 @@ class PdfService {
         );
       }
 
-      if (context.mounted) Navigator.pop(context); 
-
       final Uint8List pdfBytes = await pdf.save();
-      await Printing.sharePdf(
-        bytes: pdfBytes,
-        filename: 'meu_deck_proxy.pdf',
-      );
-
-    } catch (e) {
-      if (context.mounted) {
-        Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Erro ao gerar PDF: $e")));
+      closeDialog();
+      if (failed > 0 && context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$failed carta${failed > 1 ? 's' : ''} ficou de fora (a imagem não baixou).')));
       }
+      await Printing.sharePdf(bytes: pdfBytes, filename: 'meu_deck_proxy.pdf');
+    } catch (e) {
+      closeDialog();
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Não deu para gerar o PDF. Tente de novo.')));
+      }
+    } finally {
+      done.dispose();
     }
   }
 }

@@ -165,7 +165,13 @@ class DeckProvider with ChangeNotifier implements SyncedDecks {
     final prefs = await SharedPreferences.getInstance();
     String? data = prefs.getString('saved_decks_mtg_v5');
     if (data != null) {
-      _allDecks = (jsonDecode(data) as List).map((d) => DeckModel.fromMap(d)).toList();
+      try {
+        _allDecks = (jsonDecode(data) as List).map((d) => DeckModel.fromMap(d)).toList();
+      } catch (e) {
+        // Salvo estragado: abre sem os decks deste aparelho (os da conta voltam ao sincronizar).
+        debugPrint('Decks salvos inválidos: $e');
+        _allDecks = [];
+      }
       notifyListeners();
     }
   }

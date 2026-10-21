@@ -368,7 +368,16 @@ class _CardDetailScreenState extends State<CardDetailScreen> with SingleTickerPr
                             : Transform(
                                 transform: Matrix4.identity()..rotateY(math.pi),
                                 alignment: FractionalOffset.center,
-                                child: ClipRRect(borderRadius: BorderRadius.circular(16), child: CachedNetworkImage(imageUrl: CardImages.cardBack, fit: BoxFit.cover)),
+                                // Carta de duas faces: o outro lado; senão, o verso padrão.
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(16),
+                                  child: CachedNetworkImage(
+                                    imageUrl: '${_currentCard['backImageUrl'] ?? ''}'.isNotEmpty ? '${_currentCard['backImageUrl']}' : CardImages.cardBack,
+                                    httpHeaders: CardImages.headers,
+                                    fit: BoxFit.cover,
+                                    errorWidget: (_, _, _) => CachedNetworkImage(imageUrl: CardImages.cardBack, fit: BoxFit.cover),
+                                  ),
+                                ),
                               ),
                       ),
                     ),

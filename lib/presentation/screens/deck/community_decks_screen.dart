@@ -8,6 +8,8 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../../../data/providers/theme_provider.dart';
 import 'community_deck_detail_screen.dart';
 import '../../widgets/neon.dart';
+import '../../../data/services/scryfall_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class CommunityDecksScreen extends StatefulWidget {
   const CommunityDecksScreen({super.key});
@@ -33,17 +35,66 @@ class _CommunityDecksScreenState extends State<CommunityDecksScreen> {
   final Set<String> _loadingCovers = {};
   final List<String> _queue = [];
   bool _isProcessingQueue = false;
-  final String _cardBackUrl = 'https://upload.wikimedia.org/wikipedia/en/a/aa/Magic_the_gathering-card_back.jpg';
+  final String _cardBackUrl = CardImages.cardBack;
 
-  final Map<String, String> _headers = const {
-    'User-Agent': 'LifelinkApp/2.0',
+  static const Map<String, String> _headers = {
+    'User-Agent': 'LifelinkApp/1.0',
     'Accept': 'application/json',
   };
+
+  // A lista de decks guardada enquanto o app está aberto (e por 1 dia no
+  // aparelho): não baixa tudo de novo a cada visita.
+  static String? _listCache;
+  static const _listKey = 'mtgjson_decklist_v1';
+  static const _coversKey = 'mtgjson_covers_v1';
 
   @override
   void initState() {
     super.initState();
+    _loadSavedCovers();
     _fetchOfficialDecks();
+  }
+
+  /// As capas já descobertas antes (as cartas de cada deck não mudam).
+  Future<void> _loadSavedCovers() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_coversKey);
+      if (raw == null || !mounted) return;
+      final map = jsonDecode(raw) as Map<String, dynamic>;
+      setState(() {
+        for (final e in map.entries) {
+          _coverCache.putIfAbsent(e.key, () => [for (final u in e.value as List) u.toString()]);
+        }
+      });
+    } catch (_) {}
+  }
+
+  Future<void> _saveCovers() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_coversKey, jsonEncode(_coverCache));
+    } catch (_) {}
+  }
+
+  Future<String> _deckListJson() async {
+    if (_listCache != null) return _listCache!;
+    final prefs = await SharedPreferences.getInstance();
+    final saved = prefs.getString(_listKey);
+    final savedAt = prefs.getInt('${_listKey}_at') ?? 0;
+    if (saved != null && DateTime.now().millisecondsSinceEpoch - savedAt < const Duration(days: 1).inMilliseconds) {
+      return _listCache = saved;
+    }
+    try {
+      final body = (await _fetchWithRetry('https://mtgjson.com/api/v5/DeckList.json')).body;
+      prefs.setString(_listKey, body);
+      prefs.setInt('${_listKey}_at', DateTime.now().millisecondsSinceEpoch);
+      return _listCache = body;
+    } catch (_) {
+      // Sem internet: usa a lista antiga, se tiver.
+      if (saved != null) return _listCache = saved;
+      rethrow;
+    }
   }
 
   @override
@@ -52,27 +103,13 @@ class _CommunityDecksScreenState extends State<CommunityDecksScreen> {
     super.dispose();
   }
 
-  // Direto no MTGJSON. Os proxies ficam só de reserva na versão web, caso o
-  // navegador bloqueie (CORS); no celular nunca são usados.
+  /// Direto no MTGJSON (tenta duas vezes).
   Future<http.Response> _fetchWithRetry(String url) async {
-    List<String> urlsToTry = kIsWeb 
-      ? [
-          url,
-          'https://api.allorigins.win/raw?url=${Uri.encodeComponent(url)}',
-          'https://corsproxy.io/?${Uri.encodeComponent(url)}',
-        ]
-      : [url];
-
-    for (String target in urlsToTry) {
+    for (var attempt = 0; attempt < 2; attempt++) {
       try {
-        final response = await http.get(Uri.parse(target), headers: kIsWeb ? null : _headers)
-            .timeout(const Duration(seconds: 12));
-        if (response.statusCode == 200) {
-          return response;
-        }
-      } catch (_) {
-        continue;
-      }
+        final response = await http.get(Uri.parse(url), headers: kIsWeb ? null : _headers).timeout(const Duration(seconds: 15));
+        if (response.statusCode == 200) return response;
+      } catch (_) {}
     }
     throw Exception("Falha de rede");
   }
@@ -85,8 +122,7 @@ class _CommunityDecksScreenState extends State<CommunityDecksScreen> {
     });
 
     try {
-      final response = await _fetchWithRetry('https://mtgjson.com/api/v5/DeckList.json');
-      final data = jsonDecode(response.body);
+      final data = jsonDecode(await _deckListJson());
       List<dynamic> allDecks = data['data'] ?? [];
 
       List<dynamic> commander = [];
@@ -141,6 +177,11 @@ class _CommunityDecksScreenState extends State<CommunityDecksScreen> {
       return;
     }
     _queue.add(fileName);
+    // Só as capas dos decks que passaram na tela por último: rolando a lista
+    // inteira, as de cima saem da fila em vez de virar centenas de downloads.
+    while (_queue.length > 12) {
+      _queue.removeAt(0);
+    }
     _processQueue();
   }
 
@@ -151,7 +192,7 @@ class _CommunityDecksScreenState extends State<CommunityDecksScreen> {
       if (!mounted) {
         break;
       }
-      String fileName = _queue.removeAt(0);
+      String fileName = _queue.removeLast(); // o mais recente (o que está na tela)
       _loadingCovers.add(fileName);
       try {
         final response = await _fetchWithRetry('https://mtgjson.com/api/v5/decks/$fileName.json');
@@ -172,9 +213,10 @@ class _CommunityDecksScreenState extends State<CommunityDecksScreen> {
         }
         if (mounted) {
           setState(() => _coverCache[fileName] = foundUrls);
+          _saveCovers();
         }
       } catch (_) {}
-      await Future.delayed(const Duration(milliseconds: 300));
+      await Future.delayed(const Duration(milliseconds: 150));
     }
     _isProcessingQueue = false;
   }
@@ -366,7 +408,8 @@ class CommunityDeckCoverWidget extends StatelessWidget {
         borderRadius: BorderRadius.circular(8), 
         child: CachedNetworkImage(
           imageUrl: url, 
-          httpHeaders: kIsWeb ? null : const {'User-Agent': 'LifelinkApp/2.0'},
+          httpHeaders: CardImages.headers,
+          memCacheWidth: 200, // a capa é pequena: não decodifica a imagem inteira
           fit: BoxFit.cover,
           placeholder: (c, u) => Container(color: Colors.black26),
           errorWidget: (c, u, e) => Container(color: Colors.black26),

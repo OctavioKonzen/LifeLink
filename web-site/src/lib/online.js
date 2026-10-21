@@ -28,6 +28,10 @@ const me = () => {
   return { uid: user.uid, nick: user.name || '' }
 }
 
+// Sem internet, o Firestore espera para sempre: aqui desiste em 15 s.
+const net = (promise) =>
+  Promise.race([promise, new Promise((_, reject) => setTimeout(() => reject(new Error('Sem conexão com a internet. Tente de novo.')), 15000))])
+
 let stops = []
 let last = {}
 let applying = false
@@ -75,7 +79,7 @@ export async function createTable() {
   const user = me()
   await leaveTable()
   const { fs, db } = await loadFirestore()
-  const { code, flat } = await core.createTable(fs, db, user, toCloud('game', getState().game))
+  const { code, flat } = await net(core.createTable(fs, db, user, toCloud('game', getState().game)))
   set({ code, isOwner: true, error: null })
   attach(fs, db, code, flat)
   return code
@@ -85,7 +89,7 @@ export async function joinTable(rawCode) {
   const user = me()
   await leaveTable()
   const { fs, db } = await loadFirestore()
-  const { code, data } = await core.findTable(fs, db, rawCode)
+  const { code, data } = await net(core.findTable(fs, db, rawCode))
   set({ code, isOwner: data.owner === user.uid, error: null })
   attach(fs, db, code, {})
 }
@@ -108,7 +112,7 @@ export async function leaveTable(reason = null) {
 async function withDb(fn) {
   const user = me()
   const { fs, db } = await loadFirestore()
-  return fn(fs, db, user)
+  return net(fn(fs, db, user))
 }
 
 export const addFriend = (nick) => withDb((fs, db, user) => core.addFriend(fs, db, user, nick))

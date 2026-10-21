@@ -150,6 +150,7 @@ class DeckTools {
         'id': data['id'],
         'name': data['name'] ?? 'Carta Desconhecida',
         'imageUrl': CardImages.normalOf(data) ?? CardImages.cardBack,
+        'backImageUrl': data['card_faces']?[1]?['image_uris']?['normal'],
         'type_line': data['type_line'] ?? data['card_faces']?[0]?['type_line'] ?? '',
         'oracle_text': data['oracle_text'] ?? data['card_faces']?[0]?['oracle_text'] ?? '',
         'rarity': data['rarity'] ?? 'common',

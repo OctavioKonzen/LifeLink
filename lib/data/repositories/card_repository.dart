@@ -53,6 +53,7 @@ class CardRepository {
             'oracle_id': c['oracle_id'],
             'name': c['printed_name'] ?? c['name'],
             'imageUrl': imgUrl,
+            'backImageUrl': c['card_faces']?[1]?['image_uris']?['normal'],
             'rarity': c['rarity'],
             'collectorNumber': c['collector_number'],
             'setName': c['set_name'],

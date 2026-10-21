@@ -67,6 +67,13 @@ Map<String, dynamic> nestFields(Map<String, dynamic> flat) {
   return out;
 }
 
+/// Sem internet, o Firestore espera para sempre: aqui desiste em 15 s com
+/// uma mensagem (senão "Criar mesa" e "Adicionar" ficavam carregando).
+Future<T> _net<T>(Future<T> call) => call.timeout(
+      const Duration(seconds: 15),
+      onTimeout: () => throw Exception('Sem conexão com a internet. Tente de novo.'),
+    );
+
 /// Código da mesa: 6 letras e números fáceis de ler (sem 0/O, 1/I).
 String newTableCode([Random? rng]) {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -108,15 +115,15 @@ class OnlineTable extends ChangeNotifier {
     do {
       c = newTableCode();
       ref = _db.collection('tables').doc(c);
-    } while ((await ref.get()).exists);
+    } while ((await _net(ref.get())).exists);
     final flat = flattenGame(game.toSync());
-    await ref.set({
+    await _net(ref.set({
       'owner': user.uid,
       'ownerNick': user.name ?? '',
       'createdAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
       ...nestFields(flat),
-    });
+    }));
     isOwner = true;
     _attach(game, c, flat);
     return c;
@@ -129,7 +136,7 @@ class OnlineTable extends ChangeNotifier {
     final c = _norm(rawCode);
     if (c.length != 6) throw Exception('O código tem 6 letras e números.');
     await leave();
-    final snap = await _db.collection('tables').doc(c).get();
+    final snap = await _net(_db.collection('tables').doc(c).get());
     if (!snap.exists) throw Exception('Não achei a mesa $c. Confira o código.');
     isOwner = snap.data()?['owner'] == user.uid;
     _attach(game, c, {});
@@ -225,37 +232,37 @@ class Friends {
     if (me == null) throw Exception('Entre na conta para adicionar amigos.');
     final key = AuthService.nickKey(nick);
     if (key.isEmpty) throw Exception('Digite o nick do amigo.');
-    final owner = await _db.collection('nicks').doc(key).get();
+    final owner = await _net(_db.collection('nicks').doc(key).get());
     final uid = owner.data()?['uid'] as String?;
     if (uid == null) throw Exception('Ninguém tem o nick "$nick".');
     if (uid == me) throw Exception('Esse é o seu nick.');
     final realNick = owner.data()?['nick'] as String? ?? nick;
-    await _col(me, 'friends').doc(uid).set({'uid': uid, 'nick': realNick, 'at': FieldValue.serverTimestamp()});
+    await _net(_col(me, 'friends').doc(uid).set({'uid': uid, 'nick': realNick, 'at': FieldValue.serverTimestamp()}));
     // Ele já tinha pedido? Então já são amigos; senão, vai o pedido.
-    final theirRequest = await _col(me, 'requests').doc(uid).get();
+    final theirRequest = await _net(_col(me, 'requests').doc(uid).get());
     if (theirRequest.exists) {
-      await theirRequest.reference.delete();
+      await _net(theirRequest.reference.delete());
       return 'Agora você e $realNick são amigos!';
     }
-    await _col(uid, 'requests').doc(me).set({'uid': me, 'nick': _myNick, 'at': FieldValue.serverTimestamp()});
+    await _net(_col(uid, 'requests').doc(me).set({'uid': me, 'nick': _myNick, 'at': FieldValue.serverTimestamp()}));
     return 'Pedido enviado para $realNick.';
   }
 
   Future<void> accept(Friend request) async {
     final me = _me;
     if (me == null) return;
-    await _col(me, 'friends').doc(request.uid).set({'uid': request.uid, 'nick': request.nick, 'at': FieldValue.serverTimestamp()});
-    await _col(me, 'requests').doc(request.uid).delete();
+    await _net(_col(me, 'friends').doc(request.uid).set({'uid': request.uid, 'nick': request.nick, 'at': FieldValue.serverTimestamp()}));
+    await _net(_col(me, 'requests').doc(request.uid).delete());
   }
 
   Future<void> decline(Friend request) async {
     final me = _me;
-    if (me != null) await _col(me, 'requests').doc(request.uid).delete();
+    if (me != null) await _net(_col(me, 'requests').doc(request.uid).delete());
   }
 
   Future<void> remove(Friend friend) async {
     final me = _me;
-    if (me != null) await _col(me, 'friends').doc(friend.uid).delete();
+    if (me != null) await _net(_col(me, 'friends').doc(friend.uid).delete());
   }
 
   Stream<List<Friend>> requests() {
@@ -273,7 +280,7 @@ class Friends {
       for (final d in s.docs) {
         var accepted = false;
         try {
-          accepted = (await _col(d.id, 'friends').doc(me).get()).exists;
+          accepted = (await _net(_col(d.id, 'friends').doc(me).get())).exists;
         } catch (_) {}
         list.add(Friend(d.id, '${d.data()['nick'] ?? ''}', accepted: accepted));
       }
@@ -284,14 +291,14 @@ class Friends {
 
   /// Os decks do amigo (só depois que ele aceitar).
   Future<List<Map<String, dynamic>>> decksOf(Friend friend) async {
-    final s = await _col(friend.uid, 'decks').get();
+    final s = await _net(_col(friend.uid, 'decks').get());
     return [for (final d in s.docs) {...d.data(), 'id': d.id}]..sort((a, b) => '${a['name']}'.compareTo('${b['name']}'));
   }
 
   Future<void> invite(Friend friend, String code) async {
     final me = _me;
     if (me == null) return;
-    await _col(friend.uid, 'invites').doc(code).set({'fromUid': me, 'fromNick': _myNick, 'code': code, 'at': FieldValue.serverTimestamp()});
+    await _net(_col(friend.uid, 'invites').doc(code).set({'fromUid': me, 'fromNick': _myNick, 'code': code, 'at': FieldValue.serverTimestamp()}));
   }
 
   Stream<List<({String code, String from})>> invites() {
@@ -302,6 +309,6 @@ class Friends {
 
   Future<void> dismissInvite(String code) async {
     final me = _me;
-    if (me != null) await _col(me, 'invites').doc(code).delete();
+    if (me != null) await _net(_col(me, 'invites').doc(code).delete());
   }
 }

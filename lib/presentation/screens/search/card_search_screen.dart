@@ -197,6 +197,8 @@ class _CardSearchScreenState extends State<CardSearchScreen> {
             'id': card['id'],
             'name': card['printed_name'] ?? card['name'],
             'imageUrl': imgUrl,
+            // Carta de duas faces: a imagem do outro lado (girar a carta mostra).
+            'backImageUrl': card['card_faces']?[1]?['image_uris']?['normal'],
             'rarity': card['rarity'],
             'color_identity': (card['color_identity'] as List?)?.join('') ?? 'C',
             'mana_cost': card['mana_cost'] ?? card['card_faces']?[0]?['mana_cost'] ?? '',

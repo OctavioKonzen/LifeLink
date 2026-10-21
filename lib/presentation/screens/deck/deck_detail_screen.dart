@@ -82,6 +82,7 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
     int translatedCount = 0;
 
     for (int i = 0; i < deck.cards.length; i++) {
+      if (!mounted) return; // saiu da tela no meio
       var card = deck.cards[i];
       try {
         final oracleId = card['oracle_id'];
@@ -121,6 +122,7 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
       }
     }
 
+    if (!mounted) return;
     setState(() => _isTranslating = false);
     
     if (mounted) {
