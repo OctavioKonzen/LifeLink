@@ -557,7 +557,9 @@ class _LifeCounterScreenState extends State<LifeCounterScreen> {
   void _showPlayerSettings(GameProvider game, int index, int turns) {
     final ctrl = TextEditingController(text: game.playerNames[index]);
     final deckCtrl = TextEditingController(text: game.deckOf(index));
-    _playerDialog(turns, (ctx) {
+    // Sempre de pé (sem virar para o lado do jogador): o teclado do celular
+    // não vira, e escrever de cabeça para baixo não dá.
+    _playerDialog(0, (ctx) {
       return AnimatedBuilder(
         animation: game,
         builder: (context, _) => ConstrainedBox(
