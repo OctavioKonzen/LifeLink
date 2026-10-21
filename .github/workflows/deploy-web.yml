@@ -7,9 +7,9 @@ name: Site
 on:
   push:
     branches: [main]
-    paths: ['web-site/**', '.github/workflows/deploy-web.yml']
+    paths: ['web-site/**', 'assets/dice/**', '.github/workflows/deploy-web.yml']
   pull_request:
-    paths: ['web-site/**', '.github/workflows/deploy-web.yml']
+    paths: ['web-site/**', 'assets/dice/**', '.github/workflows/deploy-web.yml']
   workflow_dispatch:
 
 permissions:
@@ -38,6 +38,12 @@ jobs:
       - run: npm run lint
       - run: npm test
       - run: npm run build
+      # A mesa de dados do app (assets/dice) sai do mesmo código do site:
+      # confere se foi gerada de novo depois de mudar o motor.
+      - name: Dados 3D do app em dia
+        run: |
+          npm run build:dice
+          git diff --exit-code -- ../assets/dice || { echo "::error::Rode 'cd web-site && npm run build:dice' e envie assets/dice."; exit 1; }
       - uses: actions/upload-pages-artifact@v3
         if: github.event_name != 'pull_request'
         with:
