@@ -32,14 +32,34 @@ const run = async (name, p) => {
 const a = env.authenticatedContext('alice').firestore()
 const b = env.authenticatedContext('bob').firestore()
 const anon = env.unauthenticatedContext().firestore()
+const c0 = env.authenticatedContext('carol0').firestore()
 
 await run('1. nick livre, conta nova (sem perfil)', claim(a, 'alice', 'Octaviok1'))
 await run('2. qualquer um vê se o nick está livre', getDoc(doc(anon, 'nicks', 'octaviok1')))
 await run('3. outra pessoa NÃO pega o mesmo nick (deve dar erro)', claim(b, 'bob', 'OCTAVIOK1').then(() => { throw new Error('PEGOU!') }, (e) => { if (e.message === 'TAKEN' || e.code === 'permission-denied') return; throw e }))
 await run('4. perfil já existia sem nick', setDoc(doc(b, 'users', 'bob'), { name: 'x', email: 'b@b' }).then(() => claim(b, 'bob', 'Bob_2')))
-await run('5. trocar o nick é recusado (deve dar erro)', assertFails(updateDoc(doc(a, 'users', 'alice'), { nick: 'outro' })))
+await run('5. trocar o nick sem registrar o novo é recusado (deve dar erro)', assertFails(updateDoc(doc(a, 'users', 'alice'), { nick: 'outro' })))
 await run('6. sync grava dados sem mexer no nick', assertSucceeds(setDoc(doc(a, 'users', 'alice'), { data: { game: {} } }, { merge: true })))
 await run('7. registrar um segundo nick é recusado (deve dar erro)', assertFails(setDoc(doc(a, 'nicks', 'segundo'), { uid: 'alice', nick: 'segundo' })))
+// Trocar o nick: registra o novo e libera o antigo na mesma transação.
+async function change(db, uid, from, to) {
+  await runTransaction(db, async (tx) => {
+    const ref = doc(db, 'nicks', to.toLowerCase())
+    const owner = await tx.get(ref)
+    if (owner.exists() && owner.data().uid !== uid) throw new Error('TAKEN')
+    tx.set(ref, { uid, nick: to })
+    if (from.toLowerCase() !== to.toLowerCase()) tx.delete(doc(db, 'nicks', from.toLowerCase()))
+    tx.set(doc(db, 'users', uid), { nick: to, name: to }, { merge: true })
+  })
+}
+await run('7b. trocar o nick (o antigo fica livre)', change(a, 'alice', 'Octaviok1', 'Alice_Nova').then(() => getDoc(doc(anon, 'nicks', 'octaviok1'))).then((d) => { if (d.exists()) throw new Error('antigo ainda registrado') }))
+await run('7c. trocar só maiúsculas/minúsculas', change(a, 'alice', 'Alice_Nova', 'ALICE_nova'))
+await run('7d. trocar para o nick de outra pessoa é recusado (deve dar erro)', change(a, 'alice', 'ALICE_nova', 'bob_2').then(() => { throw new Error('PEGOU!') }, (e) => { if (e.message === 'TAKEN' || e.code === 'permission-denied') return; throw e }))
+await run('7e. trocar sem liberar o antigo é recusado (deve dar erro)', assertFails(runTransaction(a, async (tx) => {
+  tx.set(doc(a, 'nicks', 'terceiro'), { uid: 'alice', nick: 'terceiro' })
+  tx.set(doc(a, 'users', 'alice'), { nick: 'terceiro' }, { merge: true })
+})))
+await run('7f. depois da troca, outra pessoa pode pegar o nick antigo', claim(c0, 'carol0', 'Octaviok1'))
 
 // Amigos e mesa online.
 const c = env.authenticatedContext('carol').firestore()

@@ -113,6 +113,19 @@ export const setNick = (nick) =>
     set({ status: 'signedIn', user: { uid: u.uid, email: u.email, name: nick.trim(), photo: u.photoURL } })
   })
 
+/** Troca o nick (com conta): o novo precisa estar livre; o antigo fica livre para outros. */
+export const changeNick = (nick) =>
+  guard(async () => {
+    const error = nickError(nick)
+    if (error) throw new Error(error)
+    const u = auth.currentUser
+    if (!u) throw new Error('Entre na conta para trocar o nick.')
+    const fs = await import('./firestore')
+    await fs.changeNick(app, u.uid, nick.trim())
+    await updateProfile(u, { displayName: nick.trim() })
+    set({ status: 'signedIn', user: { ...state.user, name: nick.trim() } })
+  })
+
 const MESSAGES = {
   'auth/invalid-email': 'E-mail inválido.',
   'auth/user-disabled': 'Esta conta foi desativada.',

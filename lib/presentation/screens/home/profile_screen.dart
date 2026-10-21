@@ -38,6 +38,49 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  /// Trocar o nick (com conta): o novo precisa estar livre.
+  Future<void> _changeNick(String current) async {
+    final ctrl = TextEditingController(text: current);
+    String? error;
+    var busy = false;
+    await showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialog) {
+          Future<void> save() async {
+            setDialog(() {
+              busy = true;
+              error = null;
+            });
+            try {
+              await AuthService.instance.changeNick(ctrl.text);
+              if (ctx.mounted) Navigator.pop(ctx);
+              if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Agora seu nick é ${ctrl.text.trim()}.')));
+            } catch (e) {
+              setDialog(() {
+                busy = false;
+                error = e.toString();
+              });
+            }
+          }
+
+          return AlertDialog(
+            title: const Text('Trocar nick'),
+            content: Column(mainAxisSize: MainAxisSize.min, children: [
+              TextField(controller: ctrl, autofocus: true, maxLength: 20, onSubmitted: (_) => save(), decoration: InputDecoration(errorText: error, errorMaxLines: 3)),
+              const Text('De 3 a 20 letras, números, espaço, _ ou -. Seus amigos continuam vendo o nick antigo até tirarem e adicionarem de novo.', style: TextStyle(fontSize: 12)),
+            ]),
+            actions: [
+              TextButton(onPressed: busy ? null : () => Navigator.pop(ctx), child: const Text('Cancelar')),
+              FilledButton(onPressed: busy ? null : save, child: Text(busy ? 'Salvando...' : 'Trocar')),
+            ],
+          );
+        },
+      ),
+    );
+    ctrl.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final themeProvider = context.watch<ThemeProvider>();
@@ -186,8 +229,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 if (signedIn)
                   Padding(
                     padding: const EdgeInsets.fromLTRB(20, 6, 20, 0),
-                    child: Text("O nick é da sua conta e não pode ser trocado.",
-                        style: TextStyle(color: textColor.withValues(alpha: 0.5), fontSize: 12)),
+                    child: Row(children: [
+                      Expanded(
+                        child: Text("Um nick por pessoa: ao trocar, o antigo fica livre para outros.",
+                            style: TextStyle(color: textColor.withValues(alpha: 0.5), fontSize: 12)),
+                      ),
+                      TextButton.icon(onPressed: () => _changeNick(name), icon: const Icon(Icons.edit, size: 16), label: const Text('Trocar nick')),
+                    ]),
                   ),
                 const SizedBox(height: 30),
 

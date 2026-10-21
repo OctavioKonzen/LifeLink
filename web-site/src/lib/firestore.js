@@ -48,6 +48,28 @@ export async function claimNick(app, uid, nick) {
   }
 }
 
+/** Troca o nick: registra o novo e libera o antigo na mesma transação (um nick por pessoa). */
+export async function changeNick(app, uid, nick) {
+  const db = getDb(app)
+  const newRef = doc(db, 'nicks', nickKey(nick))
+  const userRef = doc(db, 'users', uid)
+  try {
+    await runTransaction(db, async (tx) => {
+      const current = (await tx.get(userRef)).data()?.nick
+      const owner = await tx.get(newRef)
+      if (owner.exists() && owner.data().uid !== uid) throw new Error(NICK_TAKEN)
+      tx.set(newRef, { uid, nick })
+      if (typeof current === 'string' && nickKey(current) !== nickKey(nick)) tx.delete(doc(db, 'nicks', nickKey(current)))
+      tx.set(userRef, { nick, name: nick }, { merge: true })
+    })
+  } catch (e) {
+    if (e.code !== 'permission-denied') throw e
+    const owner = await getDoc(newRef).then((d) => d.data()?.uid, () => null)
+    if (owner && owner !== uid) throw new Error(NICK_TAKEN)
+    throw new Error('O servidor recusou a troca. As regras do banco (firestore.rules) precisam ser publicadas de novo no Firebase.')
+  }
+}
+
 /** O nick salvo na conta; null se ainda não escolheu. */
 export async function readNick(app, uid) {
   const nick = (await getDoc(doc(getDb(app), 'users', uid))).data()?.nick

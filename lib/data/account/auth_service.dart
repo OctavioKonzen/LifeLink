@@ -1,3 +1,4 @@
+import 'dart:async';
 // Login com Firebase — a MESMA conta do site: e-mail e senha ou Google.
 // As regras são as mesmas do site (web-site/src/lib/auth.js):
 //   users/{uid}          → { nick, name, email, createdAt, data }
@@ -115,6 +116,39 @@ class AuthService extends ChangeNotifier {
     }
     await u.updateDisplayName(nick);
   }
+
+  /// Troca o nick: registra o novo e libera o antigo na mesma transação (o
+  /// antigo fica livre para outra pessoa). Continua um nick por pessoa.
+  Future<void> changeNick(String nick) => _guard(() async {
+        final error = nickError(nick);
+        if (error != null) throw AuthException(error);
+        final u = _auth.currentUser;
+        if (u == null) throw AuthException('Entre na conta para trocar o nick.');
+        final next = nick.trim();
+        final newRef = _db.collection('nicks').doc(nickKey(next));
+        final userRef = _db.collection('users').doc(u.uid);
+        try {
+          await _db.runTransaction((tx) async {
+            final current = (await tx.get(userRef)).data()?['nick'] as String?;
+            final owner = await tx.get(newRef);
+            if (owner.exists && owner.data()?['uid'] != u.uid) throw AuthException(_nickTaken);
+            tx.set(newRef, {'uid': u.uid, 'nick': next});
+            if (current != null && nickKey(current) != nickKey(next)) {
+              tx.delete(_db.collection('nicks').doc(nickKey(current)));
+            }
+            tx.set(userRef, {'nick': next, 'name': next}, SetOptions(merge: true));
+          }).timeout(const Duration(seconds: 15));
+        } on FirebaseException catch (e) {
+          if (e.code != 'permission-denied') rethrow;
+          final owner = await newRef.get().then((d) => d.data()?['uid'], onError: (_) => null);
+          if (owner != null && owner != u.uid) throw AuthException(_nickTaken);
+          throw AuthException('O servidor recusou a troca. As regras do banco (firestore.rules) precisam ser publicadas de novo no Firebase.');
+        } on TimeoutException {
+          throw AuthException('Sem conexão com a internet. Tente de novo.');
+        }
+        await u.updateDisplayName(next);
+        _set(AuthStatus.signedIn, AccountUser(uid: u.uid, email: u.email, name: next, photo: u.photoURL));
+      });
 
   /// Salva o nick (depois de entrar com Google) e entra no app.
   Future<void> setNick(String nick) => _guard(() async {

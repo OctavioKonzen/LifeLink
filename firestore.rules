@@ -10,9 +10,10 @@ rules_version = '2';
 // lista. Mesa online: tables/{código}, a partida que todos na mesa veem e mexem.
 //
 // Nick: cada nick é de uma pessoa só (sem diferença de maiúscula e
-// minúscula) e cada pessoa escolhe o nick uma vez só. O dono de cada nick
-// fica em nicks/{nick em minúsculas} = { uid, nick }, criado junto com o
-// nick do perfil (na mesma transação).
+// minúscula) e cada pessoa tem um nick por vez. O dono de cada nick fica em
+// nicks/{nick em minúsculas} = { uid, nick }, gravado junto com o nick do
+// perfil (na mesma transação). Para trocar, o novo é registrado e o antigo
+// é liberado na mesma transação.
 //
 // Para usar: Console do Firebase → Firestore Database → Regras → colar e Publicar.
 service cloud.firestore {
@@ -34,14 +35,15 @@ service cloud.firestore {
       return /databases/$(database)/documents/nicks/$(nick.lower());
     }
 
-    // O nick do perfil não muda depois de escolhido; ao escolher, o nick
-    // precisa ficar registrado em nome desta pessoa (nicks/...).
+    // Escolher ou trocar o nick: o novo fica registrado em nome desta pessoa
+    // (nicks/...) e o antigo deixa de existir (só um nick por pessoa).
     function nickOk(uid) {
       let before = resource == null ? null : resource.data.get('nick', null);
       let after = request.resource.data.get('nick', null);
-      return before != null
-        ? after == before
-        : after == null || getAfter(nickPath(after)).data.uid == uid;
+      return after == before
+        || (after != null
+          && getAfter(nickPath(after)).data.uid == uid
+          && (before == null || before.lower() == after.lower() || !existsAfter(nickPath(before))));
     }
 
     match /users/{uid} {
@@ -86,11 +88,17 @@ service cloud.firestore {
     match /nicks/{key} {
       // Qualquer um vê se um nick está livre (inclusive antes de criar a conta).
       allow read: if true;
-      // Só quem ainda não tem nick registra um, e junto com o próprio perfil.
+      // Registra o nick em nome próprio, junto com o perfil (que passa a ter
+      // esse nick e libera o antigo na mesma transação).
       allow create: if request.auth != null
         && request.resource.data.uid == request.auth.uid
         && key == request.resource.data.nick.lower()
-        && (!exists(userPath(request.auth.uid)) || get(userPath(request.auth.uid)).data.get('nick', null) == null)
+        && getAfter(userPath(request.auth.uid)).data.get('nick', null) == request.resource.data.nick;
+      // Trocar só maiúsculas/minúsculas do próprio nick (ex.: bob → Bob).
+      allow update: if request.auth != null
+        && resource.data.uid == request.auth.uid
+        && request.resource.data.uid == request.auth.uid
+        && key == request.resource.data.nick.lower()
         && getAfter(userPath(request.auth.uid)).data.get('nick', null) == request.resource.data.nick;
       // Ao excluir a conta, o nick fica livre de novo.
       allow delete: if request.auth != null && resource.data.uid == request.auth.uid;
