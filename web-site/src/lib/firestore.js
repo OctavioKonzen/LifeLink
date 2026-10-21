@@ -39,9 +39,12 @@ export async function claimNick(app, uid, nick) {
       tx.set(doc(db, 'users', uid), { nick, name: nick }, { merge: true })
     })
   } catch (e) {
-    // As regras recusam quem tenta pegar um nick que já tem dono.
-    if (e.code === 'permission-denied') throw new Error(NICK_TAKEN)
-    throw e
+    if (e.code !== 'permission-denied') throw e
+    // Recusado: ou o nick tem dono (as regras não deixam pegar), ou as regras
+    // do banco não estão publicadas. Só diz "nick ocupado" se for.
+    const owner = await getDoc(nickRef).then((d) => d.data()?.uid, () => null)
+    if (owner && owner !== uid) throw new Error(NICK_TAKEN)
+    throw new Error('O servidor recusou salvar o nick. As regras do banco (firestore.rules) precisam ser publicadas no Firebase.')
   }
 }
 

@@ -1,0 +1,31 @@
+# Testa as regras do banco (firestore.rules) no simulador do Firebase sempre
+# que elas mudam: nick único, nick fixo e dados de cada conta.
+name: Regras do banco
+
+on:
+  push:
+    branches: [main]
+    paths: ['firestore.rules', 'tool/rules-test/**', '.github/workflows/rules.yml']
+  pull_request:
+    paths: ['firestore.rules', 'tool/rules-test/**', '.github/workflows/rules.yml']
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: tool/rules-test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --no-audit --no-fund
+      - run: npm test
