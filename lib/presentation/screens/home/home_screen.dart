@@ -311,7 +311,18 @@ class _HomeScreenState extends State<HomeScreen> {
                   margin: const EdgeInsets.symmetric(horizontal: 8),
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(16),
-                    image: DecorationImage(image: CachedNetworkImageProvider(item["image"]), fit: BoxFit.cover, colorFilter: ColorFilter.mode(Colors.black.withValues(alpha: 0.5), BlendMode.darken)),
+                    // Fundo na cor do anúncio enquanto a arte carrega (ou se falhar).
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [(item["tagColor"] as Color).withValues(alpha: 0.55), const Color(0xFF15151A)],
+                    ),
+                    image: DecorationImage(
+                      image: CachedNetworkImageProvider(item["image"], headers: CardImages.headers),
+                      fit: BoxFit.cover,
+                      onError: (_, _) {},
+                      colorFilter: ColorFilter.mode(Colors.black.withValues(alpha: 0.5), BlendMode.darken),
+                    ),
                   ),
                   child: Padding(
                     padding: const EdgeInsets.all(14.0),

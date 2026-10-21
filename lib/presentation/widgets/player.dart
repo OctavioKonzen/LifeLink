@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../data/account/auth_service.dart';
 import '../../data/providers/theme_provider.dart';
 import '../../data/providers/xp_provider.dart';
+import '../../data/services/scryfall_service.dart';
 
 /// O nome de quem está usando: o nick da conta (único e fixo) ou, sem conta,
 /// o nome escolhido no perfil.
@@ -34,7 +35,7 @@ class PlayerAvatar extends StatelessWidget {
       ),
       child: CircleAvatar(
         backgroundColor: const Color(0xFF2A2A35),
-        backgroundImage: xp.selectedAvatar.isNotEmpty ? CachedNetworkImageProvider(xp.selectedAvatar) : null,
+        backgroundImage: xp.selectedAvatar.isNotEmpty ? CachedNetworkImageProvider(xp.selectedAvatar, headers: CardImages.headers) : null,
         child: xp.selectedAvatar.isEmpty ? Icon(Icons.person, color: Colors.white, size: size * 0.5) : null,
       ),
     );

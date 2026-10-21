@@ -268,6 +268,11 @@ class ScryfallService {
 /// Tamanhos de imagem do Scryfall (https://scryfall.com/docs/api/images).
 /// O app guarda o endereço "normal" e escolhe o tamanho na hora de mostrar.
 class CardImages {
+  /// Cabeçalhos das imagens: os endereços da API (art_crop por nome, carta
+  /// aleatória) só respondem a quem se identifica (User-Agent), como o resto
+  /// do app. No navegador não dá para trocar o User-Agent.
+  static const Map<String, String>? headers = kIsWeb ? null : {'User-Agent': 'LifelinkApp/1.0', 'Accept': '*/*'};
+
   static final RegExp _sized = RegExp(r'(cards\.scryfall\.io/)(small|normal|large|png|border_crop|art_crop)(/[^?]*?)\.(jpg|png)');
 
   /// Troca o tamanho de um endereço do Scryfall:

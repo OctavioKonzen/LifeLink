@@ -3,6 +3,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:provider/provider.dart';
 import '../../../data/providers/theme_provider.dart';
 import '../../../data/providers/xp_provider.dart';
+import '../../../data/services/scryfall_service.dart';
 import '../../../data/account/auth_service.dart';
 import '../../widgets/player.dart';
 
@@ -341,6 +342,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             child: ClipOval(
                               child: CachedNetworkImage(
                                 imageUrl: url,
+                                httpHeaders: CardImages.headers,
                                 fit: BoxFit.cover,
                                 placeholder: (c, u) =>
                                     const CircularProgressIndicator(),
