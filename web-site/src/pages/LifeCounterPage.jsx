@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { defaultGame, updateSection, useUserData } from '../lib/userData'
 import { incrementMatches } from '../lib/xp'
+import DiceModal from '../components/DiceModal'
 
 // O mesmo contador do app (game_provider.dart): 2 a 6 jogadores, vida 20 ou
 // 40 (Commander), veneno até 10 e dano de comandante até 21, que também tira
@@ -154,6 +155,7 @@ export default function LifeCounterPage() {
   const wide = useWide()
   const setGame = (update) => updateSection('game', (g) => toApp(update(view(g))))
   const [banner, setBanner] = useState(null)
+  const [dice, setDice] = useState(false)
 
   // Sobrou um só jogador vivo: a partida conta para o perfil (+50 XP), uma
   // vez por partida, como no app.
@@ -196,12 +198,20 @@ export default function LifeCounterPage() {
         </button>
         <button
           type="button"
+          onClick={() => setDice(true)}
+          className="rounded-full bg-amber-500 px-4 py-1.5 text-sm font-bold text-black hover:brightness-110"
+        >
+          🎲 Dados
+        </button>
+        <button
+          type="button"
           onClick={() => setGame((g) => newGame(g, g.startingLife))}
           className="rounded-full bg-red-500 px-4 py-1.5 text-sm font-bold hover:brightness-110"
         >
           Reiniciar
         </button>
       </div>
+      {dice && <DiceModal onClose={() => setDice(false)} />}
       {alive.length === 1 && (
         <p className="mb-3 shrink-0 rounded-xl bg-amber-400/15 p-3 text-center font-bold text-amber-300">
           🏆 {game.names[alive[0]]} venceu! +50 XP{banner ? ` · Novo banner: ${banner}` : ''}

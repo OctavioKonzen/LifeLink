@@ -55,7 +55,7 @@ Feito para a mesa, como os apps do gênero (Lifetap, MTG Companion): de **2 a 6 
 * **Toque** na metade esquerda tira 1 de vida, na direita soma 1; **segurando**, vai de 10 em 10. O quanto mudou (ex.: −7) aparece em cima da vida.
 * **Contadores** de cada jogador: veneno (até 10), energia, experiência, imposto do comandante e **dano de comandante** de cada oponente (até 21, que também tira vida).
 * Cada jogador escolhe **nome e cor**; quem perde fica com a caveira e, quando sobra um, aparece o vencedor.
-* No botão do meio: **desfazer**, histórico da partida, reiniciar, **dados 3D** (D4, D6, D8, D10, D12, D20 e D100, com os números no lugar certo e animação de rolagem), moeda e **quem começa**. A tela não apaga durante a partida.
+* No botão do meio: **desfazer**, histórico da partida, reiniciar, **dados 3D com física** (D4, D6, D8, D10, D12, D20 e D100: jogados numa mesa, quicam, batem um no outro com som e vale a face que fica para cima), moeda e **quem começa**. A tela não apaga durante a partida.
 
 A partida fica salva e, com a conta, é a mesma no app e no site. Cada partida terminada vale XP para o perfil.
 
@@ -90,6 +90,7 @@ No app: cor do fundo, idioma do app e das cartas (português ou inglês), a vers
 |---|---|
 | **App (Android)** | Flutter / Dart, Provider |
 | **Site** | React, Vite, Tailwind CSS, React Router |
+| **Dados 3D** (site e app) | [three.js](https://threejs.org) e física [cannon-es](https://github.com/pmndrs/cannon-es); no app, a mesma mesa numa WebView (`assets/dice`, gerada com `npm run build:dice`) |
 | **Cartas, preços e imagens** | API do [Scryfall](https://scryfall.com/docs/api) |
 | **Decks oficiais** | [MTGJSON](https://mtgjson.com) |
 | **Conta e dados online** | Firebase Authentication e Firestore |

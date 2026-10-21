@@ -7,8 +7,7 @@ import 'package:wakelock_plus/wakelock_plus.dart';
 import '../../../data/providers/game_provider.dart';
 import '../../../data/providers/xp_provider.dart';
 import '../../widgets/player_card_widget.dart';
-import '../../widgets/dice/dice_geometry.dart';
-import '../../widgets/dice/die_view.dart';
+import '../../widgets/dice_table.dart';
 import '../../widgets/continuous_action_button.dart';
 
 /// O contador de vida, inspirado nos apps do gênero (Lifetap, MTG Companion):
@@ -480,8 +479,8 @@ class _LifeCounterScreenState extends State<LifeCounterScreen> {
 }
 
 /// Dados: d6, d20 e moeda, com uma rolagem curta.
-/// Dados 3D (D4 a D20 e D100) e moeda. Toque no dado ou em "Rolar": ele gira,
-/// quica e para com o número sorteado virado para cima.
+/// Dados 3D (D4 a D20 e D100, com física: o resultado é a face que fica para
+/// cima) e moeda. Toque na mesa ou em "Rolar".
 class _DiceDialog extends StatefulWidget {
   const _DiceDialog();
 
@@ -491,28 +490,27 @@ class _DiceDialog extends StatefulWidget {
 
 class _DiceDialogState extends State<_DiceDialog> {
   static const _kinds = [
-    (DieKind.d4, 'D4', Color(0xFF43A047)),
-    (DieKind.d6, 'D6', Color(0xFF1E88E5)),
-    (DieKind.d8, 'D8', Color(0xFF8E24AA)),
-    (DieKind.d10, 'D10', Color(0xFFF4511E)),
-    (DieKind.d12, 'D12', Color(0xFFE53935)),
-    (DieKind.d20, 'D20', Color(0xFFFFA000)),
-    (DieKind.d100, 'D100', Color(0xFF00897B)),
+    ('d4', 'D4', Color(0xFF43A047)),
+    ('d6', 'D6', Color(0xFF1E88E5)),
+    ('d8', 'D8', Color(0xFF8E24AA)),
+    ('d10', 'D10', Color(0xFFF4511E)),
+    ('d12', 'D12', Color(0xFFE53935)),
+    ('d20', 'D20', Color(0xFFFFA000)),
+    ('d100', 'D100', Color(0xFF00897B)),
   ];
 
   final _random = Random();
-  final _main = GlobalKey<RollingDieState>();
-  final _units = GlobalKey<RollingDieState>(); // a unidade do D100
-  DieKind? _kind = DieKind.d20; // null = moeda
+  final _table = GlobalKey<DiceTableState>();
+  String? _kind = 'd20'; // null = moeda
+  String _lastDie = 'd20';
   String _result = '';
   bool _rolling = false;
-  int _landed = 0;
-  int _tens = 0, _unit = 0;
 
-  void _select(DieKind? kind) {
+  void _select(String? kind) {
     if (_rolling) return;
     setState(() {
       _kind = kind;
+      if (kind != null) _lastDie = kind;
       _result = '';
     });
   }
@@ -520,44 +518,21 @@ class _DiceDialogState extends State<_DiceDialog> {
   Future<void> _roll() async {
     if (_rolling) return;
     HapticFeedback.lightImpact();
+    if (_kind != null) {
+      _table.currentState?.roll();
+      return;
+    }
+    // Moeda: vira algumas vezes e para.
     setState(() {
       _rolling = true;
       _result = '';
-      _landed = 0;
     });
-    final kind = _kind;
-    if (kind == null) {
-      // Moeda: vira algumas vezes e para.
-      for (int k = 0; k < 10; k++) {
-        await Future.delayed(Duration(milliseconds: 50 + k * 14));
-        if (!mounted) return;
-        setState(() => _result = k.isEven ? 'Cara' : 'Coroa');
-      }
-      _land(_random.nextBool() ? 'Cara' : 'Coroa');
-      return;
+    for (int k = 0; k < 10; k++) {
+      await Future.delayed(Duration(milliseconds: 50 + k * 14));
+      if (!mounted) return;
+      setState(() => _result = k.isEven ? 'Cara' : 'Coroa');
     }
-    if (kind == DieKind.d100) {
-      _tens = _random.nextInt(10) * 10;
-      _unit = _random.nextInt(10);
-      _main.currentState?.roll(_tens);
-      _units.currentState?.roll(_unit);
-    } else {
-      final sides = DieShape.of(kind).sides;
-      final value = kind == DieKind.d10 ? _random.nextInt(10) : _random.nextInt(sides) + 1;
-      _main.currentState?.roll(value);
-    }
-  }
-
-  void _onLanded(int value) {
-    final kind = _kind;
-    if (kind == DieKind.d100) {
-      // Os dois D10 param: 00 + 0 vale 100.
-      if (++_landed < 2) return;
-      final total = _tens + _unit;
-      _land('${total == 0 ? 100 : total}');
-    } else {
-      _land('$value');
-    }
+    _land(_random.nextBool() ? 'Cara' : 'Coroa');
   }
 
   void _land(String result) {
@@ -570,7 +545,9 @@ class _DiceDialogState extends State<_DiceDialog> {
     }
   }
 
-  Widget _kindChip(DieKind? kind, String label, Color color) {
+  void _onResult(DiceResult r) => _land(r.values.length > 1 ? '${r.total}  (${r.values.join(' + ')})' : '${r.total}');
+
+  Widget _kindChip(String? kind, String label, Color color) {
     final on = _kind == kind;
     return ChoiceChip(
       label: Text(label, style: TextStyle(color: on ? Colors.white : Colors.white70, fontWeight: FontWeight.w800)),
@@ -586,33 +563,16 @@ class _DiceDialogState extends State<_DiceDialog> {
   @override
   Widget build(BuildContext context) {
     final kind = _kind;
-    final color = kind == null ? const Color(0xFFFFD54F) : _kinds.firstWhere((k) => k.$1 == kind).$3;
-    final Widget stage = switch (kind) {
-      null => Center(
-          child: Container(
-            width: 150,
-            height: 150,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: const RadialGradient(colors: [Color(0xFFFFE082), Color(0xFFFFA000)]),
-              boxShadow: [BoxShadow(color: Colors.amber.withValues(alpha: 0.4), blurRadius: 24)],
-            ),
-            child: Text(_result.isEmpty ? '?' : _result, style: const TextStyle(color: Color(0xFF5D4037), fontSize: 30, fontWeight: FontWeight.w900)),
-          ),
-        ),
-      DieKind.d100 => Row(children: [
-          Expanded(child: RollingDie(key: _main, kind: DieKind.d100, color: color, onLanded: _onLanded)),
-          Expanded(child: RollingDie(key: _units, kind: DieKind.d10, color: const Color(0xFFF4511E), onLanded: _onLanded)),
-        ]),
-      _ => RollingDie(key: _main, kind: kind, color: color, onLanded: _onLanded),
-    };
+    final color = kind == null ? const Color(0xFFFFA000) : _kinds.firstWhere((k) => k.$1 == kind).$3;
+    final hint = !_rolling && _result.isEmpty;
+    final text = _rolling ? '' : (hint ? (kind == null ? 'Toque em Rolar' : 'Toque na mesa para rolar') : _result);
 
     return Dialog(
       backgroundColor: const Color(0xFF1E1E24),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       child: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(18),
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           const Text('Dados', style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w900)),
           const SizedBox(height: 12),
@@ -620,11 +580,41 @@ class _DiceDialogState extends State<_DiceDialog> {
             for (final k in _kinds) _kindChip(k.$1, k.$2, k.$3),
             _kindChip(null, 'Moeda', const Color(0xFFFFA000)),
           ]),
-          const SizedBox(height: 8),
-          GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: _roll,
-            child: SizedBox(height: 240, child: stage),
+          const SizedBox(height: 10),
+          SizedBox(
+            height: 300,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(18),
+              child: Stack(children: [
+                // A mesa fica aberta mesmo na moeda (não recarrega o 3D).
+                Offstage(
+                  offstage: kind == null,
+                  child: DiceTable(
+                    key: _table,
+                    kind: _lastDie,
+                    onRolling: () => setState(() {
+                      _rolling = true;
+                      _result = '';
+                    }),
+                    onResult: _onResult,
+                  ),
+                ),
+                if (kind == null)
+                  Center(
+                    child: Container(
+                      width: 150,
+                      height: 150,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: const RadialGradient(colors: [Color(0xFFFFE082), Color(0xFFFFA000)]),
+                        boxShadow: [BoxShadow(color: Colors.amber.withValues(alpha: 0.4), blurRadius: 24)],
+                      ),
+                      child: Text(_result.isEmpty ? '?' : _result, style: const TextStyle(color: Color(0xFF5D4037), fontSize: 30, fontWeight: FontWeight.w900)),
+                    ),
+                  ),
+              ]),
+            ),
           ),
           SizedBox(
             height: 56,
@@ -632,21 +622,17 @@ class _DiceDialogState extends State<_DiceDialog> {
               child: AnimatedSwitcher(
                 duration: const Duration(milliseconds: 250),
                 transitionBuilder: (child, a) => ScaleTransition(scale: a, child: child),
-                child: () {
-                  final hint = !_rolling && _result.isEmpty;
-                  final text = _rolling ? '' : (hint ? 'Toque no dado para rolar' : _result);
-                  return Text(
-                    text,
-                    key: ValueKey(text),
-                    style: hint
-                        ? const TextStyle(color: Colors.white38, fontSize: 14)
-                        : TextStyle(color: color, fontSize: 44, fontWeight: FontWeight.w900, shadows: [Shadow(color: color.withValues(alpha: 0.6), blurRadius: 16)]),
-                  );
-                }(),
+                child: Text(
+                  text,
+                  key: ValueKey(text),
+                  style: hint
+                      ? const TextStyle(color: Colors.white38, fontSize: 14)
+                      : TextStyle(color: color, fontSize: 40, fontWeight: FontWeight.w900, shadows: [Shadow(color: color.withValues(alpha: 0.6), blurRadius: 16)]),
+                ),
               ),
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           FilledButton.icon(
             style: FilledButton.styleFrom(backgroundColor: color, foregroundColor: Colors.white, minimumSize: const Size(double.infinity, 50)),
             onPressed: _rolling ? null : _roll,
