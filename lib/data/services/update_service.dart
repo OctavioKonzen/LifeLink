@@ -1,8 +1,9 @@
 // Atualização do app pelo próprio app (Android, APK fora da Play Store), igual
 // ao Pocketdex. Ao abrir, confere a última versão publicada em GitHub Releases
 // (github.com/OctavioKonzen/LifeLink/releases). Se for mais nova que a instalada,
-// mostra a janela "Nova versão disponível" e, ao aceitar, baixa o APK e abre
-// o instalador do Android (a confirmação final é sempre do Android).
+// baixa sozinha, em segundo plano, e no fim abre o instalador do Android (a
+// confirmação final é sempre do Android). O botão "Procurar atualização" das
+// Configurações (e da tela de erro ao abrir) mostra a janela com o progresso.
 //
 // As versões são publicadas pelo workflow .github/workflows/android-release.yml
 // sempre que a versão do pubspec.yaml muda na main.
@@ -15,6 +16,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:ota_update/ota_update.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:path_provider/path_provider.dart';
 
 class AppRelease {
   final String version; // "1.2.0"
@@ -68,15 +70,49 @@ class UpdateService {
 
   static Future<String> currentVersion() async => (await PackageInfo.fromPlatform()).version;
 
-  /// Confere uma vez por abertura do app.
+  /// Os APKs baixados ficam na pasta do app; depois de instalados, sobram.
+  static Future<void> deleteDownloadedApks() async {
+    try {
+      final dir = Directory('${(await getApplicationSupportDirectory()).path}/ota_update');
+      if (!dir.existsSync()) return;
+      for (final f in dir.listSync().whereType<File>()) {
+        if (f.path.endsWith('.apk')) f.deleteSync();
+      }
+    } catch (_) {}
+  }
+
+  /// Confere uma vez por abertura do app; se houver versão nova, baixa sozinho
+  /// (igual ao Pocketdex).
   static Future<void> checkOnStart(BuildContext context) async {
     if (_checked || !supported) return;
     _checked = true;
+    await deleteDownloadedApks();
     try {
-      await _check(context, quiet: true);
+      final current = await currentVersion();
+      final release = await latestRelease();
+      if (release == null || !isNewer(release.version, current)) return;
+      if (!context.mounted) return;
+      _downloadInBackground(context, release, current);
     } catch (_) {
       // Sem internet ou GitHub fora do ar: tenta na próxima abertura.
     }
+  }
+
+  /// Baixa sem janela; no fim o Android abre a tela de instalar a atualização.
+  /// Se faltar a permissão de instalar apps, mostra a janela com o botão.
+  static void _downloadInBackground(BuildContext context, AppRelease release, String current) {
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    final navigator = Navigator.of(context);
+    messenger?.showSnackBar(SnackBar(content: Text('Baixando a versão ${release.version} em segundo plano...')));
+    OtaUpdate().execute(release.apkUrl, destinationFilename: 'lifelink-${release.version}.apk').listen(
+      (event) {
+        if (event.status != OtaStatus.PERMISSION_NOT_GRANTED_ERROR || !navigator.mounted) return;
+        showDialog(context: navigator.context, builder: (_) => _UpdateDialog(release: release, current: current));
+      },
+      onError: (_) {
+        // Falhou (internet caiu, etc.): tenta de novo na próxima abertura.
+      },
+    );
   }
 
   /// Botão "Procurar atualização" das Configurações.

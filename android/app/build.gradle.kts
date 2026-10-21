@@ -59,6 +59,12 @@ android {
     buildTypes {
         release {
             signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
+            // Sem o R8 encolher/renomear o código: o shared_preferences (e
+            // outros plugins) chamam o código Java/Kotlin pelo NOME, via JNI.
+            // Renomeado (ex.: kotlin.coroutines.Continuation → "lh"), o app
+            // fechava ao abrir com NoSuchMethodError (versões 1.0.1 e 1.0.2).
+            isMinifyEnabled = false
+            isShrinkResources = false
         }
     }
 }
