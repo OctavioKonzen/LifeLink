@@ -4,7 +4,7 @@
   <img src="https://img.shields.io/badge/Flutter-3.x-blue?logo=flutter&style=for-the-badge" />
   <img src="https://img.shields.io/badge/React-19-61DAFB?logo=react&style=for-the-badge" />
   <img src="https://img.shields.io/badge/Firebase-FFCA28?logo=firebase&style=for-the-badge" />
-  <img src="https://img.shields.io/badge/Android-1.0.19-green?logo=android&style=for-the-badge" />
+  <img src="https://img.shields.io/badge/Android-1.0.20-green?logo=android&style=for-the-badge" />
 </p>
 
 <div align="center">
@@ -61,7 +61,7 @@ As cartas mais caras do momento, de todas as edições e idiomas, com pesquisa p
 
 Feito para a mesa, como os apps do gênero (Lifetap, MTG Companion): de **2 a 6 jogadores**, cada um virado para o seu lado, com vida inicial **à vontade** (20, 25, 30, 40, 50, 60 ou outra).
 
-* **Arraste o quadro** do jogador para a direita para ver o **veneno** e para a esquerda para o **dano de comandante** recebido, ali na mesa (arrastar de volta, ou esperar, volta para a vida).
+* **Arraste o quadro** do jogador para a direita para ver o **veneno** e para a esquerda para o **dano de comandante** recebido, ali na mesa (arrastar de volta, tocar em "Vida" ou esperar volta para a vida).
 * **Toque** na metade esquerda tira 1 de vida, na direita soma 1; **segurando**, vai de 1 em 1, cada vez mais rápido (no site também). O quanto mudou (ex.: −7) aparece em cima da vida.
 * **Contadores** de cada jogador: veneno (até 10), energia, experiência, imposto do comandante, tesouro, tempestade, cidade abençoada e **dano de comandante** nas duas direções: o que o seu comandante causou em cada oponente e o que você recebeu de cada um (até 21, que também tira vida de quem recebe).
 * **Monarca** e **iniciativa**: a coroa e o castelo aparecem no quadro de quem tem.

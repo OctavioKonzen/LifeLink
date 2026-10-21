@@ -49,15 +49,44 @@ class _PlayerCardWidgetState extends State<PlayerCardWidget> {
 
   /// Arrastou para o lado: direita vai para o veneno, esquerda para o
   /// comandante (e o contrário volta para a vida).
+  // Quanto o dedo andou para o lado neste arraste (vale arrastar devagar).
+  double _dragDx = 0;
+
   void _onSwipe(DragEndDetails d) {
     final v = d.primaryVelocity ?? 0;
-    if (v.abs() < 250) return;
-    final next = (_page + (v > 0 ? -1 : 1)).clamp(-1, 1);
-    if (next == _page) return;
+    final dx = _dragDx;
+    _dragDx = 0;
+    // Vale um arraste rápido ou um de pelo menos 40 pontos, mesmo devagar.
+    final direction = dx.abs() >= 40 ? dx.sign : (v.abs() >= 250 ? v.sign : 0);
+    if (direction == 0) return;
+    _goTo((_page + (direction > 0 ? -1 : 1)).clamp(-1, 1));
+  }
+
+  void _goTo(int page) {
+    if (page == _page) return;
     HapticFeedback.selectionClick();
-    setState(() => _page = next);
+    _stopHold();
+    setState(() => _page = page);
     _touchPage();
   }
+
+  /// "↩ Vida": volta para a vida com um toque (nas páginas de veneno e comandante).
+  Widget _backToLife() => Align(
+        alignment: Alignment.topLeft,
+        child: GestureDetector(
+          onTap: () => _goTo(0),
+          child: Container(
+            margin: const EdgeInsets.all(8),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.45), borderRadius: BorderRadius.circular(20)),
+            child: const Row(mainAxisSize: MainAxisSize.min, children: [
+              Icon(Icons.undo, color: Colors.white, size: 16),
+              SizedBox(width: 4),
+              Text('Vida', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 14)),
+            ]),
+          ),
+        ),
+      );
 
   /// Sem mexer por uns segundos, o quadro volta para a vida.
   void _touchPage() {
@@ -225,6 +254,7 @@ class _PlayerCardWidgetState extends State<PlayerCardWidget> {
           );
         }),
       ),
+      _backToLife(),
     ]);
   }
 
@@ -240,7 +270,8 @@ class _PlayerCardWidgetState extends State<PlayerCardWidget> {
           },
           child: Padding(padding: const EdgeInsets.all(6), child: Icon(icon, color: Colors.white, size: 30)),
         );
-    return Container(
+    return Stack(children: [
+      Container(
       color: Colors.black.withValues(alpha: 0.25),
       padding: const EdgeInsets.fromLTRB(10, 38, 10, 48),
       child: FittedBox(
@@ -262,7 +293,9 @@ class _PlayerCardWidgetState extends State<PlayerCardWidget> {
             ]),
         ]),
       ),
-    );
+      ),
+      _backToLife(),
+    ]);
   }
 
   @override
@@ -317,6 +350,8 @@ class _PlayerCardWidgetState extends State<PlayerCardWidget> {
           Positioned.fill(
             child: GestureDetector(
               behavior: HitTestBehavior.translucent,
+              onHorizontalDragStart: (_) => _dragDx = 0,
+              onHorizontalDragUpdate: (d) => _dragDx += d.delta.dx,
               onHorizontalDragEnd: _onSwipe,
               child: AnimatedSwitcher(
                 duration: const Duration(milliseconds: 220),
