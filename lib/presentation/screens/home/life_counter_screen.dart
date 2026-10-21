@@ -424,7 +424,7 @@ class _LifeCounterScreenState extends State<LifeCounterScreen> {
 
           final others = [for (int a = 0; a < game.playerCount; a++) if (a != index) a];
           return ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 420, maxHeight: 560),
+            constraints: const BoxConstraints(maxWidth: 420, maxHeight: 620),
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(20),
               child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
@@ -463,12 +463,18 @@ class _LifeCounterScreenState extends State<LifeCounterScreen> {
                   ),
                 ]),
                 const Divider(color: Colors.white12, height: 24),
-                const Text('DANO DE COMANDANTE RECEBIDO', style: TextStyle(color: Colors.white54, fontSize: 12, fontWeight: FontWeight.w800, letterSpacing: 0.5)),
+                // O comandante deste jogador atacou: o dano vai para o outro.
+                Text('MEU COMANDANTE ATACOU', style: TextStyle(color: game.colorOf(index), fontSize: 12, fontWeight: FontWeight.w900, letterSpacing: 0.5)),
                 const SizedBox(height: 4),
                 for (final a in others)
-                  row(game.playerNames[a], Icons.shield, game.colorOf(a), game.commanderDamage[index][a], (d) => game.updateCommanderDamage(index, a, d)),
+                  row('em ${game.playerNames[a]}', Icons.gps_fixed, game.colorOf(a), game.commanderDamage[a][index], (d) => game.updateCommanderDamage(a, index, d)),
+                const SizedBox(height: 12),
+                const Text('DANO DE COMANDANTE QUE RECEBI', style: TextStyle(color: Colors.white54, fontSize: 12, fontWeight: FontWeight.w800, letterSpacing: 0.5)),
+                const SizedBox(height: 4),
+                for (final a in others)
+                  row('de ${game.playerNames[a]}', Icons.shield, game.colorOf(a), game.commanderDamage[index][a], (d) => game.updateCommanderDamage(index, a, d)),
                 const SizedBox(height: 8),
-                const Text('O dano de comandante também tira vida. 21 de um mesmo comandante derrota.', style: TextStyle(color: Colors.white38, fontSize: 12)),
+                const Text('O dano de comandante também tira vida de quem recebe. 21 de um mesmo comandante derrota.', style: TextStyle(color: Colors.white38, fontSize: 12)),
                 const SizedBox(height: 12),
                 ElevatedButton(onPressed: () => Navigator.pop(ctx), child: const Text('Pronto')),
               ]),
