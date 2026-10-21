@@ -505,23 +505,48 @@ class _LifeCounterScreenState extends State<LifeCounterScreen> {
                 },
               ),
               const SizedBox(height: 18),
-              const Text('COR', style: TextStyle(color: Colors.white54, fontSize: 12, fontWeight: FontWeight.w800)),
-              const SizedBox(height: 10),
-              Wrap(spacing: 10, runSpacing: 10, alignment: WrapAlignment.center, children: [
-                for (int c = 0; c < GameProvider.palette.length; c++)
-                  GestureDetector(
-                    onTap: () => game.setPlayerColor(index, c),
+              () {
+              Widget dot({required Color? color, required bool selected, required VoidCallback onTap}) => GestureDetector(
+                    onTap: onTap,
                     child: Container(
                       width: 38,
                       height: 38,
                       decoration: BoxDecoration(
-                        color: GameProvider.palette[c],
+                        color: color ?? Colors.transparent,
                         shape: BoxShape.circle,
-                        border: Border.all(color: game.colorIndexOf(index) == c ? Colors.white : Colors.transparent, width: 3),
+                        border: Border.all(color: selected ? Colors.white : (color == null ? Colors.white38 : Colors.transparent), width: 3),
                       ),
+                      child: color == null ? const Icon(Icons.block, color: Colors.white54, size: 20) : null,
                     ),
+                  );
+              final second = game.secondColorOf(index);
+              final first = game.colorOf(index);
+              return Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                // Como vai ficar o quadro (uma cor ou o degradê).
+                Container(
+                  height: 34,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    gradient: LinearGradient(colors: second != null ? [first, second] : [first, Color.lerp(first, Colors.black, 0.25)!]),
                   ),
-              ]),
+                ),
+                const SizedBox(height: 14),
+                const Text('COR', style: TextStyle(color: Colors.white54, fontSize: 12, fontWeight: FontWeight.w800)),
+                const SizedBox(height: 10),
+                Wrap(spacing: 10, runSpacing: 10, alignment: WrapAlignment.center, children: [
+                  for (int c = 0; c < GameProvider.palette.length; c++)
+                    dot(color: GameProvider.palette[c], selected: game.colorIndexOf(index) == c, onTap: () => game.setPlayerColor(index, c)),
+                ]),
+                const SizedBox(height: 16),
+                const Text('COR 2 (DEGRADÊ, COMO DECK DE DUAS CORES)', style: TextStyle(color: Colors.white54, fontSize: 12, fontWeight: FontWeight.w800)),
+                const SizedBox(height: 10),
+                Wrap(spacing: 10, runSpacing: 10, alignment: WrapAlignment.center, children: [
+                  dot(color: null, selected: second == null, onTap: () => game.setSecondColor(index, -1)),
+                  for (int c = 0; c < GameProvider.palette.length; c++)
+                    dot(color: GameProvider.palette[c], selected: game.secondColorIndexOf(index) == c, onTap: () => game.setSecondColor(index, c)),
+                ]),
+              ]);
+            }(),
               const SizedBox(height: 20),
               ElevatedButton(onPressed: () => Navigator.pop(ctx), child: const Text('Pronto')),
             ]),

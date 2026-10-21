@@ -93,4 +93,16 @@ void main() {
     expect(GameProvider.palette.length, 18);
     expect(GameProvider.palette[1], const Color(0xFF1BA655));
   });
+
+  test('segunda cor (degradê) vai para a conta', () async {
+    expect(game.secondColorOf(0), isNull);
+    game.setSecondColor(0, 11);
+    expect(game.secondColorOf(0), GameProvider.palette[11]);
+    final other = GameProvider();
+    await other.ready;
+    await other.applySync(game.toSync());
+    expect(other.secondColorIndexOf(0), 11);
+    game.setSecondColor(0, -1);
+    expect(game.secondColorOf(0), isNull);
+  });
 }

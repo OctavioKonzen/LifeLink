@@ -15,6 +15,16 @@ const PALETTE = [
 ]
 const LIFE_OPTIONS = [20, 25, 30, 40, 50, 60]
 const colorOf = (game, i) => PALETTE[(game.colors?.[i] ?? i) % PALETTE.length]
+// Segunda cor (degradê, como deck de duas cores); -1 ou vazio = uma cor só.
+const secondColorOf = (game, i) => {
+  const c = game.colors2?.[i] ?? -1
+  return c < 0 ? null : PALETTE[c % PALETTE.length]
+}
+const backgroundOf = (game, i) => {
+  const second = secondColorOf(game, i)
+  return second ? `linear-gradient(135deg, ${colorOf(game, i)}, ${second})` : colorOf(game, i)
+}
+const setList = (list, i, value, fill) => Array.from({ length: 6 }, (_, m) => (m === i ? value : (list?.[m] ?? fill(m))))
 
 // Formato do app (users/{uid}.data.game) → nomes curtos usados nesta tela.
 // O resto (energia, experiência, imposto, cores) passa direto, sem se perder.
@@ -68,7 +78,7 @@ function Player({ i, game, update, history }) {
   return (
     <div
       className="relative flex min-h-0 min-w-0 flex-1 flex-col rounded-2xl p-3 text-white shadow-lg [container-type:size]"
-      style={{ background: colorOf(game, i), opacity: dead ? 0.55 : 1 }}
+      style={{ background: backgroundOf(game, i), opacity: dead ? 0.55 : 1 }}
     >
       <input
         value={game.names[i]}
@@ -103,15 +113,37 @@ function Player({ i, game, update, history }) {
       </button>
       {details && (
         <div className="absolute inset-x-3 top-10 bottom-12 z-10 space-y-2 overflow-y-auto rounded-xl bg-black/55 p-2 text-sm backdrop-blur">
+          <p className="px-1 text-xs font-bold uppercase tracking-wide text-white/60">Cor</p>
           <div className="flex flex-wrap gap-1.5 px-1 pb-1" aria-label="Cor do jogador">
             {PALETTE.map((c, k) => (
               <button
                 key={c}
                 type="button"
-                onClick={() => update((g) => ({ ...g, colors: Array.from({ length: 6 }, (_, m) => (m === i ? k : (g.colors?.[m] ?? m))) }), { silent: true })}
+                onClick={() => update((g) => ({ ...g, colors: setList(g.colors, i, k, (m) => m) }), { silent: true })}
                 className={`h-6 w-6 rounded-full ${colorOf(game, i) === c ? 'ring-2 ring-white' : ''}`}
                 style={{ background: c }}
                 aria-label={`Cor ${k + 1}`}
+              />
+            ))}
+          </div>
+          <p className="px-1 text-xs font-bold uppercase tracking-wide text-white/60">Cor 2 (degradê)</p>
+          <div className="flex flex-wrap gap-1.5 px-1 pb-1" aria-label="Segunda cor do jogador">
+            <button
+              type="button"
+              onClick={() => update((g) => ({ ...g, colors2: setList(g.colors2, i, -1, () => -1) }), { silent: true })}
+              className={`grid h-6 w-6 place-items-center rounded-full border border-white/40 text-xs ${secondColorOf(game, i) ? '' : 'ring-2 ring-white'}`}
+              aria-label="Sem degradê"
+            >
+              ⦸
+            </button>
+            {PALETTE.map((c, k) => (
+              <button
+                key={c}
+                type="button"
+                onClick={() => update((g) => ({ ...g, colors2: setList(g.colors2, i, k, () => -1) }), { silent: true })}
+                className={`h-6 w-6 rounded-full ${secondColorOf(game, i) === c ? 'ring-2 ring-white' : ''}`}
+                style={{ background: c }}
+                aria-label={`Segunda cor ${k + 1}`}
               />
             ))}
           </div>
