@@ -5,6 +5,8 @@ import DiceModal from '../components/DiceModal'
 import { playSound, setSoundsOn, soundFor, soundsOn } from '../lib/sounds'
 import { clock, isDead, nextTurn, startTurns, stopTurns, turnTotal } from '../lib/turns'
 import TableCardsModal from '../components/TableCardsModal'
+import OnlineModal from '../components/OnlineModal'
+import { useOnlineTable } from '../lib/online'
 import { Modal } from '../components/ui'
 import { Link } from 'react-router-dom'
 import { addMatch, matchFromGame, removeMatch } from '../lib/matches'
@@ -78,13 +80,39 @@ function useTick(on) {
 
 const clamp = (v, min, max) => Math.min(max, Math.max(min, v))
 
+/** Botão de vida: um toque muda uma vez; segurando, repete, cada vez mais rápido. */
 function Step({ onClick, children, label }) {
+  const timer = useRef(null)
+  const stop = () => {
+    clearTimeout(timer.current)
+    timer.current = null
+  }
+  useEffect(() => stop, [])
+  const start = (e) => {
+    if (e.button !== undefined && e.button !== 0) return
+    e.currentTarget.setPointerCapture?.(e.pointerId)
+    stop()
+    onClick()
+    let steps = 0
+    const repeat = () => {
+      onClick()
+      steps++
+      timer.current = setTimeout(repeat, Math.max(45, 260 - steps * 18))
+    }
+    timer.current = setTimeout(repeat, 450)
+  }
   return (
     <button
       type="button"
-      onClick={onClick}
+      onPointerDown={start}
+      onPointerUp={stop}
+      onPointerCancel={stop}
+      onLostPointerCapture={stop}
+      onContextMenu={(e) => e.preventDefault()}
+      // Teclado (Enter/Espaço): o clique vem sem ponteiro.
+      onClick={(e) => e.detail === 0 && onClick()}
       aria-label={label}
-      className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-black/25 text-xl font-black hover:bg-black/40 active:scale-95"
+      className="grid h-11 w-11 shrink-0 touch-none select-none place-items-center rounded-full bg-black/25 text-xl font-black hover:bg-black/40 active:scale-95"
     >
       {children}
     </button>
@@ -379,6 +407,8 @@ export default function LifeCounterPage() {
   useTick(game.turnPlayer >= 0)
   const [turns, setTurns] = useState(false)
   const [cards, setCards] = useState(null) // 'planechase' | 'archenemy'
+  const [online, setOnline] = useState(false)
+  const table = useOnlineTable()
   const [sounds, setSounds] = useState(soundsOn)
   const [banner, setBanner] = useState(null)
   const [dice, setDice] = useState(false)
@@ -463,6 +493,13 @@ export default function LifeCounterPage() {
         <button type="button" onClick={() => setTurns(true)} className="rounded-full bg-text/10 px-3 py-1.5 text-sm font-bold hover:bg-text/20">
           ⏱ {game.turnPlayer >= 0 ? `Rodada ${game.turnRound}` : 'Turnos'}
         </button>
+        <button
+          type="button"
+          onClick={() => setOnline(true)}
+          className={`rounded-full px-3 py-1.5 text-sm font-bold ${table.code ? 'bg-emerald-500 text-white' : 'bg-text/10 hover:bg-text/20'}`}
+        >
+          🌐 {table.code ? `Mesa ${table.code}` : 'Mesa online'}
+        </button>
         <button type="button" onClick={() => setCards('planechase')} className="rounded-full bg-text/10 px-3 py-1.5 text-sm font-bold hover:bg-text/20">
           🌍 Planechase
         </button>
@@ -485,6 +522,7 @@ export default function LifeCounterPage() {
         </button>
       </div>
       {dice && <DiceModal onClose={() => setDice(false)} />}
+      {online && <OnlineModal onClose={() => setOnline(false)} />}
       {cards && (
         <TableCardsModal
           mode={cards}

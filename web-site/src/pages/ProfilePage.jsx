@@ -52,6 +52,15 @@ export default function ProfilePage() {
         </Link>
       </div>
 
+      <div className="mt-4 flex flex-wrap gap-2">
+        <Link to="/amigos" className="rounded-full bg-accent px-4 py-2 text-sm font-bold text-white hover:brightness-110">
+          👥 Amigos
+        </Link>
+        <Link to="/partidas" className="rounded-full bg-text/10 px-4 py-2 text-sm font-bold hover:bg-text/20">
+          📜 Partidas e estatísticas
+        </Link>
+      </div>
+
       <p className="mt-5 text-sm text-muted">
         Missão atual: seção {profile.tier}. As missões e as recompensas (avatares, bordas, banners e títulos) são resgatadas no app; o que você
         desbloqueia lá aparece aqui.

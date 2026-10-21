@@ -13,10 +13,12 @@ import '../../widgets/player_card_widget.dart';
 import '../../widgets/dice_table.dart';
 import '../../widgets/continuous_action_button.dart';
 import 'planar_dialogs.dart';
+import 'online_screens.dart';
+import '../../../data/account/online.dart';
 
 /// O contador de vida, inspirado nos apps do gênero (Lifetap, MTG Companion):
 /// cada jogador virado para o seu lado da mesa, toque para ±1 e segurar para
-/// ±10, contadores por jogador, e o menu do meio com reiniciar, jogadores,
+/// ir de 1 em 1, acelerando, contadores por jogador, e o menu do meio com reiniciar, jogadores,
 /// vida inicial, dados, quem começa, desfazer e histórico. A tela fica acesa.
 class LifeCounterScreen extends StatefulWidget {
   const LifeCounterScreen({super.key});
@@ -137,6 +139,16 @@ class _LifeCounterScreenState extends State<LifeCounterScreen> {
     ]);
   }
 
+  /// Onde os quadros se encontram (a mesma divisão de [_layout]).
+  static Alignment _menuAlignment(int players) {
+    final fromTop = switch (players) {
+      3 => 3 / 5, // fileira de cima com flex 3, a de baixo com 2
+      5 => 2 / 3, // colunas com flex 2, o de baixo com 1
+      _ => 0.5,
+    };
+    return Alignment(0, fromTop * 2 - 1);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -145,8 +157,10 @@ class _LifeCounterScreenState extends State<LifeCounterScreen> {
         return Stack(children: [
           Positioned.fill(child: Padding(padding: const EdgeInsets.all(3), child: _layout(game))),
 
-          // O botão do meio, com a vida inicial em cima.
-          Center(
+          // O botão do meio, no encontro dos quadros (com 3 e 5 jogadores a
+          // fileira de baixo é menor, então o encontro fica mais para baixo).
+          Align(
+            alignment: _menuAlignment(game.playerCount),
             child: AnimatedScale(
               scale: _menuOpen ? 0 : 1,
               duration: const Duration(milliseconds: 200),
@@ -273,6 +287,10 @@ class _LifeCounterScreenState extends State<LifeCounterScreen> {
                     _menuButton(Icons.emoji_people, 'Quem começa', const Color(0xFF69F0AE), () => _showFirstPlayer(game)),
                     _menuButton(Icons.history, 'Histórico', const Color(0xFFB388FF), () => _showHistory(game)),
                     _menuButton(Icons.timer, game.countingTurns ? 'Turnos' : 'Contar turnos', const Color(0xFFFFFFFF), () => _showTurns(game)),
+                    _menuButton(Icons.wifi_tethering, OnlineTable.instance.active ? 'Mesa ${OnlineTable.instance.code}' : 'Mesa online', const Color(0xFF64FFDA), () {
+                      close();
+                      showDialog(context: context, builder: (_) => OnlineTableDialog(game: game));
+                    }),
                     _menuButton(Icons.public, 'Planechase', const Color(0xFF90A4AE), () {
                       close();
                       showDialog(context: context, builder: (_) => PlanechaseDialog(game: game));

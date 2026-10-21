@@ -5,9 +5,9 @@ name: Regras do banco
 on:
   push:
     branches: [main]
-    paths: ['firestore.rules', 'tool/rules-test/**', '.github/workflows/rules.yml']
+    paths: ['firestore.rules', 'tool/rules-test/**', 'web-site/src/lib/onlineCore.js', '.github/workflows/rules.yml']
   pull_request:
-    paths: ['firestore.rules', 'tool/rules-test/**', '.github/workflows/rules.yml']
+    paths: ['firestore.rules', 'tool/rules-test/**', 'web-site/src/lib/onlineCore.js', '.github/workflows/rules.yml']
 
 permissions:
   contents: read

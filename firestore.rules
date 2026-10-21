@@ -2,7 +2,12 @@ rules_version = '2';
 
 // Regras do banco do LifeLink (Firestore). Cada pessoa só lê e grava os
 // próprios dados: users/{uid} (nick, perfil, preferências e contador) e
-// users/{uid}/decks/{id} (um documento por deck).
+// users/{uid}/decks/{id} (um documento por deck). Os amigos (quem está em
+// users/{uid}/friends) também veem os decks.
+//
+// Amizade: quem pede grava o amigo na própria lista e um pedido na lista
+// dele (users/{amigo}/requests/{eu}); quem aceita grava o outro na própria
+// lista. Mesa online: tables/{código}, a partida que todos na mesa veem e mexem.
 //
 // Nick: cada nick é de uma pessoa só (sem diferença de maiúscula e
 // minúscula) e cada pessoa escolhe o nick uma vez só. O dono de cada nick
@@ -18,6 +23,11 @@ service cloud.firestore {
 
     function userPath(uid) {
       return /databases/$(database)/documents/users/$(uid);
+    }
+
+    // Quem pede está na lista de amigos de uid (uid aceitou ou pediu).
+    function isFriendOf(uid) {
+      return request.auth != null && exists(/databases/$(database)/documents/users/$(uid)/friends/$(request.auth.uid));
     }
 
     function nickPath(nick) {
@@ -39,8 +49,38 @@ service cloud.firestore {
       allow create, update: if isOwner(uid) && nickOk(uid);
 
       match /decks/{deckId} {
-        allow read, write: if isOwner(uid);
+        allow read: if isOwner(uid) || isFriendOf(uid);
+        allow write: if isOwner(uid);
       }
+
+      // A lista de amigos. Cada um vê a própria entrada na lista do outro
+      // (para saber se o pedido já foi aceito).
+      match /friends/{friendUid} {
+        allow read: if isOwner(uid) || (request.auth != null && request.auth.uid == friendUid);
+        allow write: if isOwner(uid);
+      }
+
+      // Pedidos de amizade: qualquer um pede em nome próprio; o dono vê e apaga.
+      match /requests/{fromUid} {
+        allow read, delete: if isOwner(uid);
+        allow create, update: if request.auth != null && request.auth.uid == fromUid
+          && request.resource.data.uid == fromUid;
+      }
+
+      // Convites para a mesa online: só quem está na lista de amigos convida.
+      match /invites/{code} {
+        allow read, delete: if isOwner(uid);
+        allow create, update: if isFriendOf(uid) && request.resource.data.fromUid == request.auth.uid;
+      }
+    }
+
+    // Mesa online: quem tem o código (e está logado) vê e mexe na partida;
+    // o dono não muda e só ele apaga a mesa.
+    match /tables/{code} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && request.resource.data.owner == request.auth.uid;
+      allow update: if request.auth != null && request.resource.data.owner == resource.data.owner;
+      allow delete: if request.auth != null && resource.data.owner == request.auth.uid;
     }
 
     match /nicks/{key} {

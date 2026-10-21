@@ -7,7 +7,7 @@ import { coverIds, deck as loadDeck, deckCards, deckList, imageFor } from '../li
 import { fromMtgjson } from '../lib/deckCards'
 import { saveDeck } from '../lib/userData'
 
-const CATEGORIES = ['Commander', 'Challenger', 'Avatar / Outros']
+const CATEGORIES = ['Commander', 'Challenger', 'Secret Lair', 'Iniciante']
 
 /** Capa com 3 cartas, carregada só quando o deck aparece na tela. */
 function Cover({ fileName }) {
