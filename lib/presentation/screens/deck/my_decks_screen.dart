@@ -6,7 +6,10 @@ import '../../../data/providers/deck_provider.dart';
 import '../../../data/providers/theme_provider.dart';
 import '../../../data/providers/xp_provider.dart'; // IMPORT DO XP PROVIDER
 import 'deck_detail_screen.dart';
-import 'community_decks_screen.dart'; 
+import 'community_decks_screen.dart';
+import 'deck_tools_screens.dart';
+import '../../../data/services/deck_tools.dart';
+import '../../../data/services/scryfall_service.dart';
 import '../../widgets/neon.dart';
 
 class MyDecksScreen extends StatefulWidget {
@@ -98,6 +101,36 @@ class _MyDecksScreenState extends State<MyDecksScreen> {
     );
   }
 
+  bool _importing = false;
+
+  /// Deck novo a partir de uma lista colada.
+  Future<void> _importNewDeck() async {
+    final input = await importListDialog(context, askName: true);
+    if (input == null || input.lines.isEmpty || !mounted) return;
+    setState(() => _importing = true);
+    String message;
+    try {
+      final result = await DeckTools.fetch(input.lines);
+      if (!mounted) return;
+      if (result.cards.isEmpty) {
+        message = 'Nenhuma carta encontrada na lista.';
+      } else {
+        context.read<DeckProvider>().importDeck(input.name, input.type, result.cards);
+        context.read<XpProvider>().incrementDecksCreated();
+        context.read<XpProvider>().incrementCardsAdded(result.cards.length);
+        message = 'Deck "${input.name}" criado com ${result.cards.length} cartas!';
+        if (result.missing.isNotEmpty) message += ' Não encontrei: ${result.missing.take(5).join(', ')}';
+      }
+    } on ScryfallException catch (e) {
+      message = e.message;
+    } catch (_) {
+      message = 'Não deu para importar agora. Verifique a internet.';
+    }
+    if (!mounted) return;
+    setState(() => _importing = false);
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message), duration: const Duration(seconds: 5)));
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = context.watch<ThemeProvider>();
@@ -115,6 +148,11 @@ class _MyDecksScreenState extends State<MyDecksScreen> {
             elevation: 0,
             iconTheme: IconThemeData(color: textColor),
             actions: [
+              IconButton(
+                icon: const Icon(Icons.playlist_add),
+                tooltip: "Importar lista (Moxfield, Archidekt...)",
+                onPressed: _importNewDeck,
+              ),
               IconButton(
                 icon: const Icon(Icons.language),
                 onPressed: () {
@@ -153,6 +191,19 @@ class _MyDecksScreenState extends State<MyDecksScreen> {
             },
           ),
         ),
+        if (_importing)
+          const Positioned.fill(
+            child: ColoredBox(
+              color: Colors.black54,
+              child: Center(
+                child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  CircularProgressIndicator(),
+                  SizedBox(height: 12),
+                  Text('Buscando as cartas da lista...', style: TextStyle(color: Colors.white, decoration: TextDecoration.none, fontSize: 15)),
+                ]),
+              ),
+            ),
+          ),
       ],
     );
   }

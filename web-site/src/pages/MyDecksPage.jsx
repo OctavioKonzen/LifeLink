@@ -8,6 +8,8 @@ import { scryfallIdOf } from '../lib/deckCards'
 import { deckList, deleteDeck, saveDeck, useUserData } from '../lib/userData'
 import { incrementDecksCreated } from '../lib/xp'
 import { useAuth } from '../lib/auth'
+import { DeckAnalysis, ImportListModal, TestHand } from '../components/DeckTools'
+import { incrementCardsAdded } from '../lib/xp'
 
 const TYPES = ['Commander', 'Challenger', 'Normal'] // os mesmos do app (my_decks_screen.dart)
 
@@ -55,6 +57,7 @@ function NewDeck({ onClose }) {
 }
 
 function DeckView({ deck, onClose }) {
+  const [tool, setTool] = useState(null) // 'import' | 'analysis' | 'hand'
   const total = deck.cards.length
   const price = deck.cards.reduce((sum, c) => sum + (Number.parseFloat(c.usdPrice) || 0), 0)
   const removeCard = (index) => saveDeck({ ...deck, cards: deck.cards.filter((_, i) => i !== index) })
@@ -64,6 +67,46 @@ function DeckView({ deck, onClose }) {
       <p className="mb-4 text-sm text-muted">
         {deck.type} · {total} cartas{price > 0 ? ` · ~US$ ${price.toFixed(2)}` : ''}
       </p>
+      <div className="mb-4 flex flex-wrap gap-2">
+        <button type="button" onClick={() => setTool('import')} className="rounded-full bg-text/10 px-4 py-1.5 text-sm font-bold hover:bg-text/20">
+          📋 Importar lista
+        </button>
+        <button
+          type="button"
+          disabled={!total}
+          onClick={() => setTool(tool === 'analysis' ? null : 'analysis')}
+          className={`rounded-full px-4 py-1.5 text-sm font-bold disabled:opacity-40 ${tool === 'analysis' ? 'bg-accent text-white' : 'bg-text/10 hover:bg-text/20'}`}
+        >
+          💲 Preço e legalidade
+        </button>
+        <button
+          type="button"
+          disabled={total < 7}
+          onClick={() => setTool(tool === 'hand' ? null : 'hand')}
+          className={`rounded-full px-4 py-1.5 text-sm font-bold disabled:opacity-40 ${tool === 'hand' ? 'bg-accent text-white' : 'bg-text/10 hover:bg-text/20'}`}
+        >
+          ✋ Mão de teste
+        </button>
+      </div>
+      {tool === 'analysis' && (
+        <div className="mb-5">
+          <DeckAnalysis deck={deck} />
+        </div>
+      )}
+      {tool === 'hand' && (
+        <div className="mb-5 rounded-2xl bg-text/5 p-4">
+          <TestHand deck={deck} />
+        </div>
+      )}
+      {tool === 'import' && (
+        <ImportListModal
+          onDone={({ cards }) => {
+            saveDeck({ ...deck, cards: [...deck.cards, ...cards] })
+            incrementCardsAdded(cards.length)
+          }}
+          onClose={() => setTool(null)}
+        />
+      )}
       {total === 0 ? (
         <p className="py-10 text-center text-muted">
           Deck vazio. Abra uma carta na{' '}
@@ -120,6 +163,7 @@ export default function MyDecksPage() {
   const decks = useUserData((s) => s.decks)
   const { status } = useAuth()
   const [creating, setCreating] = useState(false)
+  const [importing, setImporting] = useState(false)
   const [openId, setOpenId] = useState(null)
   const list = deckList(decks)
   const open = openId ? decks[openId] : null
@@ -128,6 +172,9 @@ export default function MyDecksPage() {
     <div>
       <div className="mb-4 flex items-center gap-3">
         <h1 className="mr-auto text-2xl font-black">Meus decks</h1>
+        <button type="button" onClick={() => setImporting(true)} className="rounded-full bg-text/10 px-4 py-2 text-sm font-bold hover:bg-text/20">
+          📋 Importar lista
+        </button>
         <button type="button" onClick={() => setCreating(true)} className="rounded-full bg-accent px-4 py-2 text-sm font-bold hover:brightness-110">
           + Novo deck
         </button>
@@ -159,6 +206,17 @@ export default function MyDecksPage() {
         </div>
       )}
       {creating && <NewDeck onClose={() => setCreating(false)} />}
+      {importing && (
+        <ImportListModal
+          askName
+          onDone={({ name, type, cards }) => {
+            const deck = createDeck(name, type)
+            saveDeck({ ...deck, cards })
+            incrementCardsAdded(cards.length)
+          }}
+          onClose={() => setImporting(false)}
+        />
+      )}
       {open && <DeckView deck={open} onClose={() => setOpenId(null)} />}
     </div>
   )

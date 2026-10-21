@@ -9,6 +9,7 @@ import 'data/providers/theme_provider.dart';
 import 'data/providers/game_provider.dart';
 import 'data/providers/deck_provider.dart';
 import 'data/providers/xp_provider.dart';
+import 'data/providers/match_provider.dart';
 
 // Conta (a mesma do site) e atualização do app
 import 'data/account/account_sync.dart';
@@ -53,6 +54,7 @@ class _StartupAppState extends State<StartupApp> {
   GameProvider? _game;
   DeckProvider? _decks;
   XpProvider? _xp;
+  MatchProvider? _matches;
   String? _error;
   String _step = 'Abrindo...';
 
@@ -77,11 +79,13 @@ class _StartupAppState extends State<StartupApp> {
       final game = _game ?? GameProvider();
       final decks = _decks ?? DeckProvider();
       final xp = _xp ?? XpProvider();
+      final matches = _matches ?? MatchProvider();
       _theme = theme;
       _game = game;
       _decks = decks;
       _xp = xp;
-      await Future.wait([theme.ready, game.ready, decks.ready, xp.ready]).timeout(const Duration(seconds: 10));
+      _matches = matches;
+      await Future.wait([theme.ready, game.ready, decks.ready, xp.ready, matches.ready]).timeout(const Duration(seconds: 10));
 
       // Sem google-services.json, o app funciona normalmente, só que sem login.
       // Se o Firebase demorar demais, abre sem login em vez de travar.
@@ -107,6 +111,7 @@ class _StartupAppState extends State<StartupApp> {
           ChangeNotifierProvider.value(value: _game!),
           ChangeNotifierProvider.value(value: _decks!),
           ChangeNotifierProvider.value(value: _xp!),
+          ChangeNotifierProvider.value(value: _matches!),
           ChangeNotifierProvider.value(value: AuthService.instance),
         ],
         child: const MyApp(),

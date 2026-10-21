@@ -60,6 +60,8 @@ class GameProvider with ChangeNotifier {
   List<int> _colors2 = List.filled(maxPlayers, -1);
   List<List<int>> _commanderDamage = List.generate(maxPlayers, (_) => List.filled(maxPlayers, 0));
   List<String> _playerNames = List.generate(maxPlayers, (i) => "Player ${i + 1}");
+  // O deck de cada jogador nesta partida (nome; vazio = não disse), para as estatísticas.
+  List<String> _decks = List.filled(maxPlayers, '');
 
   // Quem é o monarca e quem tem a iniciativa (-1 = ninguém).
   int _monarch = -1;
@@ -103,6 +105,13 @@ class GameProvider with ChangeNotifier {
 
   /// Tempo total que o jogador usou nas vezes dele (contando a atual).
   Duration turnTotal(int player) => Duration(milliseconds: _turnTotals[player]) + (player == _turnPlayer ? turnElapsed : Duration.zero);
+
+  String deckOf(int player) => _decks[player];
+
+  void setDeck(int player, String deck) {
+    _decks[player] = deck.trim();
+    _saveAndNotify();
+  }
 
   Color colorOf(int player) => palette[_colors[player] % palette.length];
   int colorIndexOf(int player) => _colors[player];
@@ -200,8 +209,11 @@ class GameProvider with ChangeNotifier {
         'scheme': _scheme,
         'colors': _colors,
         'colors2': _colors2,
-        'commanderDamage': _commanderDamage,
+        // O Firestore não aceita lista dentro de lista: cada linha do dano de
+        // comandante vai como texto ("0,5,0,0,0,0").
+        'cmdRows': [for (final row in _commanderDamage) row.join(',')],
         'playerNames': _playerNames,
+        'playerDecks': _decks,
       };
 
   static List<int> _ints(dynamic v, int fill) {
@@ -224,8 +236,13 @@ class GameProvider with ChangeNotifier {
     final colors = v?['colors'];
     _colors = colors is List ? _ints(colors, 0) : List.generate(maxPlayers, (i) => i);
     _colors2 = _ints(v?['colors2'], -1);
-    final cmd = (v?['commanderDamage'] as List?) ?? const [];
+    final rows = v?['cmdRows'] as List?;
+    final cmd = rows != null
+        ? [for (final r in rows) '$r'.split(',').where((x) => x.isNotEmpty).map((x) => int.tryParse(x) ?? 0).toList()]
+        : (v?['commanderDamage'] as List?) ?? const []; // formato antigo
     _commanderDamage = List.generate(maxPlayers, (i) => _ints(i < cmd.length ? cmd[i] : null, 0));
+    final decks = [for (final d in (v?['playerDecks'] as List? ?? const [])) d.toString()];
+    _decks = List.generate(maxPlayers, (i) => i < decks.length ? decks[i] : '');
     final names = [for (final n in (v?['playerNames'] as List? ?? const [])) n.toString()];
     _playerNames = List.generate(maxPlayers, (i) => i < names.length ? names[i] : "Player ${i + 1}");
     _history.clear();
@@ -482,6 +499,7 @@ class GameProvider with ChangeNotifier {
     prefs.setString('playerColors', jsonEncode(_colors));
     prefs.setString('playerColors2', jsonEncode(_colors2));
     prefs.setString('commanderDamage', jsonEncode(_commanderDamage));
+    prefs.setString('playerDecks', jsonEncode(_decks));
     await prefs.setString('playerNames', jsonEncode(_playerNames));
   }
 
@@ -509,6 +527,12 @@ class GameProvider with ChangeNotifier {
     if (c != null) {
       final rows = jsonDecode(c) as List;
       _commanderDamage = List.generate(maxPlayers, (i) => _ints(i < rows.length ? rows[i] : null, 0));
+    }
+
+    final d = prefs.getString('playerDecks');
+    if (d != null) {
+      final decks = List<String>.from(jsonDecode(d));
+      _decks = List.generate(maxPlayers, (i) => i < decks.length ? decks[i] : '');
     }
 
     final n = prefs.getString('playerNames');

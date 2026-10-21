@@ -3,9 +3,12 @@
 //   data.settings: { bgColor, playerName, cardLanguage }
 //   data.profile:  { xp, level, tier, claimedMissions, unlocked*, selected*,
 //                    totalMatches, statDecks, statCards, statSearches, statArts }
-//   data.game:     { playerCount, startingLife, lives, poison,
-//                    commanderDamage, playerNames }
+//   data.game:     { playerCount, startingLife, lives, poison, cmdRows,
+//                    playerNames, playerDecks, ... (game_provider.dart) }
+//   data.matches:  { list: [partidas terminadas] } (match_provider.dart)
 //   decks/{id}:    { id, name, type, cards }   (um documento por deck)
+// O Firestore não aceita lista dentro de lista (o dano de comandante vai
+// como cmdRows, uma linha de texto por jogador).
 //
 // Cada provider registra a sua parte aqui: como ler, como aplicar o que
 // chegou da conta e como voltar ao padrão (ao sair da conta).
@@ -35,7 +38,7 @@ class UserData {
   UserData._();
   static final UserData instance = UserData._();
 
-  static const sectionKeys = ['settings', 'profile', 'game'];
+  static const sectionKeys = ['settings', 'profile', 'game', 'matches'];
 
   final Map<String, SyncedSection> _sections = {};
   SyncedDecks? decks;

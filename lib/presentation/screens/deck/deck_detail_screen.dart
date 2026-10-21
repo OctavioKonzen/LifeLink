@@ -8,6 +8,8 @@ import '../../../data/services/pdf_service.dart';
 import '../../../data/services/scryfall_service.dart';
 import '../search/card_detail_screen.dart'; 
 import '../search/card_search_screen.dart';
+import '../../../data/services/deck_tools.dart';
+import 'deck_tools_screens.dart';
 
 class DeckDetailScreen extends StatefulWidget {
   final int deckIndex;
@@ -21,7 +23,6 @@ class DeckDetailScreen extends StatefulWidget {
 class _DeckDetailScreenState extends State<DeckDetailScreen> {
   String _searchQuery = "";
   final TextEditingController _searchController = TextEditingController();
-  final TextEditingController _importListController = TextEditingController();
   
   bool _isTranslating = false;
   bool _isImporting = false; 
@@ -130,140 +131,36 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
     }
   }
 
-  void _showImportDialog(BuildContext context, DeckProvider provider) {
-    showDialog(
-      context: context,
-      builder: (ctx) {
-        final isLight = context.read<ThemeProvider>().backgroundColor.computeLuminance() > 0.5;
-        return AlertDialog(
-          backgroundColor: isLight ? Colors.white : const Color(0xFF1E1E24),
-          title: Text("Importar por Lista", style: TextStyle(color: isLight ? Colors.black : Colors.white)),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                "Cole os nomes das cartas.\nExemplo:\n4 Lightning Bolt\nSol Ring",
-                style: TextStyle(color: isLight ? Colors.black54 : Colors.white54, fontSize: 12),
-              ),
-              const SizedBox(height: 10),
-              TextField(
-                controller: _importListController,
-                maxLines: 8,
-                style: TextStyle(color: isLight ? Colors.black : Colors.white),
-                decoration: InputDecoration(
-                  hintText: "Sua lista aqui...",
-                  hintStyle: TextStyle(color: Colors.grey.withValues(alpha: 0.5)),
-                  filled: true,
-                  fillColor: isLight ? Colors.grey[200] : Colors.black26,
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                _importListController.clear();
-                Navigator.pop(ctx);
-              },
-              child: const Text("Cancelar", style: TextStyle(color: Colors.grey)),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.blueAccent),
-              onPressed: () {
-                final text = _importListController.text;
-                _importListController.clear();
-                Navigator.pop(ctx);
-                if (text.trim().isNotEmpty) {
-                  _processImportList(text, provider);
-                }
-              },
-              child: const Text("Importar", style: TextStyle(color: Colors.white)),
-            ),
-          ],
-        );
-      }
-    );
-  }
-
-  Future<void> _processImportList(String text, DeckProvider provider) async {
+  /// Importa uma lista colada para este deck (as cartas vêm de 75 em 75 da Scryfall).
+  Future<void> _importList(DeckProvider provider) async {
+    final input = await importListDialog(context);
+    if (input == null || input.lines.isEmpty || !mounted) return;
     setState(() => _isImporting = true);
-    final lines = text.split('\n');
-    int addedCount = 0;
-    int errorCount = 0;
-
-    // ignore: deprecated_member_use
-    final regex = RegExp(r'^(\d+)[xX]?\s+(.*)$');
-
-    for (var line in lines) {
-      line = line.trim();
-      if (line.isEmpty) continue;
-
-      int qty = 1;
-      String cardName = line;
-
-      final match = regex.firstMatch(line);
-      if (match != null) {
-        qty = int.parse(match.group(1)!);
-        cardName = match.group(2)!;
+    String message;
+    var ok = true;
+    try {
+      final result = await DeckTools.fetch(input.lines);
+      provider.addCardsToDeck(widget.deckIndex, result.cards);
+      if (result.cards.isNotEmpty && mounted) context.read<XpProvider>().incrementCardsAdded(result.cards.length);
+      message = '${result.cards.length} cartas adicionadas!';
+      if (result.missing.isNotEmpty) {
+        ok = false;
+        message += ' Não encontrei: ${result.missing.take(5).join(', ')}${result.missing.length > 5 ? '...' : ''}';
       }
-
-      try {
-        final scryfall = ScryfallService.instance;
-        final name = Uri.encodeQueryComponent(cardName);
-        Map<String, dynamic>? data;
-        try {
-          data = await scryfall.getJson('https://api.scryfall.com/cards/named?exact=$name');
-        } on ScryfallException {
-          // Nome com erro de digitação: o Scryfall tenta adivinhar.
-          data = await scryfall.getJson('https://api.scryfall.com/cards/named?fuzzy=$name');
-        }
-
-        Map<String, dynamic> cardObj = {
-          'name': data['name'] ?? 'Carta Desconhecida',
-          'imageUrl': data['image_uris']?['normal'] ?? data['card_faces']?[0]?['image_uris']?['normal'] ?? 'https://upload.wikimedia.org/wikipedia/en/a/aa/Magic_the_gathering-card_back.jpg',
-          'type_line': data['type_line'] ?? '',
-          'oracle_text': data['oracle_text'] ?? '',
-          'rarity': data['rarity'] ?? 'common',
-          'mana_cost': data['mana_cost'] ?? '',
-          'power': data['power']?.toString(),
-          'toughness': data['toughness']?.toString(),
-          'color_identity': (data['color_identity'] as List?)?.join('') ?? '',
-          'setName': (data['set'] ?? '').toString().toUpperCase(),
-          'collectorNumber': data['collector_number'] ?? '',
-          'oracle_id': data['oracle_id'],
-          'usdPrice': data['prices']?['usd'] ?? '0.00',
-            'usdFoil': data['prices']?['usd_foil'],
-            'eurPrice': data['prices']?['eur'],
-            'tixPrice': data['prices']?['tix'],
-        };
-
-        for (int i = 0; i < qty; i++) {
-          provider.addCardToDeck(widget.deckIndex, cardObj);
-          addedCount++;
-        }
-      } catch (e) {
-        errorCount++;
-      }
-      
-      await Future.delayed(const Duration(milliseconds: 100)); 
+    } on ScryfallException catch (e) {
+      ok = false;
+      message = e.message;
+    } catch (_) {
+      ok = false;
+      message = 'Não deu para importar agora. Verifique a internet.';
     }
-
+    if (!mounted) return;
     setState(() => _isImporting = false);
-
-    if (mounted) {
-      if (addedCount > 0) {
-        context.read<XpProvider>().incrementCardsAdded(addedCount);
-      }
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("$addedCount cartas adicionadas!${errorCount > 0 ? ' ($errorCount não encontradas)' : ''}"),
-          backgroundColor: errorCount > 0 ? Colors.orange[700] : Colors.green[700],
-          duration: const Duration(seconds: 4),
-        )
-      );
-    }
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(message),
+      backgroundColor: ok ? Colors.green[700] : Colors.orange[800],
+      duration: const Duration(seconds: 5),
+    ));
   }
 
   @override
@@ -302,8 +199,18 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
             actions: [
               IconButton(
                 icon: const Icon(Icons.playlist_add, color: Colors.orangeAccent),
-                tooltip: "Importar de Texto",
-                onPressed: () => _showImportDialog(context, deckProvider),
+                tooltip: "Importar lista",
+                onPressed: () => _importList(deckProvider),
+              ),
+              IconButton(
+                icon: const Icon(Icons.price_check, color: Colors.amber),
+                tooltip: "Preço e legalidade",
+                onPressed: deck.cards.isEmpty ? null : () => Navigator.push(context, MaterialPageRoute(builder: (_) => DeckAnalysisScreen(deck: deck))),
+              ),
+              IconButton(
+                icon: const Icon(Icons.front_hand, color: Colors.purpleAccent),
+                tooltip: "Mão de teste",
+                onPressed: deck.cards.length < 7 ? null : () => Navigator.push(context, MaterialPageRoute(builder: (_) => TestHandScreen(deck: deck))),
               ),
               PopupMenuButton<String>(
                 icon: const Icon(Icons.language, color: Colors.greenAccent),

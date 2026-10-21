@@ -7,7 +7,7 @@ import { getJson, imageOf } from '../lib/scryfall'
 
 async function randomCard(query) {
   // Sem cache: cada pedido é uma carta nova.
-  const data = await getJson(`https://api.scryfall.com/cards/random?q=${encodeURIComponent(query)}&t=${Date.now()}`)
+  const data = await getJson(`https://api.scryfall.com/cards/random?q=${encodeURIComponent(query)}`, { useCache: false })
   return { id: data.id, name: data.printed_name || data.name, type: data.type_line || '', image: imageOf(data) || '', text: data.oracle_text || '' }
 }
 

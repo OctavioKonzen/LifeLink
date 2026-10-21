@@ -4,7 +4,7 @@
   <img src="https://img.shields.io/badge/Flutter-3.x-blue?logo=flutter&style=for-the-badge" />
   <img src="https://img.shields.io/badge/React-19-61DAFB?logo=react&style=for-the-badge" />
   <img src="https://img.shields.io/badge/Firebase-FFCA28?logo=firebase&style=for-the-badge" />
-  <img src="https://img.shields.io/badge/Android-1.0.12-green?logo=android&style=for-the-badge" />
+  <img src="https://img.shields.io/badge/Android-1.0.13-green?logo=android&style=for-the-badge" />
 </p>
 
 <div align="center">
@@ -38,7 +38,12 @@ A ficha de cada carta: imagem em **alta qualidade** (PNG), frente e verso nas ca
 
 ### Meus decks
 
-Seus decks, sincronizados com a conta: crie um deck novo (Commander, Challenger ou Normal), veja as cartas e o preço total, tire cartas e apague o deck. No app dá também para **importar uma lista** (`4 Lightning Bolt`), **traduzir o deck** para outro idioma e gerar um **PDF para imprimir** as cartas (proxies).
+Seus decks, sincronizados com a conta: crie um deck novo (Commander, Challenger ou Normal), veja as cartas e o preço total, tire cartas e apague o deck.
+
+* **Importar lista** (app e site): cole a lista exportada do **Moxfield, Archidekt, MTG Arena ou MTGO** (`1 Sol Ring (CMM) 410`, `4x Lightning Bolt`, com seções de comandante, banco e "talvez") para criar um deck novo ou somar a um deck. As cartas vêm da Scryfall de 75 em 75.
+* **Preço e legalidade**: o valor do deck hoje em dólar, **real** e euro, as cartas mais caras e se o deck é legal em Commander, Standard, Pioneer, Modern, Legacy, Vintage e Pauper (tamanho, cópias, banidas e restritas).
+* **Mão de teste**: compra 7, **mulligan de Londres** (põe uma no fundo por mulligan) e comprar as próximas.
+* No app dá também para **traduzir o deck** para outro idioma e gerar um **PDF para imprimir** as cartas (proxies).
 
 ### Decks oficiais
 
@@ -63,6 +68,10 @@ Feito para a mesa, como os apps do gênero (Lifetap, MTG Companion): de **2 a 6 
 * **Sons** de dano, cura, veneno, dano de comandante e morte (dá para desligar). A tela não apaga durante a partida.
 
 A partida fica salva e, com a conta, é a mesma no app e no site. Cada partida terminada vale XP para o perfil.
+
+### Partidas e estatísticas
+
+Cada partida terminada no contador vai para o **histórico** (na conta, igual no app e no site): quem ganhou, quem jogou e com qual **deck**, a duração, as rodadas e o gráfico da vida de todos. As **estatísticas** mostram as vitórias de cada jogador e de cada deck/comandante, a duração média e a partida com mais rodadas. O deck de cada jogador é escolhido no contador (no nome do jogador, no app; nos contadores, no site).
 
 ### Perfil e missões
 

@@ -6,6 +6,9 @@ import { playSound, setSoundsOn, soundFor, soundsOn } from '../lib/sounds'
 import { clock, isDead, nextTurn, startTurns, stopTurns, turnTotal } from '../lib/turns'
 import TableCardsModal from '../components/TableCardsModal'
 import { Modal } from '../components/ui'
+import { Link } from 'react-router-dom'
+import { addMatch, matchFromGame, removeMatch } from '../lib/matches'
+import { deckList } from '../lib/userData'
 
 // O mesmo contador do app (game_provider.dart): 2 a 6 jogadores, vida
 // inicial à vontade, veneno até 10 e dano de comandante até 21, que também tira
@@ -105,7 +108,7 @@ function LifeHistory({ entries, start }) {
   )
 }
 
-function Player({ i, game, update, history }) {
+function Player({ i, game, update, history, deckNames }) {
   const [details, setDetails] = useState(false)
   const life = game.lives[i]
   const dead = isDead(game, i)
@@ -167,6 +170,20 @@ function Player({ i, game, update, history }) {
       </button>
       {details && (
         <div className="absolute inset-x-3 top-10 bottom-12 z-10 space-y-2 overflow-y-auto rounded-xl bg-black/55 p-2 text-sm backdrop-blur">
+          <p className="px-1 text-xs font-bold uppercase tracking-wide text-white/60">Deck (para as estatísticas)</p>
+          <input
+            value={game.playerDecks?.[i] ?? ''}
+            onChange={(e) => update((g) => ({ ...g, playerDecks: Array.from({ length: 6 }, (_, k) => (k === i ? e.target.value : (g.playerDecks?.[k] ?? ''))) }), { silent: true })}
+            list="lifelink-decks"
+            placeholder="Nome do deck ou comandante"
+            className="w-full rounded-lg bg-black/25 px-2 py-1.5 outline-none placeholder:text-white/40"
+            aria-label="Deck do jogador"
+          />
+          <datalist id="lifelink-decks">
+            {deckNames.map((n) => (
+              <option key={n} value={n} />
+            ))}
+          </datalist>
           <p className="px-1 text-xs font-bold uppercase tracking-wide text-white/60">Cor</p>
           <div className="flex flex-wrap gap-1.5 px-1 pb-1" aria-label="Cor do jogador">
             {PALETTE.map((c, k) => (
@@ -320,13 +337,19 @@ export default function LifeCounterPage() {
       return next.slice(-300)
     })
   }
+  const deckNames = useUserData((s) => deckList(s.decks).map((d) => d.name))
+  // A última partida que foi para o histórico (se desfizer a vitória, sai de lá).
+  const lastMatch = useRef(null)
   // Desfazer: as partidas de antes de cada mudança (neste navegador).
   const undoStack = useRef([])
   const [canUndo, setCanUndo] = useState(false)
   const setGame = (update, { silent = false, reset = false } = {}) =>
     updateSection('game', (g) => {
       const before = view(g)
-      if (reset) undoStack.current = []
+      if (reset) {
+        undoStack.current = []
+        lastMatch.current = null
+      }
       else undoStack.current = [...undoStack.current.slice(-49), g]
       setCanUndo(undoStack.current.length > 0)
       const after = update(before)
@@ -369,8 +392,14 @@ export default function LifeCounterPage() {
       counted.current = true
       const unlocked = incrementMatches()
       if (unlocked) setBanner(unlocked)
+      const match = matchFromGame(game, log, { winner: alive[0] })
+      addMatch(match)
+      lastMatch.current = match.id
     } else if (alive.length > 1) {
       counted.current = false
+      // Desfez a vitória: a partida não acabou.
+      if (lastMatch.current) removeMatch(lastMatch.current)
+      lastMatch.current = null
     }
   }, [alive.length])
 
@@ -379,7 +408,10 @@ export default function LifeCounterPage() {
   return (
     <div className="flex flex-col" style={{ height: 'calc(100dvh - 72px - 24px)', minHeight: 420 }}>
       <div className="mb-3 flex shrink-0 flex-wrap items-center gap-3">
-        <h1 className="mr-auto text-2xl font-black">Contador de vida</h1>
+        <h1 className="text-2xl font-black">Contador de vida</h1>
+        <Link to="/partidas" className="mr-auto rounded-full bg-text/10 px-3 py-1.5 text-sm font-bold hover:bg-text/20">
+          📜 Partidas
+        </Link>
         <label className="flex items-center gap-2 text-sm">
           Jogadores
           <select
@@ -511,7 +543,7 @@ export default function LifeCounterPage() {
         {rowsFor(game.players, wide).map((row, r) => (
           <div key={r} className="flex min-h-0 flex-1 gap-3">
             {row.map((i) => (
-              <Player key={i} i={i} game={game} update={setGame} history={log.filter((e) => e.i === i)} />
+              <Player key={i} i={i} game={game} update={setGame} history={log.filter((e) => e.i === i)} deckNames={deckNames} />
             ))}
           </div>
         ))}
