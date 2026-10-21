@@ -57,7 +57,7 @@ As cartas mais caras do momento, de todas as edições e idiomas, com pesquisa p
 
 Feito para a mesa, como os apps do gênero (Lifetap, MTG Companion): de **2 a 6 jogadores**, cada um virado para o seu lado, com vida inicial **à vontade** (20, 25, 30, 40, 50, 60 ou outra).
 
-* **Toque** na metade esquerda tira 1 de vida, na direita soma 1; **segurando**, vai de 10 em 10. O quanto mudou (ex.: −7) aparece em cima da vida.
+* **Toque** na metade esquerda tira 1 de vida, na direita soma 1; **segurando**, vai de 1 em 1, cada vez mais rápido (no site também). O quanto mudou (ex.: −7) aparece em cima da vida.
 * **Contadores** de cada jogador: veneno (até 10), energia, experiência, imposto do comandante, tesouro, tempestade, cidade abençoada e **dano de comandante** de cada oponente (até 21, que também tira vida).
 * **Monarca** e **iniciativa**: a coroa e o castelo aparecem no quadro de quem tem.
 * **Turnos**: a vez passa no sentido horário (pulando quem morreu), com a rodada e o **cronômetro** no quadro de quem joga e o tempo total de cada um. O "quem começa" já começa a contar.

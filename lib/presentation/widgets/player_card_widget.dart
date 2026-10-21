@@ -1,11 +1,12 @@
 import 'dart:async';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../data/providers/game_provider.dart';
 
 /// O quadro de um jogador no contador de vida, como nos apps do gênero:
 ///   • toque na metade esquerda tira 1 de vida, na direita soma 1;
-///   • segurando, vai de 10 em 10 (e continua enquanto segura);
+///   • segurando, vai de 1 em 1, cada vez mais rápido, enquanto segura;
 ///   • o quanto mudou (ex.: −7) aparece em cima da vida por 2 segundos;
 ///   • os contadores (veneno, energia, experiência, imposto e dano de
 ///     comandante) ficam embaixo; tocar abre todos eles;
@@ -63,12 +64,20 @@ class _PlayerCardWidgetState extends State<PlayerCardWidget> {
     if (!wasDead && widget.game.isDead(widget.index)) HapticFeedback.heavyImpact();
   }
 
-  // Segurar: −10/+10 na hora e a cada meio segundo enquanto segura.
+  // Segurar: de 1 em 1 enquanto segura, começando devagar e acelerando
+  // (dá para parar no número certo).
   void _startHold(int sign) {
-    _change(10 * sign);
     HapticFeedback.mediumImpact();
     _holdTimer?.cancel();
-    _holdTimer = Timer.periodic(const Duration(milliseconds: 550), (_) => _change(10 * sign));
+    var steps = 0;
+    void tick() {
+      _change(sign);
+      steps++;
+      final wait = max(45, 260 - steps * 18);
+      _holdTimer = Timer(Duration(milliseconds: wait), tick);
+    }
+
+    tick();
   }
 
   void _stopHold() {

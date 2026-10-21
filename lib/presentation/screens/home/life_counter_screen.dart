@@ -18,7 +18,7 @@ import '../../../data/account/online.dart';
 
 /// O contador de vida, inspirado nos apps do gênero (Lifetap, MTG Companion):
 /// cada jogador virado para o seu lado da mesa, toque para ±1 e segurar para
-/// ±10, contadores por jogador, e o menu do meio com reiniciar, jogadores,
+/// ir de 1 em 1, acelerando, contadores por jogador, e o menu do meio com reiniciar, jogadores,
 /// vida inicial, dados, quem começa, desfazer e histórico. A tela fica acesa.
 class LifeCounterScreen extends StatefulWidget {
   const LifeCounterScreen({super.key});

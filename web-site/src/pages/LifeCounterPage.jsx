@@ -80,13 +80,39 @@ function useTick(on) {
 
 const clamp = (v, min, max) => Math.min(max, Math.max(min, v))
 
+/** Botão de vida: um toque muda uma vez; segurando, repete, cada vez mais rápido. */
 function Step({ onClick, children, label }) {
+  const timer = useRef(null)
+  const stop = () => {
+    clearTimeout(timer.current)
+    timer.current = null
+  }
+  useEffect(() => stop, [])
+  const start = (e) => {
+    if (e.button !== undefined && e.button !== 0) return
+    e.currentTarget.setPointerCapture?.(e.pointerId)
+    stop()
+    onClick()
+    let steps = 0
+    const repeat = () => {
+      onClick()
+      steps++
+      timer.current = setTimeout(repeat, Math.max(45, 260 - steps * 18))
+    }
+    timer.current = setTimeout(repeat, 450)
+  }
   return (
     <button
       type="button"
-      onClick={onClick}
+      onPointerDown={start}
+      onPointerUp={stop}
+      onPointerCancel={stop}
+      onLostPointerCapture={stop}
+      onContextMenu={(e) => e.preventDefault()}
+      // Teclado (Enter/Espaço): o clique vem sem ponteiro.
+      onClick={(e) => e.detail === 0 && onClick()}
       aria-label={label}
-      className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-black/25 text-xl font-black hover:bg-black/40 active:scale-95"
+      className="grid h-11 w-11 shrink-0 touch-none select-none place-items-center rounded-full bg-black/25 text-xl font-black hover:bg-black/40 active:scale-95"
     >
       {children}
     </button>
