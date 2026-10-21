@@ -22,7 +22,7 @@ function init(cheia = false) {
   if (table) return
   full = cheia
   table = createDiceTable(container, {
-    dieSize: full ? (half) => Math.max(0.4, Math.min(half.w, half.d) * 0.3) : undefined,
+    dieSize: full ? (half) => Math.max(0.35, Math.min(half.w, half.d) * 0.24) : undefined,
     topDown: full,
     onResult: (result) => send({ type: 'result', ...result }),
     onRollStart: () => send({ type: 'rolling' }),

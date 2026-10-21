@@ -227,10 +227,13 @@ export function createDiceTable(container, { onResult, onRollStart, dieSize, top
   let dice = [] // { kind, shape, mesh, body }
   let kind = 'd20'
   let rolling = false
-  let settledFrames = 0
   let rollStart = 0
   let frame = 0
   let lastTime = 0
+
+  function resetStill() {
+    for (const d of dice) d.stillMs = 0
+  }
 
   function clear() {
     for (const d of dice) {
@@ -326,7 +329,7 @@ export function createDiceTable(container, { onResult, onRollStart, dieSize, top
       b.angularVelocity.set((Math.random() - 0.5) * 40, (Math.random() - 0.5) * 40, (Math.random() - 0.5) * 40)
     })
     rolling = true
-    settledFrames = 0
+    resetStill()
     rollStart = performance.now()
     onRollStart?.()
     start()
@@ -366,7 +369,7 @@ export function createDiceTable(container, { onResult, onRollStart, dieSize, top
       b.angularVelocity.set((Math.random() - 0.5) * 36, (Math.random() - 0.5) * 36, (Math.random() - 0.5) * 36)
     })
     rolling = true
-    settledFrames = 0
+    resetStill()
     rollStart = performance.now()
     onRollStart?.()
     start()
@@ -411,7 +414,9 @@ export function createDiceTable(container, { onResult, onRollStart, dieSize, top
     rolling = false
     const results = dice.map(topValue)
     // Parou torto (apoiado na parede ou em outro dado)? Um empurrãozinho.
-    if (results.some((r) => !r.flat) && performance.now() - rollStart < 9000) {
+    // No "Quem começa" (vários dados perto das bordas) vale a face mais para
+    // cima mesmo inclinado: empurrar ali só fazia o dado bater na parede de novo.
+    if (kind !== 'many' && results.some((r) => !r.flat) && performance.now() - rollStart < 5500) {
       dice.forEach((d, i) => {
         if (results[i].flat) return
         d.body.wakeUp()
@@ -419,7 +424,7 @@ export function createDiceTable(container, { onResult, onRollStart, dieSize, top
         d.body.angularVelocity.set((Math.random() - 0.5) * 12, (Math.random() - 0.5) * 12, (Math.random() - 0.5) * 12)
       })
       rolling = true
-      settledFrames = 0
+      resetStill()
       return
     }
     const values = results.map((r) => r.value)
@@ -448,18 +453,29 @@ export function createDiceTable(container, { onResult, onRollStart, dieSize, top
     lastTime = time
     // "Quem começa": cada dado é puxado de leve para o seu jogador (quica e
     // rola de verdade, mas termina em cima do quadro dele).
+    // Só no começo e só enquanto está longe: perto do jogador o dado fica
+    // livre para parar (senão a força o mantinha se mexendo e o resultado
+    // demorava).
+    const pulling = performance.now() - rollStart < 2500
     for (const d of dice) {
-      if (!d.target || d.body.sleepState === CANNON.Body.SLEEPING) continue
+      if (!pulling || !d.target || d.body.sleepState === CANNON.Body.SLEEPING) continue
       const b = d.body
+      if (Math.hypot(d.target.x - b.position.x, d.target.z - b.position.z) < SIZE * 0.7) continue
       b.applyForce(new CANNON.Vec3((d.target.x - b.position.x) * 22 - b.velocity.x * 3, 0, (d.target.z - b.position.z) * 22 - b.velocity.z * 3))
     }
     world.step(1 / 120, dt, 8)
     sync()
     render()
     if (rolling) {
-      const still = dice.every((d) => d.body.sleepState === CANNON.Body.SLEEPING || (d.body.velocity.length() < 0.08 && d.body.angularVelocity.length() < 0.12))
-      settledFrames = still ? settledFrames + 1 : 0
-      if (settledFrames > 12 || performance.now() - rollStart > 12000) finish()
+      // Parado no chão, o dado ainda treme um pouco: cada um conta o próprio
+      // tempo parado (tremer não zera; só zera se voltar a rolar de verdade).
+      for (const d of dice) {
+        const v = d.body.velocity.length()
+        const w = d.body.angularVelocity.length()
+        if (d.body.sleepState === CANNON.Body.SLEEPING || (v < 0.15 && w < 0.4)) d.stillMs = (d.stillMs || 0) + dt * 1000
+        else if (v > 0.6 || w > 1.5) d.stillMs = 0
+      }
+      if (dice.every((d) => d.stillMs > 350) || performance.now() - rollStart > 7000) finish()
     }
     if (rolling) frame = requestAnimationFrame(tick)
     else lastTime = 0

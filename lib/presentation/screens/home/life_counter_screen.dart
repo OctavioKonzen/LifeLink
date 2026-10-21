@@ -773,7 +773,7 @@ class _FirstPlayerOverlayState extends State<_FirstPlayerOverlay> {
     setState(() {
       _winner = tied.first;
       _tied = {};
-      _status = '${widget.game.playerNames[tied.first]} começa!';
+      _status = '👑 ${widget.game.playerNames[tied.first]} começa!';
     });
   }
 
@@ -800,8 +800,13 @@ class _FirstPlayerOverlayState extends State<_FirstPlayerOverlay> {
           ),
           child: Row(mainAxisSize: MainAxisSize.min, children: [
             if (win) const Padding(padding: EdgeInsets.only(right: 6), child: Text('👑', style: TextStyle(fontSize: 22))),
-            Text(win ? '$value · Começa!' : '$value',
-                style: TextStyle(color: win ? Colors.black : Colors.white, fontSize: 24, fontWeight: FontWeight.w900)),
+            if (win)
+              Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text('${widget.game.playerNames[i]} começa!', style: const TextStyle(color: Colors.black, fontSize: 18, fontWeight: FontWeight.w900)),
+                Text('Tirou $value', style: const TextStyle(color: Colors.black87, fontSize: 13, fontWeight: FontWeight.w700)),
+              ])
+            else
+              Text('$value', style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w900)),
           ]),
         ),
       ),
