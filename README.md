@@ -4,7 +4,7 @@
   <img src="https://img.shields.io/badge/Flutter-3.x-blue?logo=flutter&style=for-the-badge" />
   <img src="https://img.shields.io/badge/React-19-61DAFB?logo=react&style=for-the-badge" />
   <img src="https://img.shields.io/badge/Firebase-FFCA28?logo=firebase&style=for-the-badge" />
-  <img src="https://img.shields.io/badge/Android-1.0.8-green?logo=android&style=for-the-badge" />
+  <img src="https://img.shields.io/badge/Android-1.0.9-green?logo=android&style=for-the-badge" />
 </p>
 
 <div align="center">
@@ -55,7 +55,7 @@ Feito para a mesa, como os apps do gênero (Lifetap, MTG Companion): de **2 a 6 
 * **Toque** na metade esquerda tira 1 de vida, na direita soma 1; **segurando**, vai de 10 em 10. O quanto mudou (ex.: −7) aparece em cima da vida.
 * **Contadores** de cada jogador: veneno (até 10), energia, experiência, imposto do comandante e **dano de comandante** de cada oponente (até 21, que também tira vida).
 * Cada jogador escolhe **nome e cor**; quem perde fica com a caveira e, quando sobra um, aparece o vencedor.
-* No botão do meio: **desfazer**, histórico da partida, reiniciar, dados (D6, D20, moeda) e **quem começa**. A tela não apaga durante a partida.
+* No botão do meio: **desfazer**, histórico da partida, reiniciar, **dados 3D** (D4, D6, D8, D10, D12, D20 e D100, com os números no lugar certo e animação de rolagem), moeda e **quem começa**. A tela não apaga durante a partida.
 
 A partida fica salva e, com a conta, é a mesma no app e no site. Cada partida terminada vale XP para o perfil.
 
