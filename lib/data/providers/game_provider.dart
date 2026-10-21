@@ -32,6 +32,16 @@ class GameProvider with ChangeNotifier {
     Color(0xFF5D4037), // marrom
     Color(0xFF455A64), // grafite
     Color(0xFFB8860B), // dourado
+    // Mais cores para mesas grandes (ex.: dois verdes). As 10 de cima ficam
+    // na mesma ordem: o número salvo de cada jogador continua valendo.
+    Color(0xFF7CB342), // verde-claro
+    Color(0xFF1B5E20), // verde-escuro
+    Color(0xFFC0CA33), // lima
+    Color(0xFF00ACC1), // ciano
+    Color(0xFFF06292), // rosa-claro
+    Color(0xFFF9A825), // amarelo
+    Color(0xFF3949AB), // anil
+    Color(0xFF212121), // preto
   ];
 
   int _playerCount = 2;
@@ -73,6 +83,23 @@ class GameProvider with ChangeNotifier {
         Counter.experience => _experience,
         Counter.tax => _tax,
       };
+
+  /// Como a vida do jogador mudou nesta partida, do começo até agora (dano,
+  /// cura e dano de comandante), com a vida depois de cada mudança. Toques
+  /// seguidos já vêm juntos (ex.: −7). A vida antes da primeira mudança é
+  /// calculada de trás para frente a partir da vida atual.
+  ({int start, List<({DateTime at, int delta, int life, String kind, int? attacker})> changes}) lifeTimeline(int player) {
+    final events = [for (final e in _history) if (e.player == player && (e.kind == 'life' || e.kind == 'cmd')) e];
+    int lifeDelta(GameEvent e) => e.kind == 'cmd' ? -e.delta : e.delta;
+    var life = _lives[player] - events.fold<int>(0, (sum, e) => sum + lifeDelta(e));
+    final start = life;
+    final changes = <({DateTime at, int delta, int life, String kind, int? attacker})>[];
+    for (final e in events) {
+      life += lifeDelta(e);
+      changes.add((at: e.at, delta: lifeDelta(e), life: life, kind: e.kind, attacker: e.attacker));
+    }
+    return (start: start, changes: changes);
+  }
 
   /// Morto: vida 0, 10 de veneno ou 21 de dano de um mesmo comandante.
   bool isDead(int player) {

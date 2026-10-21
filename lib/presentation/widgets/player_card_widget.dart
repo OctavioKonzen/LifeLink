@@ -16,6 +16,7 @@ class PlayerCardWidget extends StatefulWidget {
   final GameProvider game;
   final VoidCallback onCounters;
   final VoidCallback onSettings;
+  final VoidCallback? onHistory;
 
   const PlayerCardWidget({
     super.key,
@@ -24,6 +25,7 @@ class PlayerCardWidget extends StatefulWidget {
     required this.game,
     required this.onCounters,
     required this.onSettings,
+    this.onHistory,
   });
 
   @override
@@ -203,6 +205,9 @@ class _PlayerCardWidgetState extends State<PlayerCardWidget> {
                       ]),
                     ),
                   ),
+                  // Histórico da vida deste jogador.
+                  if (widget.onHistory != null)
+                    GestureDetector(onTap: widget.onHistory, child: _badge(Icons.timeline, '', Colors.white70)),
                   GestureDetector(
                     onTap: widget.onCounters,
                     child: Row(mainAxisSize: MainAxisSize.min, children: [
