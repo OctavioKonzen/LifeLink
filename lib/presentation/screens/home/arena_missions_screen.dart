@@ -71,7 +71,7 @@ class _ArenaMissionsScreenState extends State<ArenaMissionsScreen> {
             const Text("SEÇÃO CONCLUÍDA!", style: TextStyle(color: Colors.amberAccent, fontSize: 22, fontWeight: FontWeight.bold, letterSpacing: 1.5)),
             const SizedBox(height: 20),
             if (reward['type'] == 'avatar')
-              ClipOval(child: CachedNetworkImage(imageUrl: reward['imageUrl'], width: 100, height: 100, fit: BoxFit.cover))
+              ClipOval(child: CachedNetworkImage(imageUrl: reward['imageUrl'], httpHeaders: CardImages.headers, width: 100, height: 100, fit: BoxFit.cover))
             else if (reward['type'] == 'border')
               Container(
                 width: 100, height: 100,

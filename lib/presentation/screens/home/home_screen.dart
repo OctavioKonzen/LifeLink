@@ -33,12 +33,17 @@ class _HomeScreenState extends State<HomeScreen> {
   
   int _currentIndex = 0; 
   Timer? _carouselTimer;
+  // Coleções novas e as que estão para sair (anúncios que abrem a coleção).
+  List<Map<String, dynamic>> _sets = const [];
 
   @override
   void initState() {
     super.initState();
     _pageController = PageController(viewportFraction: 0.85, initialPage: 999);
     _startCarouselTimer();
+    ScryfallService.instance.featuredSets().then((sets) {
+      if (mounted) setState(() => _sets = sets);
+    }).catchError((_) {});
     
   }
 
@@ -166,9 +171,27 @@ class _HomeScreenState extends State<HomeScreen> {
     final Color cardColor = isLight ? Colors.black.withValues(alpha: 0.05) : Color.lerp(bgColor, Colors.white, 0.03)!;
     final bool isPt = themeProvider.cardLanguage == 'pt';
 
+    // Cada anúncio abre exatamente o que ele mostra: a página da coleção
+    // (com todas as cartas), a lista de banidas ou o MTG Arena.
+    final today = DateTime.now();
+    String two(int n) => n.toString().padLeft(2, '0');
     final List<Map<String, dynamic>> newsList = [
-      {"image": CardImages.artCropByName("Nadu, Winged Wisdom"), "tag": isPt ? "NOTÍCIAS" : "NEWS", "title": isPt ? "Novidades de Magic\nna Wizards" : "Latest Magic\nNews", "tagColor": const Color(0xFF3B82F6), "url": "https://magic.wizards.com/en/news"},
-      {"image": CardImages.artCropByName("Ulamog, the Defiler"), "tag": isPt ? "BANIDAS" : "BANNED", "title": isPt ? "Lista de Banidas\ne Restritas" : "Banned and\nRestricted List", "tagColor": const Color(0xFF8B5CF6), "url": "https://magic.wizards.com/en/banned-restricted-list"},
+      for (final set in _sets)
+        () {
+          final date = set['date'] as DateTime;
+          final upcoming = date.isAfter(today);
+          final recent = today.difference(date).inDays <= 60;
+          final when = "${two(date.day)}/${two(date.month)}/${date.year}";
+          return {
+            "image": CardImages.artCropOfSet(set['code'] as String),
+            "tag": upcoming ? (isPt ? "EM BREVE" : "COMING SOON") : recent ? (isPt ? "NOVA COLEÇÃO" : "NEW SET") : (isPt ? "COLEÇÃO" : "SET"),
+            "title": set['name'],
+            "subtitle": upcoming ? (isPt ? "Chega em $when · veja as cartas" : "Out $when · see the cards") : (isPt ? "Veja todas as cartas" : "See all the cards"),
+            "tagColor": upcoming ? const Color(0xFFF59E0B) : const Color(0xFF8B5CF6),
+            "url": set['scryfall_uri'],
+          };
+        }(),
+      {"image": CardImages.artCropByName("Nadu, Winged Wisdom"), "tag": isPt ? "BANIDAS" : "BANNED", "title": isPt ? "Lista de Banidas\ne Restritas" : "Banned and\nRestricted List", "tagColor": const Color(0xFFEF4444), "url": "https://magic.wizards.com/en/banned-restricted-list"},
       {"image": CardImages.artCropByName("Sheoldred, the Apocalypse"), "tag": "ARENA", "title": isPt ? "Jogue Magic\nno MTG Arena" : "Play Magic\non MTG Arena", "tagColor": const Color(0xFF10B981), "url": "https://magic.wizards.com/en/mtgarena"},
     ];
 
@@ -288,7 +311,18 @@ class _HomeScreenState extends State<HomeScreen> {
                   margin: const EdgeInsets.symmetric(horizontal: 8),
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(16),
-                    image: DecorationImage(image: CachedNetworkImageProvider(item["image"]), fit: BoxFit.cover, colorFilter: ColorFilter.mode(Colors.black.withValues(alpha: 0.5), BlendMode.darken)),
+                    // Fundo na cor do anúncio enquanto a arte carrega (ou se falhar).
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [(item["tagColor"] as Color).withValues(alpha: 0.55), const Color(0xFF15151A)],
+                    ),
+                    image: DecorationImage(
+                      image: CachedNetworkImageProvider(item["image"], headers: CardImages.headers),
+                      fit: BoxFit.cover,
+                      onError: (_, _) {},
+                      colorFilter: ColorFilter.mode(Colors.black.withValues(alpha: 0.5), BlendMode.darken),
+                    ),
                   ),
                   child: Padding(
                     padding: const EdgeInsets.all(14.0),
@@ -298,7 +332,9 @@ class _HomeScreenState extends State<HomeScreen> {
                       children: [
                         Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4), decoration: BoxDecoration(color: item["tagColor"], borderRadius: BorderRadius.circular(4)), child: Text(item["tag"], style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold))),
                         const SizedBox(height: 8),
-                        Text(item["title"], style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold, height: 1.2)),
+                        Text(item["title"], maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold, height: 1.2)),
+                        if (item["subtitle"] != null)
+                          Text(item["subtitle"], maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.w600)),
                       ],
                     ),
                   ),
