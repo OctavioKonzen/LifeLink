@@ -139,6 +139,16 @@ class _LifeCounterScreenState extends State<LifeCounterScreen> {
     ]);
   }
 
+  /// Onde os quadros se encontram (a mesma divisão de [_layout]).
+  static Alignment _menuAlignment(int players) {
+    final fromTop = switch (players) {
+      3 => 3 / 5, // fileira de cima com flex 3, a de baixo com 2
+      5 => 2 / 3, // colunas com flex 2, o de baixo com 1
+      _ => 0.5,
+    };
+    return Alignment(0, fromTop * 2 - 1);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -147,8 +157,10 @@ class _LifeCounterScreenState extends State<LifeCounterScreen> {
         return Stack(children: [
           Positioned.fill(child: Padding(padding: const EdgeInsets.all(3), child: _layout(game))),
 
-          // O botão do meio, com a vida inicial em cima.
-          Center(
+          // O botão do meio, no encontro dos quadros (com 3 e 5 jogadores a
+          // fileira de baixo é menor, então o encontro fica mais para baixo).
+          Align(
+            alignment: _menuAlignment(game.playerCount),
             child: AnimatedScale(
               scale: _menuOpen ? 0 : 1,
               duration: const Duration(milliseconds: 200),
