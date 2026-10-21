@@ -15,20 +15,21 @@ async function get(url) {
   return response.json()
 }
 
-/** 0 = Commander, 1 = Challenger, 2 = Avatar / Outros; null = fica de fora. */
+/** 0 = Commander, 1 = Challenger, 2 = Secret Lair, 3 = Iniciante (Starter, Planeswalker, Avatar); null = fica de fora. */
 export function deckCategory(deck) {
   const type = (deck.type || '').toLowerCase()
   const name = (deck.name || '').toLowerCase()
-  if (['avatar', 'aang', 'zuko'].some((w) => name.includes(w)) || type.includes('secret lair')) return 2
+  if (type.includes('secret lair')) return 2
+  if (['avatar', 'aang', 'zuko'].some((w) => name.includes(w))) return 3
   if (type.includes('commander')) return 0
   if (type.includes('challenger')) return 1
-  if (type.includes('starter') || type.includes('planeswalker')) return 2
+  if (type.includes('starter') || type.includes('planeswalker')) return 3
   return null
 }
 
 export async function deckList() {
   const data = await get(`${BASE}/DeckList.json`)
-  const lists = [[], [], []]
+  const lists = [[], [], [], []]
   for (const deck of data.data || []) {
     const category = deckCategory(deck)
     if (category != null) lists[category].push(deck)

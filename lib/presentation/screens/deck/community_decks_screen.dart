@@ -20,7 +20,8 @@ class _CommunityDecksScreenState extends State<CommunityDecksScreen> {
   bool _isLoading = true;
   List<dynamic> _commanderDecks = [];
   List<dynamic> _challengerDecks = [];
-  List<dynamic> _otherDecks = [];
+  List<dynamic> _secretLairDecks = [];
+  List<dynamic> _otherDecks = []; // decks para começar (Starter, Planeswalker, Avatar...)
   
   int _selectedCategory = 0;
   String _searchQuery = "";
@@ -90,13 +91,16 @@ class _CommunityDecksScreenState extends State<CommunityDecksScreen> {
 
       List<dynamic> commander = [];
       List<dynamic> challenger = [];
+      List<dynamic> secretLair = [];
       List<dynamic> others = [];
 
       for (var deck in allDecks) {
         final type = (deck['type'] ?? '').toString().toLowerCase();
         final name = (deck['name'] ?? '').toString().toLowerCase();
 
-        if (name.contains('avatar') || name.contains('aang') || name.contains('zuko') || type.contains('secret lair')) {
+        if (type.contains('secret lair')) {
+          secretLair.add(deck);
+        } else if (name.contains('avatar') || name.contains('aang') || name.contains('zuko')) {
           others.add(deck);
         } else if (type.contains('commander')) {
           commander.add(deck);
@@ -110,12 +114,14 @@ class _CommunityDecksScreenState extends State<CommunityDecksScreen> {
       int compare(a, b) => (b['releaseDate'] ?? '').toString().compareTo((a['releaseDate'] ?? '').toString());
       commander.sort(compare);
       challenger.sort(compare);
+      secretLair.sort(compare);
       others.sort(compare);
 
       if (mounted) {
         setState(() {
           _commanderDecks = commander;
           _challengerDecks = challenger;
+          _secretLairDecks = secretLair;
           _otherDecks = others;
           _isLoading = false;
         });
@@ -179,6 +185,8 @@ class _CommunityDecksScreenState extends State<CommunityDecksScreen> {
       baseList = _commanderDecks;
     } else if (_selectedCategory == 1) {
       baseList = _challengerDecks;
+    } else if (_selectedCategory == 2) {
+      baseList = _secretLairDecks;
     } else {
       baseList = _otherDecks;
     }
@@ -274,7 +282,9 @@ class _CommunityDecksScreenState extends State<CommunityDecksScreen> {
           const SizedBox(width: 8),
           _categoryButton("Challenger", 1),
           const SizedBox(width: 8),
-          _categoryButton("Avatar / Outros", 2),
+          _categoryButton("Secret Lair", 2),
+          const SizedBox(width: 8),
+          _categoryButton("Iniciante", 3),
         ],
       ),
     );

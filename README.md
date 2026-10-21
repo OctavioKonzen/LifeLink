@@ -47,7 +47,7 @@ Seus decks, sincronizados com a conta: crie um deck novo (Commander, Challenger 
 
 ### Decks oficiais
 
-Os decks lançados pela Wizards, separados em **Commander**, **Challenger** e **Avatar / Outros**, com a capa de cada um e a lista completa. Com um toque o deck vai para **Meus decks**.
+Os decks lançados pela Wizards, separados em **Commander**, **Challenger**, **Secret Lair** (as coleções especiais da Wizards) e **Iniciante** (decks para começar: Starter, Planeswalker e os do Avatar), com a capa de cada um e a lista completa. Com um toque o deck vai para **Meus decks**.
 
 ### Preços de hoje
 

@@ -5,8 +5,9 @@ describe('deckCategory', () => {
   test('igual ao app', () => {
     expect(deckCategory({ type: 'Commander Deck', name: 'Draconic Dissent' })).toBe(0)
     expect(deckCategory({ type: 'Challenger Deck', name: 'Mono Red' })).toBe(1)
-    expect(deckCategory({ type: 'Starter Deck', name: 'x' })).toBe(2)
-    expect(deckCategory({ type: 'Commander Deck', name: 'Avatar Aang' })).toBe(2)
+    expect(deckCategory({ type: 'Secret Lair Drop', name: 'Marvel: Zombies' })).toBe(2)
+    expect(deckCategory({ type: 'Starter Deck', name: 'x' })).toBe(3)
+    expect(deckCategory({ type: 'Commander Deck', name: 'Avatar Aang' })).toBe(3)
     expect(deckCategory({ type: 'Theme Deck', name: 'x' })).toBeNull()
   })
 })
