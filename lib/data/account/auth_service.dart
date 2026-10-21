@@ -1,6 +1,8 @@
 // Login com Firebase — a MESMA conta do site: e-mail e senha ou Google.
 // As regras são as mesmas do site (web-site/src/lib/auth.js):
-//   users/{uid}          → { name, email, createdAt, data }
+//   users/{uid}          → { nick, name, email, createdAt, data }
+// Toda conta tem um nick (o nome que aparece no app e no site). Quem entra
+// com Google pela primeira vez escolhe o nick antes de entrar (needsNick).
 //   users/{uid}/decks/*  → um documento por deck
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -8,7 +10,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
-enum AuthStatus { disabled, loading, signedOut, signedIn }
+enum AuthStatus { disabled, loading, signedOut, needsNick, signedIn }
 
 class AccountUser {
   final String uid;
@@ -32,6 +34,7 @@ class AuthService extends ChangeNotifier {
   AuthStatus status = AuthStatus.disabled;
   AccountUser? user;
   bool _googleReady = false;
+  String? _creatingNick; // nick de quem está criando a conta agora
 
   FirebaseAuth get _auth => FirebaseAuth.instance;
   FirebaseFirestore get _db => FirebaseFirestore.instance;
@@ -42,15 +45,54 @@ class AuthService extends ChangeNotifier {
   void start() {
     status = AuthStatus.loading;
     notifyListeners();
-    _auth.authStateChanges().listen((u) {
+    _auth.authStateChanges().listen((u) async {
       if (u == null) {
         _set(AuthStatus.signedOut);
+        return;
+      }
+      // Conta criada agora com e-mail: o nick veio do formulário.
+      final nick = _creatingNick ?? await _nickOf(u);
+      if (_auth.currentUser?.uid != u.uid) return; // saiu enquanto lia
+      if (nick == null) {
+        _set(AuthStatus.needsNick, AccountUser(uid: u.uid, email: u.email, name: u.displayName, photo: u.photoURL));
       } else {
-        _set(AuthStatus.signedIn, AccountUser(uid: u.uid, email: u.email, name: u.displayName, photo: u.photoURL));
-        _saveProfile(u);
+        _set(AuthStatus.signedIn, AccountUser(uid: u.uid, email: u.email, name: nick, photo: u.photoURL));
+        _saveProfile(u, nick);
       }
     });
   }
+
+  /// O nick salvo na conta; null se ainda não escolheu. Sem internet (e sem
+  /// nada guardado), entra com o nome do Google em vez de travar.
+  Future<String?> _nickOf(User u) async {
+    try {
+      final doc = await _db.collection('users').doc(u.uid).get().timeout(const Duration(seconds: 8));
+      final nick = doc.data()?['nick'];
+      return nick is String && nick.trim().isNotEmpty ? nick : null;
+    } catch (_) {
+      return u.displayName ?? u.email?.split('@').first ?? 'Jogador';
+    }
+  }
+
+  /// Valida o nick: de 3 a 20 letras, números, espaço, _ ou -.
+  static String? nickError(String nick) {
+    final n = nick.trim();
+    if (n.length < 3) return 'O nick precisa ter pelo menos 3 letras.';
+    if (n.length > 20) return 'O nick pode ter no máximo 20 letras.';
+    if (!RegExp(r'^[\p{L}\p{N} _-]+$', unicode: true).hasMatch(n)) return 'Use só letras, números, espaço, _ ou -.';
+    return null;
+  }
+
+  /// Salva o nick (depois de entrar com Google) e entra no app.
+  Future<void> setNick(String nick) => _guard(() async {
+        final error = nickError(nick);
+        if (error != null) throw AuthException(error);
+        final u = _auth.currentUser;
+        if (u == null) return;
+        await u.updateDisplayName(nick.trim());
+        await _saveProfile(u, nick.trim());
+        _set(AuthStatus.signedIn, AccountUser(uid: u.uid, email: u.email, name: nick.trim(), photo: u.photoURL));
+      });
 
   void _set(AuthStatus s, [AccountUser? u]) {
     status = s;
@@ -58,10 +100,11 @@ class AuthService extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> _saveProfile(User u, [String? name]) async {
+  Future<void> _saveProfile(User u, String nick) async {
     try {
       await _db.collection('users').doc(u.uid).set({
-        'name': name ?? u.displayName ?? u.email?.split('@').first ?? 'Jogador',
+        'nick': nick,
+        'name': nick,
         'email': u.email ?? '',
         'lastLogin': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
@@ -93,11 +136,16 @@ class AuthService extends ChangeNotifier {
   }
 
   Future<void> signUp({required String name, required String email, required String password}) => _guard(() async {
-        if (name.trim().length < 2) throw AuthException('Escolha um nome com pelo menos 2 letras.');
-        final u = (await _auth.createUserWithEmailAndPassword(email: email.trim(), password: password)).user!;
-        await u.updateDisplayName(name.trim());
-        await _saveProfile(u, name.trim());
-        _set(AuthStatus.signedIn, AccountUser(uid: u.uid, email: u.email, name: name.trim()));
+        final error = nickError(name);
+        if (error != null) throw AuthException(error);
+        _creatingNick = name.trim();
+        try {
+          final u = (await _auth.createUserWithEmailAndPassword(email: email.trim(), password: password)).user!;
+          await u.updateDisplayName(name.trim());
+          await _saveProfile(u, name.trim());
+        } finally {
+          _creatingNick = null;
+        }
       });
 
   Future<void> signIn({required String email, required String password}) =>

@@ -218,6 +218,8 @@ class MyApp extends StatelessWidget {
               return const Scaffold(body: Center(child: CircularProgressIndicator()));
             case AuthStatus.signedOut:
               return const AccountScreen(start: true);
+            case AuthStatus.needsNick:
+              return const NickScreen();
             case AuthStatus.signedIn:
             case AuthStatus.disabled:
               return const HomeScreen();

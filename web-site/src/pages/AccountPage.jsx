@@ -1,8 +1,47 @@
 import { useState } from 'react'
-import { resetPassword, signIn, signInWithGoogle, signUp, useAuth } from '../lib/auth'
+import { resetPassword, setNick, signIn, signInWithGoogle, signOut, signUp, useAuth } from '../lib/auth'
 import { deleteAccount, logout } from '../lib/sync'
 
-/** Conta (a mesma do app): entrar, criar conta, sair e excluir. */
+/** Primeira vez com Google: escolhe o nick antes de entrar. */
+function NickForm({ user, busy, run }) {
+  const [nick, setNickText] = useState(() => (user?.name || '').trim().split(' ')[0].slice(0, 20))
+  return (
+    <form
+      className="flex flex-col gap-3"
+      onSubmit={(e) => {
+        e.preventDefault()
+        run(() => setNick(nick))
+      }}
+    >
+      <h2 className="text-center text-xl font-black">Escolha seu nick</h2>
+      <p className="text-center text-sm text-text/70">
+        É o nome que aparece no seu perfil, no site e no app.
+        {user?.email && (
+          <>
+            <br />
+            Conta: {user.email}
+          </>
+        )}
+      </p>
+      <input
+        value={nick}
+        onChange={(e) => setNickText(e.target.value)}
+        placeholder="Nick"
+        maxLength={20}
+        autoFocus
+        className="w-full rounded-xl border border-line bg-card px-4 py-3 outline-none focus:border-accent"
+      />
+      <button type="submit" disabled={busy} className="rounded-xl bg-accent py-3 font-bold hover:brightness-110">
+        CONTINUAR
+      </button>
+      <button type="button" disabled={busy} onClick={() => run(signOut)} className="text-sm text-muted hover:underline">
+        Usar outra conta
+      </button>
+    </form>
+  )
+}
+
+/** Conta (a mesma do app): entrar, criar conta (com nick), sair e excluir. */
 export default function AccountPage({ bare = false }) {
   const { status, user } = useAuth()
   const [creating, setCreating] = useState(false)
@@ -39,6 +78,8 @@ export default function AccountPage({ bare = false }) {
   let body
   if (status === 'disabled') {
     body = <p className="text-center text-muted">O login ainda não foi configurado no site. Tudo continua salvo neste navegador.</p>
+  } else if (status === 'needsNick') {
+    body = <NickForm user={user} busy={busy} run={run} />
   } else if (status === 'loading') {
     body = <p className="text-center text-muted">Carregando...</p>
   } else if (status === 'signedIn') {
@@ -99,21 +140,30 @@ export default function AccountPage({ bare = false }) {
           ou com e-mail
           <div className="h-px flex-1 bg-text/15" />
         </div>
-        {creating && field('name', 'Seu nome')}
+        {/* Entrar ou criar conta: as duas opções sempre à vista. */}
+        <div className="grid grid-cols-2 gap-1 rounded-xl bg-text/5 p-1">
+          {[
+            [false, 'Entrar'],
+            [true, 'Criar conta'],
+          ].map(([value, label]) => (
+            <button
+              key={label}
+              type="button"
+              onClick={() => {
+                setCreating(value)
+                setError(null)
+              }}
+              className={`rounded-lg py-2 text-sm font-bold ${creating === value ? 'bg-accent text-white' : 'text-muted hover:text-text'}`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        {creating && field('name', 'Nick (o nome que aparece para todos)')}
         {field('email', 'E-mail', 'email')}
-        {field('password', 'Senha', 'password')}
+        {field('password', creating ? 'Senha (pelo menos 6 letras)' : 'Senha', 'password')}
         <button type="submit" disabled={busy} className="rounded-xl bg-accent py-3 font-bold hover:brightness-110">
           {creating ? 'CRIAR CONTA' : 'ENTRAR'}
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            setCreating((c) => !c)
-            setError(null)
-          }}
-          className="text-sm text-accent"
-        >
-          {creating ? 'Já tenho conta: entrar' : 'Não tenho conta: criar'}
         </button>
         {!creating && (
           <button
@@ -137,7 +187,7 @@ export default function AccountPage({ bare = false }) {
     <div className="mx-auto max-w-md">
       {!bare && <h1 className="mb-5 text-center text-2xl font-black">Conta</h1>}
       <div className="rounded-2xl bg-surface p-5 shadow-xl ring-1 ring-line">
-        {bare && <h1 className="mb-4 text-center text-2xl font-black">Entrar</h1>}
+        {bare && status !== 'needsNick' && <h1 className="mb-4 text-center text-2xl font-black">Bem-vindo</h1>}
         {body}
         {busy && <p className="mt-4 text-center text-sm text-muted">Aguarde...</p>}
         {error && <p className="mt-4 text-center font-bold text-red-400">{error}</p>}

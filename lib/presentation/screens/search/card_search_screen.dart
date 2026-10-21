@@ -8,7 +8,6 @@ import '../../../data/providers/theme_provider.dart';
 import '../../../data/providers/deck_provider.dart'; 
 import '../../../data/providers/xp_provider.dart'; // IMPORT DO XP PROVIDER
 import '../../../data/services/scryfall_service.dart';
-import '../../widgets/custom_back_button.dart';
 
 class CardSearchScreen extends StatefulWidget {
   final int? targetDeckIndex; 
@@ -441,7 +440,6 @@ class _CardSearchScreenState extends State<CardSearchScreen> {
         Scaffold(
           backgroundColor: theme.backgroundColor,
           appBar: AppBar(
-            automaticallyImplyLeading: false, 
             backgroundColor: Colors.transparent, elevation: 0,
             title: TextField(
               controller: _searchController,
@@ -483,7 +481,6 @@ class _CardSearchScreenState extends State<CardSearchScreen> {
             child: const Icon(Icons.filter_list, color: Colors.white),
           ),
         ),
-        const CustomBackButton(),
       ],
     );
   }

@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../../data/providers/theme_provider.dart';
 import '../../../data/providers/xp_provider.dart';
-import '../../widgets/custom_back_button.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -66,7 +65,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         Scaffold(
           backgroundColor: bgColor,
           appBar: AppBar(
-            automaticallyImplyLeading: false,
             backgroundColor: Colors.transparent,
             elevation: 0,
             title: Text("Meu perfil",
@@ -433,7 +431,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           ),
         ),
-        const CustomBackButton(),
       ],
     );
   }

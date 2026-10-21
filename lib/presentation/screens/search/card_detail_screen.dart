@@ -12,7 +12,6 @@ import '../../../data/providers/theme_provider.dart';
 import '../../../data/services/scryfall_service.dart';
 import '../../../data/repositories/card_repository.dart';
 import '../../../data/providers/xp_provider.dart'; 
-import '../../widgets/custom_back_button.dart'; 
 
 class CardDetailScreen extends StatefulWidget {
   final Map<String, dynamic> card;
@@ -330,7 +329,6 @@ class _CardDetailScreenState extends State<CardDetailScreen> with SingleTickerPr
     return Scaffold(
       backgroundColor: bgColor,
       appBar: AppBar(
-        automaticallyImplyLeading: false, 
         backgroundColor: Colors.transparent, elevation: 0,
         title: Text(_currentCard['name'] ?? '', style: TextStyle(color: textColor, fontSize: 18, fontWeight: FontWeight.bold)),
       ),
@@ -433,7 +431,6 @@ class _CardDetailScreenState extends State<CardDetailScreen> with SingleTickerPr
               ],
             ),
           ),
-          const CustomBackButton(),
         ],
       ),
     );

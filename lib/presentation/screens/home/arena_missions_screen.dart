@@ -4,7 +4,6 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../../../data/providers/theme_provider.dart';
 import '../../../data/providers/deck_provider.dart';
 import '../../../data/providers/xp_provider.dart';
-import '../../widgets/custom_back_button.dart';
 import '../../../data/services/scryfall_service.dart';
 import '../../widgets/neon.dart';
 
@@ -174,7 +173,7 @@ class _ArenaMissionsScreenState extends State<ArenaMissionsScreen> {
         Scaffold(
           backgroundColor: theme.backgroundColor,
           appBar: AppBar(
-            automaticallyImplyLeading: false, backgroundColor: Colors.transparent, elevation: 0,
+            backgroundColor: Colors.transparent, elevation: 0,
             title: Text("Missões · Rank $tier", style: TextStyle(color: textColor)),
           ),
           body: Column(
@@ -254,7 +253,6 @@ class _ArenaMissionsScreenState extends State<ArenaMissionsScreen> {
             ],
           ),
         ),
-        const CustomBackButton(),
       ],
     );
   }

@@ -7,7 +7,6 @@ import '../../../data/providers/theme_provider.dart';
 import '../../../data/providers/deck_provider.dart';
 import '../../../data/services/pdf_service.dart';
 import '../search/card_detail_screen.dart'; 
-import '../../widgets/custom_back_button.dart';
 
 class CommunityDeckDetailScreen extends StatefulWidget {
   final Map<String, dynamic> deckData;
@@ -143,7 +142,6 @@ class _CommunityDeckDetailScreenState extends State<CommunityDeckDetailScreen> {
         Scaffold(
           backgroundColor: theme.backgroundColor,
           appBar: AppBar(
-            automaticallyImplyLeading: false, 
             backgroundColor: Colors.transparent, 
             elevation: 0, 
             iconTheme: IconThemeData(color: textColor),
@@ -214,7 +212,6 @@ class _CommunityDeckDetailScreenState extends State<CommunityDeckDetailScreen> {
                   },
                 ),
         ),
-        const CustomBackButton(),
       ],
     );
   }

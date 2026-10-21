@@ -4,7 +4,7 @@ import '../../../data/account/account_sync.dart';
 import '../../../data/account/auth_service.dart';
 import '../../../data/providers/theme_provider.dart';
 
-/// Conta (a mesma do site): entrar, criar conta, sair e excluir.
+/// Conta (a mesma do site): entrar, criar conta (com nick), sair e excluir.
 /// Com [start], é a primeira tela do app para quem não está logado.
 class AccountScreen extends StatefulWidget {
   final bool start;
@@ -93,6 +93,7 @@ class _AccountScreenState extends State<AccountScreen> {
           style: TextStyle(color: textColor.withValues(alpha: 0.7)),
         );
       case AuthStatus.loading:
+      case AuthStatus.needsNick:
         body = const Center(child: CircularProgressIndicator());
       case AuthStatus.signedIn:
         final u = auth.user!;
@@ -145,13 +146,32 @@ class _AccountScreenState extends State<AccountScreen> {
             Expanded(child: Divider(color: textColor.withValues(alpha: 0.2))),
           ]),
           const SizedBox(height: 16),
+          // Entrar ou criar conta: as duas opções sempre à vista.
+          SegmentedButton<bool>(
+            segments: const [
+              ButtonSegment(value: false, label: Text("Entrar"), icon: Icon(Icons.login)),
+              ButtonSegment(value: true, label: Text("Criar conta"), icon: Icon(Icons.person_add)),
+            ],
+            selected: {_creating},
+            showSelectedIcon: false,
+            onSelectionChanged: (v) => setState(() {
+              _creating = v.first;
+              _error = null;
+            }),
+          ),
+          const SizedBox(height: 16),
           if (_creating) ...[
-            TextField(controller: _name, style: TextStyle(color: textColor), decoration: field("Seu nome", Icons.person)),
-            const SizedBox(height: 10),
+            TextField(
+              controller: _name,
+              style: TextStyle(color: textColor),
+              maxLength: 20,
+              decoration: field("Nick (o nome que aparece para todos)", Icons.badge),
+            ),
+            const SizedBox(height: 4),
           ],
           TextField(controller: _email, style: TextStyle(color: textColor), keyboardType: TextInputType.emailAddress, decoration: field("E-mail", Icons.email)),
           const SizedBox(height: 10),
-          TextField(controller: _password, style: TextStyle(color: textColor), obscureText: true, decoration: field("Senha", Icons.lock)),
+          TextField(controller: _password, style: TextStyle(color: textColor), obscureText: true, decoration: field(_creating ? "Senha (pelo menos 6 letras)" : "Senha", Icons.lock)),
           const SizedBox(height: 16),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.blueAccent, foregroundColor: Colors.white, minimumSize: const Size(0, 50)),
@@ -161,13 +181,6 @@ class _AccountScreenState extends State<AccountScreen> {
                     ? auth.signUp(name: _name.text, email: _email.text, password: _password.text)
                     : auth.signIn(email: _email.text, password: _password.text)),
             child: Text(_creating ? "CRIAR CONTA" : "ENTRAR", style: const TextStyle(fontWeight: FontWeight.bold)),
-          ),
-          TextButton(
-            onPressed: () => setState(() {
-              _creating = !_creating;
-              _error = null;
-            }),
-            child: Text(_creating ? "Já tenho conta: entrar" : "Não tenho conta: criar"),
           ),
           if (!_creating)
             TextButton(
@@ -211,6 +224,107 @@ class _AccountScreenState extends State<AccountScreen> {
                 child: Text(_error!, textAlign: TextAlign.center, style: const TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
               ),
           ]),
+        ),
+      ),
+    );
+  }
+}
+
+/// Primeira vez com Google: escolhe o nick antes de entrar no app.
+class NickScreen extends StatefulWidget {
+  const NickScreen({super.key});
+
+  @override
+  State<NickScreen> createState() => _NickScreenState();
+}
+
+class _NickScreenState extends State<NickScreen> {
+  late final TextEditingController _nick;
+  bool _busy = false;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    // Sugere o primeiro nome do Google (dá para trocar).
+    final name = AuthService.instance.user?.name?.trim().split(' ').first ?? '';
+    _nick = TextEditingController(text: name.length > 20 ? name.substring(0, 20) : name);
+  }
+
+  @override
+  void dispose() {
+    _nick.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      await AuthService.instance.setNick(_nick.text);
+    } catch (e) {
+      if (mounted) setState(() => _error = e.toString());
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bg = context.watch<ThemeProvider>().backgroundColor;
+    final textColor = bg.computeLuminance() > 0.5 ? Colors.black87 : Colors.white;
+    final user = context.watch<AuthService>().user;
+    return Scaffold(
+      backgroundColor: bg,
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+              Center(child: Image.asset('assets/logo/lifelink.png', width: 100, height: 100)),
+              const SizedBox(height: 24),
+              Text("Escolha seu nick", textAlign: TextAlign.center, style: TextStyle(color: textColor, fontSize: 24, fontWeight: FontWeight.w900)),
+              const SizedBox(height: 8),
+              Text(
+                "É o nome que aparece no seu perfil, no app e no site.${user?.email != null ? '\nConta: ${user!.email}' : ''}",
+                textAlign: TextAlign.center,
+                style: TextStyle(color: textColor.withValues(alpha: 0.7)),
+              ),
+              const SizedBox(height: 20),
+              TextField(
+                controller: _nick,
+                autofocus: true,
+                maxLength: 20,
+                style: TextStyle(color: textColor),
+                textInputAction: TextInputAction.done,
+                onSubmitted: (_) => _busy ? null : _save(),
+                decoration: InputDecoration(
+                  labelText: "Nick",
+                  prefixIcon: const Icon(Icons.badge),
+                  filled: true,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                ),
+              ),
+              const SizedBox(height: 8),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.blueAccent, foregroundColor: Colors.white, minimumSize: const Size(0, 50)),
+                onPressed: _busy ? null : _save,
+                child: const Text("CONTINUAR", style: TextStyle(fontWeight: FontWeight.bold)),
+              ),
+              TextButton(
+                onPressed: _busy ? null : () => AuthService.instance.signOut(),
+                child: Text("Usar outra conta", style: TextStyle(color: textColor.withValues(alpha: 0.6))),
+              ),
+              if (_busy) const Padding(padding: EdgeInsets.only(top: 12), child: Center(child: CircularProgressIndicator())),
+              if (_error != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 12),
+                  child: Text(_error!, textAlign: TextAlign.center, style: const TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
+                ),
+            ]),
+          ),
         ),
       ),
     );
