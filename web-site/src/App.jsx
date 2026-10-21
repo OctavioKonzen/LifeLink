@@ -172,19 +172,16 @@ function TopBar() {
   )
 }
 
-// Páginas que usam a largura toda da tela: o contador de vida e as grades de cartas.
-const FULL_WIDTH = { '/contador': 'counter', '/': 'wide', '/meus-decks': 'wide', '/decks': 'wide' }
-
-/** O conteúdo da página, centralizado ou com a largura toda. */
+/** O conteúdo da página, com a largura toda da tela (o contador sem rodapé). */
 function Main({ children }) {
   const { pathname } = useLocation()
-  const mode = FULL_WIDTH[pathname]
-  const mainClass = mode === 'counter' ? 'px-3 py-3 sm:px-6' : mode === 'wide' ? 'px-4 py-5 sm:px-6' : 'mx-auto max-w-6xl px-4 py-5'
+  const mode = pathname === '/contador' ? 'counter' : 'wide'
+  const mainClass = mode === 'counter' ? 'px-3 py-3 sm:px-6' : 'px-4 py-5 sm:px-6'
   return (
     <>
       <main className={mainClass}>{children}</main>
       {mode !== 'counter' && (
-        <footer className={`px-4 pb-8 pt-4 text-xs text-muted sm:px-6 ${mode ? '' : 'mx-auto max-w-6xl'}`}>
+        <footer className="px-4 pb-8 pt-4 text-xs text-muted sm:px-6">
           Dados e imagens das cartas:{' '}
           <a className="underline" href="https://scryfall.com" target="_blank" rel="noreferrer">
             Scryfall

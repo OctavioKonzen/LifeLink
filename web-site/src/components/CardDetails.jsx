@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Modal, Spinner } from './ui'
+import { Spinner } from './ui'
 import { ManaText } from './Mana'
 import CardImage from './CardImage'
 import {
@@ -96,7 +96,7 @@ function Versions({ card, onPick }) {
   }, [card.oracle_id, card.name, lang])
 
   return (
-    <section className="mt-6">
+    <section className="mt-6 xl:mt-0">
       <div className="mb-3 flex items-center justify-between gap-3">
         <h3 className="text-lg font-bold">Outras versões</h3>
         <select
@@ -118,7 +118,7 @@ function Versions({ card, onPick }) {
       ) : state.cards.length === 0 ? (
         <p className="text-sm text-muted">Nada encontrado neste idioma.</p>
       ) : (
-        <div className="grid grid-cols-4 gap-2 sm:grid-cols-6">
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(80px,1fr))] gap-2">
           {state.cards.map((v) => (
             <button
               key={v.id}
@@ -177,15 +177,43 @@ function AddToDeck({ card }) {
   )
 }
 
-/** Página da carta por cima da tela. Aceita a carta da API ou só o id dela. */
-export default function CardModal({ card: initial, id, onClose }) {
+function NavButton({ onClick, label, children }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={!onClick}
+      aria-label={label}
+      className="grid h-9 w-9 place-items-center rounded-full bg-text/10 text-lg hover:bg-text/20 disabled:opacity-30"
+    >
+      {children}
+    </button>
+  )
+}
+
+/**
+ * A ficha da carta, aberta dentro da grade (embaixo da linha da carta).
+ * Aceita a carta da API ou só o id dela (cartas dos decks).
+ */
+export default function CardDetails({ card: initial, id, onClose, onPrevious, onNext }) {
   const [card, setCard] = useState(initial || null)
   const [error, setError] = useState(null)
   const [back, setBack] = useState(false)
 
   useEffect(() => {
-    if (initial || !id) return
-    cardById(id).then(setCard, (e) => setError(e.message))
+    setBack(false)
+    setError(null)
+    if (initial) {
+      setCard(initial)
+      return
+    }
+    if (!id) return
+    let alive = true
+    setCard(null)
+    cardById(id).then((c) => alive && setCard(c), (e) => alive && setError(e.message))
+    return () => {
+      alive = false
+    }
   }, [id, initial])
 
   const pick = (v) => {
@@ -195,12 +223,17 @@ export default function CardModal({ card: initial, id, onClose }) {
   }
 
   return (
-    <Modal onClose={onClose} wide>
+    <div className="relative rounded-2xl bg-surface p-4 shadow-2xl ring-1 ring-line sm:p-6">
+      <div className="absolute right-3 top-3 z-10 flex gap-2">
+        <NavButton onClick={onPrevious} label="Carta anterior">‹</NavButton>
+        <NavButton onClick={onNext} label="Próxima carta">›</NavButton>
+        <NavButton onClick={onClose} label="Fechar">✕</NavButton>
+      </div>
       {!card ? (
         error ? <p className="py-10 text-center text-red-400">{error}</p> : <Spinner />
       ) : (
-        <div className="grid gap-6 md:grid-cols-[minmax(0,360px)_1fr]">
-          <div>
+        <div className="grid gap-6 md:grid-cols-[minmax(0,340px)_1fr] xl:grid-cols-[minmax(0,340px)_1fr_minmax(0,1fr)]">
+          <div className="pt-10 md:pt-0">
             <BestImage key={`${card.id}-${back}`} card={card} back={back} />
             {backImageOf(card) && (
               <button
@@ -212,7 +245,7 @@ export default function CardModal({ card: initial, id, onClose }) {
               </button>
             )}
           </div>
-          <div className="min-w-0 pr-8 md:pr-10">
+          <div className="min-w-0 md:pr-32 xl:pr-0">
             <div className="flex flex-wrap items-start justify-between gap-2">
               <h2 className="text-2xl font-black">{displayName(card)}</h2>
               <ManaText text={manaCost(card)} size={22} />
@@ -241,7 +274,7 @@ export default function CardModal({ card: initial, id, onClose }) {
             <section className="mt-5">
               <h3 className="mb-2 text-lg font-bold">Preços</h3>
               {card.prices && Object.values(card.prices).some(Boolean) ? (
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                <div className="grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-2">
                   <Price label="Normal" value={card.prices.usd} prefix="US$" />
                   <Price label="Foil" value={card.prices.usd_foil} prefix="US$" />
                   <Price label="Europa" value={card.prices.eur} prefix="€" />
@@ -274,11 +307,11 @@ export default function CardModal({ card: initial, id, onClose }) {
               Ver no Scryfall
             </a>
           </div>
-          <div className="md:col-span-2">
+          <div className="min-w-0 md:col-span-2 xl:col-span-1 xl:max-h-[640px] xl:overflow-y-auto xl:pt-10">
             <Versions card={card} onPick={pick} />
           </div>
         </div>
       )}
-    </Modal>
+    </div>
   )
 }

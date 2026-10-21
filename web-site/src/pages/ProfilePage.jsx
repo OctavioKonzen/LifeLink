@@ -22,7 +22,7 @@ export default function ProfilePage() {
   const progress = Math.min(1, Math.max(0, (profile.xp - start) / (end - start)))
 
   return (
-    <div className="mx-auto max-w-2xl">
+    <div>
       <div className="flex items-center gap-4 rounded-2xl bg-gradient-to-br from-card to-surface p-5">
         {profile.selectedAvatar ? (
           <img src={profile.selectedAvatar} alt="" className="h-24 w-24 rounded-full object-cover ring-4 ring-accent" />
@@ -41,7 +41,7 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
+      <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6">
         <Stat label="Decks" value={deckList(decks).length} />
         <Stat label="Decks criados" value={profile.statDecks} />
         <Stat label="Cartas adicionadas" value={profile.statCards} />
