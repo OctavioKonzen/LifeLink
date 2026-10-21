@@ -107,8 +107,9 @@ export const setNick = (nick) =>
     if (error) throw new Error(error)
     const u = auth.currentUser
     if (!u) return
+    const fs = await import('./firestore')
+    await fs.claimNick(app, u.uid, nick.trim())
     await updateProfile(u, { displayName: nick.trim() })
-    await saveProfile(u, nick.trim())
     set({ status: 'signedIn', user: { uid: u.uid, email: u.email, name: nick.trim(), photo: u.photoURL } })
   })
 
@@ -144,11 +145,23 @@ export const signUp = (name, email, password) =>
   guard(async () => {
     const error = nickError(name)
     if (error) throw new Error(error)
-    creatingNick = name.trim()
+    const nick = name.trim()
+    const fs = await import('./firestore')
+    // Confere antes de criar a conta, para não criar com um nick repetido.
+    if (!(await fs.isNickFree(app, nick))) throw new Error(fs.NICK_TAKEN)
+    creatingNick = nick
     try {
       const { user } = await createUserWithEmailAndPassword(auth, email.trim(), password)
-      await updateProfile(user, { displayName: name.trim() })
-      await saveProfile(user, name.trim())
+      try {
+        await fs.claimNick(app, user.uid, nick)
+      } catch {
+        // Alguém pegou o nick nesse meio tempo: a conta já existe, então pede
+        // outro nick (como no login com Google).
+        creatingNick = null
+        set({ status: 'needsNick', user: { uid: user.uid, email: user.email, name: null, photo: user.photoURL } })
+        throw new Error(fs.NICK_TAKEN)
+      }
+      await updateProfile(user, { displayName: nick })
     } finally {
       creatingNick = null
     }

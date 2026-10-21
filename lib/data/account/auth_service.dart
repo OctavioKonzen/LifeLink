@@ -1,8 +1,11 @@
 // Login com Firebase — a MESMA conta do site: e-mail e senha ou Google.
 // As regras são as mesmas do site (web-site/src/lib/auth.js):
 //   users/{uid}          → { nick, name, email, createdAt, data }
-// Toda conta tem um nick (o nome que aparece no app e no site). Quem entra
-// com Google pela primeira vez escolhe o nick antes de entrar (needsNick).
+//   nicks/{nick em minúsculas} → { uid, nick }  (o dono de cada nick)
+// Toda conta tem um nick (o nome que aparece no app e no site), que é de uma
+// pessoa só e não muda depois de escolhido (as regras do firestore.rules
+// garantem isso). Quem entra com Google pela primeira vez escolhe o nick
+// antes de entrar (needsNick).
 //   users/{uid}/decks/*  → um documento por deck
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -83,14 +86,40 @@ class AuthService extends ChangeNotifier {
     return null;
   }
 
+  static String nickKey(String nick) => nick.trim().toLowerCase();
+
+  static const _nickTaken = 'Esse nick já é de outra pessoa. Escolha outro.';
+
+  /// O nick está livre? (Sem diferença de maiúscula e minúscula.)
+  Future<bool> isNickFree(String nick) async => !(await _db.collection('nicks').doc(nickKey(nick)).get()).exists;
+
+  /// Registra o nick em nome desta pessoa e no perfil, juntos (transação):
+  /// se outra pessoa pegar o mesmo nick ao mesmo tempo, só uma consegue.
+  Future<void> _claimNick(User u, String nick) async {
+    final nickRef = _db.collection('nicks').doc(nickKey(nick));
+    final userRef = _db.collection('users').doc(u.uid);
+    try {
+      await _db.runTransaction((tx) async {
+        final owner = await tx.get(nickRef);
+        if (owner.exists && owner.data()?['uid'] != u.uid) throw AuthException(_nickTaken);
+        if (!owner.exists) tx.set(nickRef, {'uid': u.uid, 'nick': nick});
+        tx.set(userRef, {'nick': nick, 'name': nick}, SetOptions(merge: true));
+      });
+    } on FirebaseException catch (e) {
+      // As regras recusam quem tenta pegar um nick que já tem dono.
+      if (e.code == 'permission-denied') throw AuthException(_nickTaken);
+      rethrow;
+    }
+    await u.updateDisplayName(nick);
+  }
+
   /// Salva o nick (depois de entrar com Google) e entra no app.
   Future<void> setNick(String nick) => _guard(() async {
         final error = nickError(nick);
         if (error != null) throw AuthException(error);
         final u = _auth.currentUser;
         if (u == null) return;
-        await u.updateDisplayName(nick.trim());
-        await _saveProfile(u, nick.trim());
+        await _claimNick(u, nick.trim());
         _set(AuthStatus.signedIn, AccountUser(uid: u.uid, email: u.email, name: nick.trim(), photo: u.photoURL));
       });
 
@@ -100,10 +129,10 @@ class AuthService extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Atualiza o perfil a cada entrada (o nick em si só muda em [_claimNick]).
   Future<void> _saveProfile(User u, String nick) async {
     try {
       await _db.collection('users').doc(u.uid).set({
-        'nick': nick,
         'name': nick,
         'email': u.email ?? '',
         'lastLogin': FieldValue.serverTimestamp(),
@@ -138,11 +167,21 @@ class AuthService extends ChangeNotifier {
   Future<void> signUp({required String name, required String email, required String password}) => _guard(() async {
         final error = nickError(name);
         if (error != null) throw AuthException(error);
-        _creatingNick = name.trim();
+        final nick = name.trim();
+        // Confere antes de criar a conta, para não criar com um nick repetido.
+        if (!await isNickFree(nick)) throw AuthException(_nickTaken);
+        _creatingNick = nick;
         try {
           final u = (await _auth.createUserWithEmailAndPassword(email: email.trim(), password: password)).user!;
-          await u.updateDisplayName(name.trim());
-          await _saveProfile(u, name.trim());
+          try {
+            await _claimNick(u, nick);
+          } catch (_) {
+            // Alguém pegou o nick nesse meio tempo: a conta já existe, então
+            // pede outro nick (como no login com Google).
+            _creatingNick = null;
+            _set(AuthStatus.needsNick, AccountUser(uid: u.uid, email: u.email, photo: u.photoURL));
+            throw AuthException(_nickTaken);
+          }
         } finally {
           _creatingNick = null;
         }
@@ -201,6 +240,9 @@ class AuthService extends ChangeNotifier {
           throw AuthException(_messages['requires-recent-login']!);
         }
         final userRef = _db.collection('users').doc(u.uid);
+        // O nick fica livre para outra pessoa.
+        final nick = (await userRef.get()).data()?['nick'];
+        if (nick is String) await _db.collection('nicks').doc(nickKey(nick)).delete();
         final decks = await userRef.collection('decks').get();
         for (final d in decks.docs) {
           await d.reference.delete();

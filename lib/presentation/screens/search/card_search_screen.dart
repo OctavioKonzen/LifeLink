@@ -223,6 +223,9 @@ class _CardSearchScreenState extends State<CardSearchScreen> {
             'toughness': card['toughness']?.toString(),
             'collectorNumber': card['collector_number'],
             'usdPrice': card['prices']?['usd'] ?? '0.00',
+            'usdFoil': card['prices']?['usd_foil'],
+            'eurPrice': card['prices']?['eur'],
+            'tixPrice': card['prices']?['tix'],
           });
         }
       }

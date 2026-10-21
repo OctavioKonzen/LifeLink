@@ -233,6 +233,9 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
           'collectorNumber': data['collector_number'] ?? '',
           'oracle_id': data['oracle_id'],
           'usdPrice': data['prices']?['usd'] ?? '0.00',
+            'usdFoil': data['prices']?['usd_foil'],
+            'eurPrice': data['prices']?['eur'],
+            'tixPrice': data['prices']?['tix'],
         };
 
         for (int i = 0; i < qty; i++) {
