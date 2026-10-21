@@ -4,7 +4,7 @@
   <img src="https://img.shields.io/badge/Flutter-3.x-blue?logo=flutter&style=for-the-badge" />
   <img src="https://img.shields.io/badge/React-19-61DAFB?logo=react&style=for-the-badge" />
   <img src="https://img.shields.io/badge/Firebase-FFCA28?logo=firebase&style=for-the-badge" />
-  <img src="https://img.shields.io/badge/Android-1.0.11-green?logo=android&style=for-the-badge" />
+  <img src="https://img.shields.io/badge/Android-1.0.12-green?logo=android&style=for-the-badge" />
 </p>
 
 <div align="center">
@@ -53,7 +53,10 @@ As cartas mais caras do momento, de todas as edições e idiomas, com pesquisa p
 Feito para a mesa, como os apps do gênero (Lifetap, MTG Companion): de **2 a 6 jogadores**, cada um virado para o seu lado, com vida inicial **à vontade** (20, 25, 30, 40, 50, 60 ou outra).
 
 * **Toque** na metade esquerda tira 1 de vida, na direita soma 1; **segurando**, vai de 10 em 10. O quanto mudou (ex.: −7) aparece em cima da vida.
-* **Contadores** de cada jogador: veneno (até 10), energia, experiência, imposto do comandante e **dano de comandante** de cada oponente (até 21, que também tira vida).
+* **Contadores** de cada jogador: veneno (até 10), energia, experiência, imposto do comandante, tesouro, tempestade, cidade abençoada e **dano de comandante** de cada oponente (até 21, que também tira vida).
+* **Monarca** e **iniciativa**: a coroa e o castelo aparecem no quadro de quem tem.
+* **Turnos**: a vez passa no sentido horário (pulando quem morreu), com a rodada e o **cronômetro** no quadro de quem joga e o tempo total de cada um. O "quem começa" já começa a contar.
+* **Planechase** (o plano em jogo e o **dado planar 3D**, com o custo de cada rolagem extra na mesma vez) e **Archenemy** (revelar esquemas), com as cartas sorteadas da Scryfall.
 * **Histórico de vida** de cada jogador: gráfico e a lista de cada mudança (dano, cura e comandante).
 * Cada jogador escolhe **nome e cor** (18 cores, com dois verdes para mesas grandes, e uma segunda cor para o quadro virar um degradê, como deck de duas cores); quem perde fica com a caveira e, quando sobra um, aparece o vencedor.
 * No botão do meio: **desfazer**, histórico da partida, reiniciar, **dados 3D com física** (D4, D6, D8, D10, D12, D20 e o D100 de uma peça só, de 1 a 100: jogados numa mesa, quicam, batem um no outro com som e vale a face que fica para cima), moeda e **quem começa** (cada jogador joga um D20 que cai em cima do quadro dele; empate joga de novo).

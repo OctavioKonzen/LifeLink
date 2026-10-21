@@ -10,6 +10,7 @@ import '../../../data/services/sound_service.dart';
 import '../../widgets/player_card_widget.dart';
 import '../../widgets/dice_table.dart';
 import '../../widgets/continuous_action_button.dart';
+import 'planar_dialogs.dart';
 
 /// O contador de vida, inspirado nos apps do gênero (Lifetap, MTG Companion):
 /// cada jogador virado para o seu lado da mesa, toque para ±1 e segurar para
@@ -180,6 +181,11 @@ class _LifeCounterScreenState extends State<LifeCounterScreen> {
                 },
                 turns: _turns,
                 onClose: () => setState(() => _firstPlayer = false),
+                // "Começar a partida": já conta os turnos a partir de quem ganhou.
+                onStart: (winner) {
+                  game.startTurns(winner);
+                  setState(() => _firstPlayer = false);
+                },
               ),
             ),
         ]);
@@ -261,6 +267,15 @@ class _LifeCounterScreenState extends State<LifeCounterScreen> {
                     _menuButton(Icons.casino, 'Dados', const Color(0xFFFFA000), () => _showDice()),
                     _menuButton(Icons.emoji_people, 'Quem começa', const Color(0xFF69F0AE), () => _showFirstPlayer(game)),
                     _menuButton(Icons.history, 'Histórico', const Color(0xFFB388FF), () => _showHistory(game)),
+                    _menuButton(Icons.timer, game.countingTurns ? 'Turnos' : 'Contar turnos', const Color(0xFFFFFFFF), () => _showTurns(game)),
+                    _menuButton(Icons.public, 'Planechase', const Color(0xFF90A4AE), () {
+                      close();
+                      showDialog(context: context, builder: (_) => PlanechaseDialog(game: game));
+                    }),
+                    _menuButton(Icons.local_fire_department, 'Archenemy', const Color(0xFFFF7043), () {
+                      close();
+                      showDialog(context: context, builder: (_) => ArchenemyDialog(game: game));
+                    }),
                     _menuButton(
                       SoundService.instance.enabled ? Icons.volume_up : Icons.volume_off,
                       SoundService.instance.enabled ? 'Som ligado' : 'Som desligado',
@@ -396,6 +411,34 @@ class _LifeCounterScreenState extends State<LifeCounterScreen> {
                 row('Energia', Icons.bolt, const Color(0xFFFFF176), game.counter(Counter.energy, index), (d) => game.updateCounter(Counter.energy, index, d)),
                 row('Experiência', Icons.auto_awesome, Colors.white, game.counter(Counter.experience, index), (d) => game.updateCounter(Counter.experience, index, d)),
                 row('Imposto do comandante', Icons.account_balance, const Color(0xFF80CBC4), game.counter(Counter.tax, index), (d) => game.updateCounter(Counter.tax, index, d), step: 2),
+                row('Tesouro', Icons.paid, const Color(0xFFFFD54F), game.counter(Counter.treasure, index), (d) => game.updateCounter(Counter.treasure, index, d)),
+                row('Tempestade', Icons.thunderstorm, const Color(0xFF90CAF9), game.counter(Counter.storm, index), (d) => game.updateCounter(Counter.storm, index, d)),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  secondary: const Icon(Icons.location_city, color: Color(0xFFFFF8E1)),
+                  title: const Text('Cidade abençoada', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+                  value: game.counter(Counter.blessing, index) > 0,
+                  onChanged: (on) => game.updateCounter(Counter.blessing, index, on ? 1 : -1),
+                ),
+                Row(children: [
+                  Expanded(
+                    child: FilterChip(
+                      avatar: const Icon(Icons.workspace_premium, color: Color(0xFFFFD54F), size: 18),
+                      label: const Text('Monarca'),
+                      selected: game.monarch == index,
+                      onSelected: (_) => game.setMonarch(index),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: FilterChip(
+                      avatar: const Icon(Icons.fort, color: Color(0xFFFFAB91), size: 18),
+                      label: const Text('Iniciativa'),
+                      selected: game.initiative == index,
+                      onSelected: (_) => game.setInitiative(index),
+                    ),
+                  ),
+                ]),
                 const Divider(color: Colors.white12, height: 24),
                 const Text('DANO DE COMANDANTE RECEBIDO', style: TextStyle(color: Colors.white54, fontSize: 12, fontWeight: FontWeight.w800, letterSpacing: 0.5)),
                 const SizedBox(height: 4),
@@ -569,8 +612,71 @@ class _LifeCounterScreenState extends State<LifeCounterScreen> {
     });
   }
 
+  /// Turnos: escolher quem começa, ou ver o tempo de cada um e parar.
+  void _showTurns(GameProvider game) {
+    setState(() => _menuOpen = false);
+    showDialog(
+      context: context,
+      builder: (ctx) => AnimatedBuilder(
+        animation: game,
+        builder: (context, _) {
+          final players = [for (int i = 0; i < game.playerCount; i++) i];
+          return AlertDialog(
+            backgroundColor: const Color(0xFF1E1E24),
+            title: Text(game.countingTurns ? 'Turnos · rodada ${game.turnRound}' : 'Quem joga primeiro?', style: const TextStyle(color: Colors.white)),
+            content: SizedBox(
+              width: 340,
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                if (!game.countingTurns)
+                  const Padding(
+                    padding: EdgeInsets.only(bottom: 8),
+                    child: Text('A vez passa no sentido horário. No quadro de quem joga aparece o tempo e o botão de passar.', style: TextStyle(color: Colors.white54, fontSize: 13)),
+                  ),
+                for (final i in players)
+                  ListTile(
+                    dense: true,
+                    leading: CircleAvatar(radius: 8, backgroundColor: game.colorOf(i)),
+                    title: Text(game.playerNames[i], style: TextStyle(color: Colors.white, fontWeight: game.turnPlayer == i ? FontWeight.w900 : FontWeight.w600)),
+                    subtitle: game.countingTurns ? Text('Tempo total: ${_clock(game.turnTotal(i))}', style: const TextStyle(color: Colors.white54)) : null,
+                    trailing: game.turnPlayer == i ? const Icon(Icons.play_arrow, color: Colors.white) : null,
+                    onTap: game.countingTurns
+                        ? null
+                        : () {
+                            game.startTurns(i);
+                            Navigator.pop(ctx);
+                          },
+                  ),
+              ]),
+            ),
+            actions: [
+              if (game.countingTurns) TextButton(onPressed: () => game.stopTurns(), child: const Text('Parar de contar')),
+              if (game.countingTurns) TextButton(onPressed: () => game.nextTurn(), child: const Text('Passar a vez')),
+              if (!game.countingTurns)
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    _showFirstPlayer(game);
+                  },
+                  child: const Text('Sortear nos dados'),
+                ),
+              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Fechar')),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  static String _clock(Duration d) {
+    final m = d.inMinutes, s = d.inSeconds % 60;
+    return m >= 60 ? '${m ~/ 60}h${(m % 60).toString().padLeft(2, '0')}min' : '${m}min${s.toString().padLeft(2, '0')}s';
+  }
+
   void _showHistory(GameProvider game) {
-    const labels = {'life': 'vida', 'poison': 'veneno', 'energy': 'energia', 'experience': 'experiência', 'tax': 'imposto', 'cmd': 'comandante'};
+    const labels = {
+      'life': 'vida', 'poison': 'veneno', 'energy': 'energia', 'experience': 'experiência', 'tax': 'imposto', 'cmd': 'comandante', //
+      'treasure': 'tesouro', 'storm': 'tempestade', 'blessing': 'cidade abençoada',
+    };
     final events = game.history.reversed.toList();
     showDialog(
       context: context,
@@ -831,8 +937,9 @@ class _FirstPlayerOverlay extends StatefulWidget {
   final Map<int, Rect> Function() cardRects; // na tela
   final Map<int, int> turns;
   final VoidCallback onClose;
+  final ValueChanged<int> onStart;
 
-  const _FirstPlayerOverlay({required this.game, required this.cardRects, required this.turns, required this.onClose});
+  const _FirstPlayerOverlay({required this.game, required this.cardRects, required this.turns, required this.onClose, required this.onStart});
 
   @override
   State<_FirstPlayerOverlay> createState() => _FirstPlayerOverlayState();
@@ -978,7 +1085,7 @@ class _FirstPlayerOverlayState extends State<_FirstPlayerOverlay> {
           if (_winner != null)
             FilledButton(
               style: FilledButton.styleFrom(backgroundColor: const Color(0xFF69F0AE), foregroundColor: Colors.black),
-              onPressed: widget.onClose,
+              onPressed: () => widget.onStart(_winner!),
               child: const Text('Começar a partida', style: TextStyle(fontWeight: FontWeight.w900)),
             )
           else

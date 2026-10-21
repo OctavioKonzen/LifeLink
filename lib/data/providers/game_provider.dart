@@ -1,15 +1,16 @@
 import 'dart:convert';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../account/user_data.dart';
 
 /// Os contadores extras de cada jogador (além de vida e dano de comandante).
-enum Counter { poison, energy, experience, tax }
+enum Counter { poison, energy, experience, tax, treasure, storm, blessing }
 
 /// Uma mudança na partida, para o histórico e o "desfazer".
 class GameEvent {
   final int player;
-  final String kind; // 'life', 'poison', 'energy', 'experience', 'tax' ou 'cmd'
+  final String kind; // 'life', 'cmd' ou o nome de um Counter ('poison', 'treasure'...)
   final int delta;
   final int? attacker; // só no dano de comandante
   final DateTime at;
@@ -51,11 +52,32 @@ class GameProvider with ChangeNotifier {
   List<int> _energy = List.filled(maxPlayers, 0);
   List<int> _experience = List.filled(maxPlayers, 0);
   List<int> _tax = List.filled(maxPlayers, 0);
+  List<int> _treasure = List.filled(maxPlayers, 0);
+  List<int> _storm = List.filled(maxPlayers, 0);
+  List<int> _blessing = List.filled(maxPlayers, 0); // cidade abençoada: 0 ou 1
   List<int> _colors = List.generate(maxPlayers, (i) => i);
   // Segunda cor (degradê, como deck de duas cores); -1 = só uma cor.
   List<int> _colors2 = List.filled(maxPlayers, -1);
   List<List<int>> _commanderDamage = List.generate(maxPlayers, (_) => List.filled(maxPlayers, 0));
   List<String> _playerNames = List.generate(maxPlayers, (i) => "Player ${i + 1}");
+
+  // Quem é o monarca e quem tem a iniciativa (-1 = ninguém).
+  int _monarch = -1;
+  int _initiative = -1;
+
+  // Turnos: de quem é a vez (-1 = sem contar turnos), quem começou, a rodada,
+  // quando a vez atual começou (ms desde 1970) e o tempo que cada um já usou.
+  int _turnPlayer = -1;
+  int _turnFirst = 0;
+  int _turnRound = 1;
+  int _turnStartedAt = 0;
+  List<int> _turnTotals = List.filled(maxPlayers, 0);
+  // Quantas vezes o dado planar já rolou nesta vez (a próxima custa isso em mana).
+  int planarRollsThisTurn = 0;
+
+  // Planechase e Archenemy: o plano e o esquema virados agora (nome e imagem).
+  Map<String, dynamic>? _plane;
+  Map<String, dynamic>? _scheme;
 
   // Histórico da partida (só neste aparelho), do mais antigo ao mais novo.
   final List<GameEvent> _history = [];
@@ -68,6 +90,19 @@ class GameProvider with ChangeNotifier {
   List<String> get playerNames => _playerNames;
   List<GameEvent> get history => List.unmodifiable(_history);
   bool get canUndo => _history.isNotEmpty;
+  int get monarch => _monarch;
+  int get initiative => _initiative;
+  int get turnPlayer => _turnPlayer;
+  int get turnRound => _turnRound;
+  bool get countingTurns => _turnPlayer >= 0;
+  Map<String, dynamic>? get plane => _plane;
+  Map<String, dynamic>? get scheme => _scheme;
+
+  /// Quanto tempo a vez atual já durou.
+  Duration get turnElapsed => _turnPlayer < 0 ? Duration.zero : Duration(milliseconds: max(0, DateTime.now().millisecondsSinceEpoch - _turnStartedAt));
+
+  /// Tempo total que o jogador usou nas vezes dele (contando a atual).
+  Duration turnTotal(int player) => Duration(milliseconds: _turnTotals[player]) + (player == _turnPlayer ? turnElapsed : Duration.zero);
 
   Color colorOf(int player) => palette[_colors[player] % palette.length];
   int colorIndexOf(int player) => _colors[player];
@@ -81,6 +116,9 @@ class GameProvider with ChangeNotifier {
         Counter.energy => _energy[player],
         Counter.experience => _experience[player],
         Counter.tax => _tax[player],
+        Counter.treasure => _treasure[player],
+        Counter.storm => _storm[player],
+        Counter.blessing => _blessing[player],
       };
 
   List<int> _counterList(Counter kind) => switch (kind) {
@@ -88,6 +126,9 @@ class GameProvider with ChangeNotifier {
         Counter.energy => _energy,
         Counter.experience => _experience,
         Counter.tax => _tax,
+        Counter.treasure => _treasure,
+        Counter.storm => _storm,
+        Counter.blessing => _blessing,
       };
 
   /// Como a vida do jogador mudou nesta partida, do começo até agora (dano,
@@ -145,6 +186,18 @@ class GameProvider with ChangeNotifier {
         'energy': _energy,
         'experience': _experience,
         'tax': _tax,
+        'treasure': _treasure,
+        'storm': _storm,
+        'blessing': _blessing,
+        'monarch': _monarch,
+        'initiative': _initiative,
+        'turnPlayer': _turnPlayer,
+        'turnFirst': _turnFirst,
+        'turnRound': _turnRound,
+        'turnStartedAt': _turnStartedAt,
+        'turnTotals': _turnTotals,
+        'plane': _plane,
+        'scheme': _scheme,
         'colors': _colors,
         'colors2': _colors2,
         'commanderDamage': _commanderDamage,
@@ -167,6 +220,7 @@ class GameProvider with ChangeNotifier {
     _energy = _ints(v?['energy'], 0);
     _experience = _ints(v?['experience'], 0);
     _tax = _ints(v?['tax'], 0);
+    _readExtras(v);
     final colors = v?['colors'];
     _colors = colors is List ? _ints(colors, 0) : List.generate(maxPlayers, (i) => i);
     _colors2 = _ints(v?['colors2'], -1);
@@ -177,6 +231,24 @@ class GameProvider with ChangeNotifier {
     _history.clear();
     await _save();
     notifyListeners();
+  }
+
+  /// Os campos novos (contadores extras, monarca, turnos, plano), da conta ou do aparelho.
+  void _readExtras(Map<String, dynamic>? v) {
+    _treasure = _ints(v?['treasure'], 0);
+    _storm = _ints(v?['storm'], 0);
+    _blessing = _ints(v?['blessing'], 0);
+    _monarch = (v?['monarch'] as num?)?.toInt() ?? -1;
+    _initiative = (v?['initiative'] as num?)?.toInt() ?? -1;
+    final turn = (v?['turnPlayer'] as num?)?.toInt() ?? -1;
+    if (turn != _turnPlayer) planarRollsThisTurn = 0;
+    _turnPlayer = turn;
+    _turnFirst = (v?['turnFirst'] as num?)?.toInt() ?? 0;
+    _turnRound = (v?['turnRound'] as num?)?.toInt() ?? 1;
+    _turnStartedAt = (v?['turnStartedAt'] as num?)?.toInt() ?? 0;
+    _turnTotals = _ints(v?['turnTotals'], 0);
+    _plane = v?['plane'] is Map ? Map<String, dynamic>.from(v!['plane'] as Map) : null;
+    _scheme = v?['scheme'] is Map ? Map<String, dynamic>.from(v!['scheme'] as Map) : null;
   }
 
   // ------------------------------------------------------------- mudanças
@@ -193,10 +265,10 @@ class GameProvider with ChangeNotifier {
 
   void updateCounter(Counter kind, int index, int delta) {
     final list = _counterList(kind);
-    final max = kind == Counter.poison ? 10 : 99;
+    final top = switch (kind) { Counter.poison => 10, Counter.blessing => 1, _ => 99 };
     final wasDead = isDead(index);
     final before = list[index];
-    list[index] = (before + delta).clamp(0, max);
+    list[index] = (before + delta).clamp(0, top);
     final applied = list[index] - before;
     if (applied != 0) {
       _record(GameEvent(index, kind.name, applied));
@@ -232,6 +304,87 @@ class GameProvider with ChangeNotifier {
         list[e.player] -= e.delta;
     }
     _saveAndNotify();
+  }
+
+  /// Passa a coroa de monarca (tocar em quem já é monarca tira a coroa).
+  void setMonarch(int player) {
+    _monarch = _monarch == player ? -1 : player;
+    _saveAndNotify();
+  }
+
+  /// Dá a iniciativa (tocar em quem já tem tira).
+  void setInitiative(int player) {
+    _initiative = _initiative == player ? -1 : player;
+    _saveAndNotify();
+  }
+
+  // ---------------------------------------------------------------- turnos
+
+  /// Começa a contar os turnos, com [first] jogando primeiro.
+  void startTurns(int first) {
+    _turnFirst = first;
+    _turnPlayer = first;
+    _turnRound = 1;
+    _turnTotals = List.filled(maxPlayers, 0);
+    _turnStartedAt = DateTime.now().millisecondsSinceEpoch;
+    planarRollsThisTurn = 0;
+    _saveAndNotify();
+  }
+
+  /// O próximo vivo no sentido horário da mesa (a ordem dos quadros).
+  int _nextAlive(int from) {
+    for (int k = 1; k <= _playerCount; k++) {
+      final i = (from + k) % _playerCount;
+      if (!isDead(i)) return i;
+    }
+    return from;
+  }
+
+  /// Passa a vez: soma o tempo de quem jogou e a rodada avança quando volta
+  /// para quem começou (ou passa por ele, se ele já morreu).
+  void nextTurn() {
+    if (_turnPlayer < 0) return;
+    final now = DateTime.now().millisecondsSinceEpoch;
+    _turnTotals[_turnPlayer] += max(0, now - _turnStartedAt);
+    final from = _turnPlayer;
+    final next = _nextAlive(from);
+    // Andando de [from] até [next], passamos por quem começou?
+    for (int k = 1; k <= _playerCount; k++) {
+      final i = (from + k) % _playerCount;
+      if (i == _turnFirst) {
+        _turnRound++;
+        break;
+      }
+      if (i == next) break;
+    }
+    _turnPlayer = next;
+    _turnStartedAt = now;
+    planarRollsThisTurn = 0;
+    _saveAndNotify();
+  }
+
+  void stopTurns() {
+    _turnPlayer = -1;
+    _saveAndNotify();
+  }
+
+  // ------------------------------------------------- Planechase e Archenemy
+
+  /// O plano em jogo (null tira). Vem da Scryfall: nome, imagem e texto.
+  void setPlane(Map<String, dynamic>? plane) {
+    _plane = plane;
+    _saveAndNotify();
+  }
+
+  void setScheme(Map<String, dynamic>? scheme) {
+    _scheme = scheme;
+    _saveAndNotify();
+  }
+
+  /// Rolou o dado planar nesta vez (a próxima rolagem custa mais 1 de mana).
+  void countPlanarRoll() {
+    planarRollsThisTurn++;
+    notifyListeners();
   }
 
   void _record(GameEvent e) {
@@ -286,12 +439,28 @@ class GameProvider with ChangeNotifier {
     _energy = List.filled(maxPlayers, 0);
     _experience = List.filled(maxPlayers, 0);
     _tax = List.filled(maxPlayers, 0);
+    _treasure = List.filled(maxPlayers, 0);
+    _storm = List.filled(maxPlayers, 0);
+    _blessing = List.filled(maxPlayers, 0);
+    _monarch = -1;
+    _initiative = -1;
+    _turnPlayer = -1;
+    _turnRound = 1;
+    _turnTotals = List.filled(maxPlayers, 0);
+    planarRollsThisTurn = 0;
+    _plane = null;
+    _scheme = null;
     _commanderDamage = List.generate(maxPlayers, (_) => List.filled(maxPlayers, 0));
     _history.clear();
     _saveAndNotify();
   }
 
   // -------------------------------------------------------------- salvar
+
+  static const _extraKeys = [
+    'treasure', 'storm', 'blessing', 'monarch', 'initiative', 'turnPlayer', 'turnFirst', //
+    'turnRound', 'turnStartedAt', 'turnTotals', 'plane', 'scheme',
+  ];
 
   Future<void> _saveAndNotify() async {
     notifyListeners();
@@ -308,6 +477,8 @@ class GameProvider with ChangeNotifier {
     prefs.setString('energy', jsonEncode(_energy));
     prefs.setString('experience', jsonEncode(_experience));
     prefs.setString('tax', jsonEncode(_tax));
+    final sync = toSync();
+    prefs.setString('gameExtras', jsonEncode({for (final k in _extraKeys) k: sync[k]}));
     prefs.setString('playerColors', jsonEncode(_colors));
     prefs.setString('playerColors2', jsonEncode(_colors2));
     prefs.setString('commanderDamage', jsonEncode(_commanderDamage));
@@ -329,6 +500,8 @@ class GameProvider with ChangeNotifier {
     _energy = ints('energy', 0) ?? _energy;
     _experience = ints('experience', 0) ?? _experience;
     _tax = ints('tax', 0) ?? _tax;
+    final extras = prefs.getString('gameExtras');
+    if (extras != null) _readExtras(jsonDecode(extras) as Map<String, dynamic>);
     _colors = ints('playerColors', 0) ?? _colors;
     _colors2 = ints('playerColors2', -1) ?? _colors2;
 

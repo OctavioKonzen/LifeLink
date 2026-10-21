@@ -105,4 +105,44 @@ void main() {
     game.setSecondColor(0, -1);
     expect(game.secondColorOf(0), isNull);
   });
+
+  test('turnos: sentido horário, pula quem morreu e a rodada avança', () {
+    game.setPlayerCount(4);
+    game.startTurns(2);
+    expect(game.turnPlayer, 2);
+    expect(game.turnRound, 1);
+    game.nextTurn();
+    expect(game.turnPlayer, 3);
+    game.updateLife(0, -40); // o 0 morreu
+    game.nextTurn();
+    expect(game.turnPlayer, 1);
+    expect(game.turnRound, 1);
+    game.nextTurn();
+    expect(game.turnPlayer, 2);
+    expect(game.turnRound, 2);
+    game.stopTurns();
+    expect(game.countingTurns, isFalse);
+  });
+
+  test('monarca, iniciativa e contadores novos vão para a conta e somem na partida nova', () async {
+    game.setMonarch(1);
+    game.setInitiative(0);
+    game.updateCounter(Counter.treasure, 0, 3);
+    game.updateCounter(Counter.blessing, 1, 5);
+    expect(game.counter(Counter.blessing, 1), 1);
+    game.setPlane({'id': 'x', 'name': 'Plano'});
+    final other = GameProvider();
+    await other.ready;
+    await other.applySync(game.toSync());
+    expect(other.monarch, 1);
+    expect(other.initiative, 0);
+    expect(other.counter(Counter.treasure, 0), 3);
+    expect(other.plane?['name'], 'Plano');
+    game.setMonarch(1);
+    expect(game.monarch, -1);
+    game.resetGame();
+    expect(game.initiative, -1);
+    expect(game.counter(Counter.treasure, 0), 0);
+    expect(game.plane, isNull);
+  });
 }
