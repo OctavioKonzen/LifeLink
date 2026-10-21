@@ -22,10 +22,12 @@ describe('cartas do deck', () => {
       { name: 'D', count: 1, identifiers: { scryfallId: 'dddd' } },
       { name: 'E', count: 1, identifiers: { scryfallId: 'eeee' } },
     ],
-    sideBoard: [],
+    displayCommander: [{ name: 'A', count: 1, identifiers: { scryfallId: 'aaaa' } }],
+    sideBoard: [{ name: 'S', count: 3 }],
+    tokens: [{ name: 'Token', count: 1 }],
   }
 
-  test('lê todas as listas', () => {
+  test('só o comandante e o deck principal (sem repetir o comandante, banco ou fichas)', () => {
     expect(deckCards(data).map((c) => `${c.count}x ${c.name}`)).toEqual(['1x A', '2x B', '1x C', '1x D', '1x E'])
   })
 

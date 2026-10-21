@@ -49,6 +49,9 @@ class UserData {
 
   bool _applying = false;
 
+  /// Aplicando o que veio da conta agora (não foi mudado neste aparelho).
+  bool get applying => _applying;
+
   void register(SyncedSection section) => _sections[section.key] = section;
 
   Iterable<SyncedSection> get sections => _sections.values;

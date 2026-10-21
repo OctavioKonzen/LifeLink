@@ -50,10 +50,14 @@ export function deck(fileName) {
 export const imageFor = (scryfallId, size = 'normal') =>
   scryfallId ? `https://cards.scryfall.io/${size}/front/${scryfallId[0]}/${scryfallId[1]}/${scryfallId}.jpg` : null
 
-/** Todas as cartas do deck (principal, reserva, comandante...), uma por cópia agrupada. */
+/**
+ * As cartas do deck: o comandante e o deck principal (o arquivo também traz o
+ * comandante repetido em displayCommander, o banco, fichas, planos...).
+ */
 export function deckCards(data) {
   const cards = []
-  for (const [board, value] of Object.entries(data || {})) {
+  for (const board of ['commander', 'mainBoard']) {
+    const value = data?.[board]
     if (!Array.isArray(value)) continue
     for (const item of value) {
       if (item && typeof item === 'object' && item.name) {

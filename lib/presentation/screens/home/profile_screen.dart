@@ -16,11 +16,23 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   final TextEditingController _nameController = TextEditingController();
+  ThemeProvider? _theme;
+
+  // Sem conta, o nome digitado fica salvo ao sair (sem precisar tocar em Salvar).
+  @override
+  void dispose() {
+    final name = _nameController.text.trim();
+    if (name.isNotEmpty && _theme != null && name != _theme!.playerName && AuthService.instance.status != AuthStatus.signedIn) {
+      _theme!.setPlayerName(name);
+    }
+    _nameController.dispose();
+    super.dispose();
+  }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
+    final themeProvider = _theme = Provider.of<ThemeProvider>(context, listen: false);
     if (_nameController.text.isEmpty) {
       _nameController.text = themeProvider.playerName;
     }
@@ -58,7 +70,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   themeProvider.setPlayerName(_nameController.text);
                   Navigator.pop(context);
                 },
-                child: const Text("SALVAR",
+                child: const Text("Salvar",
                     style: TextStyle(
                         color: Colors.blueAccent, fontWeight: FontWeight.bold)),
               )
@@ -190,6 +202,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           fontWeight: FontWeight.bold)),
                 ),
                 const SizedBox(height: 10),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+                  child: Text('Vencer partidas no contador desbloqueia banners: na 1ª, 2ª, 4ª, 8ª, 16ª...',
+                      style: TextStyle(color: textColor.withValues(alpha: 0.45), fontSize: 12)),
+                ),
                 SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   clipBehavior: Clip.none,
@@ -252,6 +269,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           fontWeight: FontWeight.bold)),
                 ),
                 const SizedBox(height: 10),
+                if (xpProvider.unlockedTitles.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+                    child: Text('Nenhum ainda: complete as seções das Missões para ganhar títulos.',
+                        style: TextStyle(color: textColor.withValues(alpha: 0.45), fontSize: 12)),
+                  ),
                 SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   clipBehavior: Clip.none,
@@ -309,6 +332,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           fontWeight: FontWeight.bold)),
                 ),
                 const SizedBox(height: 10),
+                if (xpProvider.unlockedAvatars.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+                    child: Text('Nenhuma ainda: complete as seções das Missões para ganhar fotos com artes de cartas.',
+                        style: TextStyle(color: textColor.withValues(alpha: 0.45), fontSize: 12)),
+                  ),
                 SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   clipBehavior: Clip.none,

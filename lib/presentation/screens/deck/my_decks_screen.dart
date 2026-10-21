@@ -4,7 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../../data/providers/deck_provider.dart';
 import '../../../data/providers/theme_provider.dart';
-import '../../../data/providers/xp_provider.dart'; // IMPORT DO XP PROVIDER
+import '../../../data/providers/xp_provider.dart';
 import 'deck_detail_screen.dart';
 import 'community_decks_screen.dart';
 import 'deck_tools_screens.dart';
@@ -21,26 +21,28 @@ class MyDecksScreen extends StatefulWidget {
 
 class _MyDecksScreenState extends State<MyDecksScreen> {
   
-  void _confirmDelete(BuildContext context, DeckProvider provider, int index, String deckName) {
+  void _confirmDelete(BuildContext context, DeckProvider provider, String deckId, String deckName) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: const Color(0xFF1E1E24),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text("Apagar Deck", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        title: const Text("Apagar deck", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         content: Text("Deseja realmente apagar o deck '$deckName'?", style: const TextStyle(color: Colors.white70)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text("CANCELAR", style: TextStyle(color: Colors.white54)),
+            child: const Text("Cancelar", style: TextStyle(color: Colors.white54)),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
             onPressed: () {
-              provider.deleteDeck(index);
+              // Pelo id: a lista pode ter mudado com a janela aberta.
+              final index = provider.indexOfId(deckId);
+              if (index >= 0) provider.deleteDeck(index);
               Navigator.pop(ctx);
             },
-            child: const Text("APAGAR"),
+            child: const Text("Apagar"),
           ),
         ],
       ),
@@ -57,7 +59,7 @@ class _MyDecksScreenState extends State<MyDecksScreen> {
         builder: (context, setDialogState) => AlertDialog(
           backgroundColor: const Color(0xFF1E1E24),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: const Text("Novo Deck", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          title: const Text("Novo deck", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -66,7 +68,7 @@ class _MyDecksScreenState extends State<MyDecksScreen> {
                 autofocus: true,
                 style: const TextStyle(color: Colors.white),
                 decoration: const InputDecoration(
-                  hintText: "Nome do Deck",
+                  hintText: "Nome do deck",
                   hintStyle: TextStyle(color: Colors.white54),
                 ),
               ),
@@ -81,19 +83,19 @@ class _MyDecksScreenState extends State<MyDecksScreen> {
             ],
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("CANCELAR")),
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancelar")),
             ElevatedButton(
               onPressed: () {
                 if (nameController.text.trim().isNotEmpty) {
                   context.read<DeckProvider>().createDeck(nameController.text.trim(), selectedType);
                   
-                  // GATILHO: AUMENTA CONTADOR DE DECKS CRIADOS
+                  // Deck criado conta para as missões.
                   context.read<XpProvider>().incrementDecksCreated();
                   
                   Navigator.pop(ctx);
                 }
               },
-              child: const Text("CRIAR"),
+              child: const Text("Criar"),
             )
           ],
         ),
@@ -216,7 +218,7 @@ class _MyDecksScreenState extends State<MyDecksScreen> {
         child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
           Icon(Icons.add, size: 44, color: AreaColors.decks, shadows: [Shadow(color: AreaColors.decks.withValues(alpha: 0.8), blurRadius: 12)]),
           const SizedBox(height: 6),
-          Text("NOVO DECK", style: TextStyle(color: color, fontWeight: FontWeight.w800, letterSpacing: 0.5)),
+          Text("Novo deck", style: TextStyle(color: color, fontWeight: FontWeight.w800, letterSpacing: 0.5)),
         ]),
       ),
     );
@@ -224,7 +226,7 @@ class _MyDecksScreenState extends State<MyDecksScreen> {
 
   Widget _buildDeckCard(dynamic deck, int index, DeckProvider provider, Color textColor, bool isLight) {
     return GestureDetector(
-      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => DeckDetailScreen(deckIndex: index))),
+      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => DeckDetailScreen(deckId: deck.id))),
       child: Container(
         decoration: neonDecoration(AreaColors.decks, neonSurface(context, context.read<ThemeProvider>().backgroundColor), glow: 0.15),
         child: Column(
@@ -248,7 +250,7 @@ class _MyDecksScreenState extends State<MyDecksScreen> {
                     ),
                   ),
                   GestureDetector(
-                    onTap: () => _confirmDelete(context, provider, index, deck.name),
+                    onTap: () => _confirmDelete(context, provider, deck.id, deck.name),
                     child: Icon(Icons.delete_outline, color: Colors.redAccent.withValues(alpha: 0.7), size: 22),
                   ),
                 ],
@@ -311,6 +313,7 @@ class DeckCoverWidget extends StatelessWidget {
         child: url != null 
           ? CachedNetworkImage(
               imageUrl: url, 
+              memCacheWidth: 320, // miniatura: não decodifica a imagem inteira
               fit: BoxFit.cover,
               placeholder: (c, u) => Container(color: Colors.black12),
               errorWidget: (c, u, e) => Container(color: Colors.black12),

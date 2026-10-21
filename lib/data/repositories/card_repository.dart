@@ -6,7 +6,7 @@ class CardRepository {
   final ScryfallService _scryfall = ScryfallService.instance;
 
   // Ranking Global e Pesquisa por Preço
-  Future<Map<String, dynamic>> fetchTrendingPrices({String? query}) async {
+  Future<Map<String, dynamic>> fetchTrendingPrices({String? query, String? nextPage}) async {
     // Se houver pesquisa, filtra pelo nome (ou texto); caso contrário, traz o ranking global
     final searchPart = (query != null && query.isNotEmpty)
         ? '${ScryfallService.buildTextQuery(query)} '
@@ -14,25 +14,17 @@ class CardRepository {
 
     // lang:any inclui japonês, russo, etc.; prints traz versões especiais
     try {
-      final page = await _scryfall.search('${searchPart}usd>0 lang:any', order: 'usd', dir: 'desc', unique: 'prints', multilingual: false);
+      final page = await _scryfall.search('${searchPart}usd>0 lang:any', order: 'usd', dir: 'desc', unique: 'prints', multilingual: false, nextPage: nextPage);
       return {
         'cards': page.cards.map((j) => CardModel.fromJson(j)).toList(),
+        'raw': page.cards,
         'hasMore': page.hasMore,
+        'nextPage': page.nextPage,
       };
     } on ScryfallException catch (e) {
       debugPrint("Erro ao buscar preços: $e");
       rethrow;
     }
-  }
-
-  // Pesquisa geral de cartas
-  Future<Map<String, dynamic>> searchCards(String query, {String? nextPageUrl}) async {
-    final page = await _scryfall.search(query, nextPage: nextPageUrl);
-    return {
-      'cards': page.cards.map((j) => CardModel.fromJson(j)).toList(),
-      'hasMore': page.hasMore,
-      'nextPage': page.nextPage,
-    };
   }
 
   // Busca outras versões/artes da mesma carta
@@ -53,6 +45,7 @@ class CardRepository {
             'oracle_id': c['oracle_id'],
             'name': c['printed_name'] ?? c['name'],
             'imageUrl': imgUrl,
+            'backImageUrl': c['card_faces']?[1]?['image_uris']?['normal'],
             'rarity': c['rarity'],
             'collectorNumber': c['collector_number'],
             'setName': c['set_name'],

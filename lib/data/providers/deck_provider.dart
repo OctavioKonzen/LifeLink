@@ -37,6 +37,10 @@ class DeckProvider with ChangeNotifier implements SyncedDecks {
     if (deckIndex >= 0 && deckIndex < _allDecks.length) UserData.instance.deckChanged(_allDecks[deckIndex].id);
   }
 
+  /// A posição do deck na lista pelo id (-1 se não existe mais). As telas
+  /// guardam o id: a lista muda de ordem quando chega um deck da conta.
+  int indexOfId(String id) => _allDecks.indexWhere((d) => d.id == id);
+
   @override
   Map<String, Map<String, dynamic>> readDecks() => {for (final d in _allDecks) d.id: d.toMap()};
 
@@ -106,6 +110,42 @@ class DeckProvider with ChangeNotifier implements SyncedDecks {
     }
   }
 
+  void renameDeck(int deckIndex, String name) {
+    if (deckIndex >= 0 && deckIndex < _allDecks.length && name.trim().isNotEmpty) {
+      _allDecks[deckIndex].name = name.trim();
+      _changed(deckIndex);
+      _saveDecks();
+    }
+  }
+
+  /// Marca (ou tira) as cópias das posições [indices] como comandante.
+  void setCommander(int deckIndex, List<int> indices, bool commander) {
+    if (deckIndex < 0 || deckIndex >= _allDecks.length) return;
+    final cards = _allDecks[deckIndex].cards;
+    for (final i in indices) {
+      if (i < 0 || i >= cards.length) continue;
+      final card = Map<String, dynamic>.from(cards[i]);
+      if (commander) {
+        card['commander'] = true;
+      } else {
+        card.remove('commander');
+      }
+      cards[i] = card;
+    }
+    _changed(deckIndex);
+    _saveDecks();
+  }
+
+  /// Põe a carta de volta na mesma posição (o "desfazer" ao tirar uma carta).
+  void insertCardInDeck(int deckIndex, int cardIndex, Map<String, dynamic> card) {
+    if (deckIndex >= 0 && deckIndex < _allDecks.length) {
+      final cards = _allDecks[deckIndex].cards;
+      cards.insert(cardIndex.clamp(0, cards.length), card);
+      _changed(deckIndex);
+      _saveDecks();
+    }
+  }
+
   void removeCardFromDeck(int deckIndex, int cardIndex) {
     if (deckIndex >= 0 && deckIndex < _allDecks.length) {
       if (cardIndex >= 0 && cardIndex < _allDecks[deckIndex].cards.length) {
@@ -127,7 +167,7 @@ class DeckProvider with ChangeNotifier implements SyncedDecks {
     }
   }
 
-  // NOVA FUNÇÃO: Substitui uma carta por outra diferente (Soluciona o erro do CardDetailScreen)
+  /// Troca uma carta por outra (e avisa a tela na hora).
   void replaceCardInDeck(int deckIndex, int cardIndex, Map<String, dynamic> newCard) {
     if (deckIndex >= 0 && deckIndex < _allDecks.length) {
       if (cardIndex >= 0 && cardIndex < _allDecks[deckIndex].cards.length) {
@@ -137,17 +177,6 @@ class DeckProvider with ChangeNotifier implements SyncedDecks {
         notifyListeners(); // Força a tela a atualizar com a nova carta
       }
     }
-  }
-
-  Map<int, int> getManaCurve(int deckIndex) {
-    Map<int, int> curve = {};
-    if (deckIndex >= 0 && deckIndex < _allDecks.length) {
-      for (var card in _allDecks[deckIndex].cards) {
-        int cmc = (card['cmc'] ?? 0).toInt();
-        curve[cmc] = (curve[cmc] ?? 0) + 1;
-      }
-    }
-    return curve;
   }
 
   Future<void> _saveDecks() async {
@@ -161,7 +190,13 @@ class DeckProvider with ChangeNotifier implements SyncedDecks {
     final prefs = await SharedPreferences.getInstance();
     String? data = prefs.getString('saved_decks_mtg_v5');
     if (data != null) {
-      _allDecks = (jsonDecode(data) as List).map((d) => DeckModel.fromMap(d)).toList();
+      try {
+        _allDecks = (jsonDecode(data) as List).map((d) => DeckModel.fromMap(d)).toList();
+      } catch (e) {
+        // Salvo estragado: abre sem os decks deste aparelho (os da conta voltam ao sincronizar).
+        debugPrint('Decks salvos inválidos: $e');
+        _allDecks = [];
+      }
       notifyListeners();
     }
   }

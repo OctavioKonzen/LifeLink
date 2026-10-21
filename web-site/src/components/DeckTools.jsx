@@ -80,6 +80,67 @@ export function ImportListModal({ askName = false, onDone, onClose }) {
   )
 }
 
+const COLORS = [
+  ['W', 'Branco', '#F9FAF4'],
+  ['U', 'Azul', '#0E68AB'],
+  ['B', 'Preto', '#6B5E5E'],
+  ['R', 'Vermelho', '#D3202A'],
+  ['G', 'Verde', '#00733E'],
+]
+
+/** Curva de mana (sem os terrenos) e quanto de cada cor aparece nos custos. */
+export function ManaCurve({ cards }) {
+  const curve = Array(8).fill(0)
+  const colors = {}
+  let lands = 0
+  for (const c of cards) {
+    if (/Land|Terreno/.test(c.type_line || '')) {
+      lands++
+      continue
+    }
+    curve[Math.min(7, Math.max(0, Math.round(Number(c.cmc) || 0)))]++
+    for (const [k] of COLORS) {
+      const n = ((c.mana_cost || '').match(new RegExp(`\\{[^}]*${k}[^}]*\\}`, 'g')) || []).length
+      if (n) colors[k] = (colors[k] || 0) + n
+    }
+  }
+  const top = Math.max(1, ...curve)
+  const spells = curve.reduce((a, b) => a + b, 0)
+  const avg = spells ? curve.reduce((a, n, i) => a + n * i, 0) / spells : 0
+  const total = Object.values(colors).reduce((a, b) => a + b, 0)
+  return (
+    <section className="rounded-2xl bg-text/5 p-4 md:col-span-2">
+      <h3 className="mb-2 text-xs font-black uppercase tracking-wide text-muted">Curva de mana e cores</h3>
+      <div className="flex h-28 items-end gap-2">
+        {curve.map((n, i) => (
+          <div key={i} className="flex flex-1 flex-col items-center justify-end">
+            <span className="text-xs font-bold text-muted">{n}</span>
+            <div className="w-full rounded bg-accent" style={{ height: `${(70 * n) / top}px` }} />
+            <span className="mt-1 text-sm font-black">{i === 7 ? '7+' : i}</span>
+          </div>
+        ))}
+      </div>
+      <p className="mt-2 text-sm text-muted">
+        {spells} mágicas · {lands} terrenos · custo médio {avg.toFixed(2)}
+      </p>
+      {total > 0 && (
+        <>
+          <div className="mt-3 flex h-3.5 overflow-hidden rounded-md">
+            {COLORS.filter(([k]) => colors[k]).map(([k, , hex]) => (
+              <div key={k} style={{ flex: colors[k], background: hex }} />
+            ))}
+          </div>
+          <p className="mt-1 text-sm text-muted">
+            {COLORS.filter(([k]) => colors[k])
+              .map(([k, name]) => `${name} ${Math.round((100 * colors[k]) / total)}%`)
+              .join(' · ')}
+          </p>
+        </>
+      )}
+    </section>
+  )
+}
+
 /** Preço de hoje (dólar, real e euro) e legalidade em cada formato. */
 export function DeckAnalysis({ deck }) {
   const [state, setState] = useState({ loading: true, error: null, cards: [], brl: null })
@@ -107,6 +168,7 @@ export function DeckAnalysis({ deck }) {
   const top = [...grouped.entries()].sort((a, b) => priceOf(b[1].card) * b[1].qty - priceOf(a[1].card) * a[1].qty).slice(0, 8)
   return (
     <div className="grid gap-4 md:grid-cols-2">
+      <ManaCurve cards={deck.cards} />
       <section className="rounded-2xl bg-text/5 p-4">
         <h3 className="mb-2 text-xs font-black uppercase tracking-wide text-muted">Preço de hoje (Scryfall)</h3>
         <p className="text-3xl font-black">US$ {usd.toFixed(2)}</p>

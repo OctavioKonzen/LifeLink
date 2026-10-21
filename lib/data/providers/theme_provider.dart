@@ -4,10 +4,10 @@ import '../account/user_data.dart';
 
 class ThemeProvider with ChangeNotifier {
   Color _backgroundColor = const Color(0xFF1E1E24); 
-  String _playerName = "Player 1";
+  String _playerName = "Jogador 1";
   String _cardLanguage = "pt"; 
 
-  // Mapa com as cores que você pediu
+  // As cores de fundo que dá para escolher
   final Map<String, Color> availableColors = {
     "Rosa Claro": const Color(0xFFF8BBD0),
     "Azul Claro": const Color(0xFFB3E5FC),
@@ -33,7 +33,7 @@ class ThemeProvider with ChangeNotifier {
 
   Future<void> applySync(Map<String, dynamic>? v) async {
     _backgroundColor = Color((v?['bgColor'] as num?)?.toInt() ?? 0xFF1E1E24);
-    _playerName = v?['playerName'] ?? "Player 1";
+    _playerName = v?['playerName'] ?? "Jogador 1";
     _cardLanguage = v?['cardLanguage'] ?? "pt";
     await _savePreferences();
     notifyListeners();
@@ -71,7 +71,7 @@ class ThemeProvider with ChangeNotifier {
     if (prefs.containsKey('bgColor')) {
       _backgroundColor = Color(prefs.getInt('bgColor')!);
     }
-    _playerName = prefs.getString('playerName') ?? "Player 1";
+    _playerName = prefs.getString('playerName') ?? "Jogador 1";
     _cardLanguage = prefs.getString('cardLanguage') ?? "pt";
     notifyListeners();
   }

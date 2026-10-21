@@ -1,6 +1,7 @@
 // ignore_for_file: prefer_const_constructors, prefer_const_literals_to_create_immutables
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import '../../../data/services/deck_tools.dart';
 import 'package:flutter/foundation.dart'; 
 import 'package:provider/provider.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -12,16 +13,28 @@ import '../../../data/services/scryfall_service.dart';
 import '../../../data/repositories/card_repository.dart';
 import '../../../data/providers/xp_provider.dart'; 
 
+/// Raridade em português (a Scryfall manda em inglês).
+String rarityPt(String? rarity) => switch (rarity?.toLowerCase()) {
+      'common' => 'Comum',
+      'uncommon' => 'Incomum',
+      'rare' => 'Rara',
+      'mythic' => 'Mítica',
+      'special' => 'Especial',
+      'bonus' => 'Bônus',
+      null || '' => '',
+      _ => rarity!,
+    };
+
 class CardDetailScreen extends StatefulWidget {
   final Map<String, dynamic> card;
-  final int? targetDeckIndex; 
+  final String? targetDeckId;
   final int? existingCardIndex; 
   final int? replaceCardIndex;  
 
   const CardDetailScreen({
     super.key, 
     required this.card, 
-    this.targetDeckIndex,
+    this.targetDeckId,
     this.existingCardIndex,
     this.replaceCardIndex,
   });
@@ -31,6 +44,14 @@ class CardDetailScreen extends StatefulWidget {
 }
 
 class _CardDetailScreenState extends State<CardDetailScreen> with SingleTickerProviderStateMixin {
+  /// A posição atual do deck de destino (pelo id), ou null.
+  int? get _targetDeckIndex {
+    final id = widget.targetDeckId;
+    if (id == null) return null;
+    final i = context.read<DeckProvider>().indexOfId(id);
+    return i < 0 ? null : i;
+  }
+
   late AnimationController _controller;
   late Animation<double> _animation;
   double _currentAngle = 0.0;
@@ -47,10 +68,27 @@ class _CardDetailScreenState extends State<CardDetailScreen> with SingleTickerPr
     'Accept': '*/*'
   };
 
+  // A carta completa da Scryfall (legalidade, ambientação, artista) e o dólar em reais.
+  Map<String, dynamic>? _full;
+  double? _brl;
+
+  Future<void> _loadFull() async {
+    final id = DeckTools.scryfallIdOf(_currentCard);
+    if (id == null) return;
+    try {
+      final data = await ScryfallService.instance.getJson('https://api.scryfall.com/cards/$id');
+      if (mounted && DeckTools.scryfallIdOf(_currentCard) == id) setState(() => _full = data);
+    } catch (_) {}
+  }
+
   @override
   void initState() {
     super.initState();
-    _currentCard = Map.from(widget.card); 
+    _currentCard = Map.from(widget.card);
+    _loadFull();
+    DeckTools.dollarInReais().then((v) {
+      if (mounted) setState(() => _brl = v);
+    });
     _controller = AnimationController(vsync: this);
     _controller.addListener(() => setState(() => _currentAngle = _animation.value));
   }
@@ -162,7 +200,7 @@ class _CardDetailScreenState extends State<CardDetailScreen> with SingleTickerPr
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(isPt ? "Escolher Visual" : "Choose Artwork", style: TextStyle(color: textColor, fontSize: 20, fontWeight: FontWeight.bold)),
+                    Text("Escolher Visual", style: TextStyle(color: textColor, fontSize: 20, fontWeight: FontWeight.bold)),
                     DropdownButton<String>(
                       value: modalLang,
                       dropdownColor: bgColor,
@@ -192,16 +230,20 @@ class _CardDetailScreenState extends State<CardDetailScreen> with SingleTickerPr
                         return Center(
                           child: GestureDetector(
                             onTap: () {
-                              setState(() => _currentCard = vCard);
+                              // Ver outra arte vale XP (a mesma carta de novo, não).
+                              if (vCard['imageUrl'] != _currentCard['imageUrl']) this.context.read<XpProvider>().incrementArtsViewed();
+                              setState(() {
+                                _currentCard = vCard;
+                                _full = null;
+                              });
+                              _loadFull();
                               
-                              this.context.read<XpProvider>().incrementArtsViewed();
-                              
-                              if (widget.targetDeckIndex != null && widget.existingCardIndex != null) {
+                              if (_targetDeckIndex != null && widget.existingCardIndex != null) {
                                 final provider = this.context.read<DeckProvider>();
-                                provider.replaceCardInDeck(widget.targetDeckIndex!, widget.existingCardIndex!, vCard);
+                                provider.replaceCardInDeck(_targetDeckIndex!, widget.existingCardIndex!, vCard);
                                 
                                 ScaffoldMessenger.of(this.context).showSnackBar(SnackBar(
-                                  content: Text(isPt ? "Arte atualizada no deck!" : "Artwork updated in deck!"),
+                                  content: Text("Arte atualizada no deck!"),
                                   backgroundColor: Colors.green[700],
                                 ));
                               }
@@ -233,7 +275,7 @@ class _CardDetailScreenState extends State<CardDetailScreen> with SingleTickerPr
               ),
               Padding(
                 padding: const EdgeInsets.only(bottom: 20),
-                child: Text(isPt ? "Toque na carta para selecionar e atualizar" : "Tap the card to select and update", style: TextStyle(color: textColor.withValues(alpha: 0.5), fontSize: 12)),
+                child: Text("Toque na carta para selecionar e atualizar", style: TextStyle(color: textColor.withValues(alpha: 0.5), fontSize: 12)),
               )
             ],
           ),
@@ -245,7 +287,7 @@ class _CardDetailScreenState extends State<CardDetailScreen> with SingleTickerPr
   void _showDeckSelectionDialog(DeckProvider provider, XpProvider xpProvider, bool isPt) {
     if (provider.allDecks.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(isPt ? "Você não tem nenhum deck criado!" : "No decks created!"),
+        content: Text("Você não tem nenhum deck criado!"),
         backgroundColor: Colors.redAccent,
       ));
       return;
@@ -255,7 +297,7 @@ class _CardDetailScreenState extends State<CardDetailScreen> with SingleTickerPr
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: const Color(0xFF1E1E24),
-        title: Text(isPt ? "Adicionar a qual deck?" : "Add to which deck?", style: TextStyle(color: Colors.white)),
+        title: Text("Adicionar a qual deck?", style: TextStyle(color: Colors.white)),
         content: SizedBox(
           width: double.maxFinite,
           child: ListView.builder(
@@ -274,7 +316,7 @@ class _CardDetailScreenState extends State<CardDetailScreen> with SingleTickerPr
                   
                   Navigator.pop(ctx);
                   ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                    content: Text(isPt ? "Adicionado ao deck ${deck.name}!" : "Added to ${deck.name}!"),
+                    content: Text("Adicionado ao deck ${deck.name}!"),
                     backgroundColor: Colors.green[700],
                   ));
                 },
@@ -289,18 +331,18 @@ class _CardDetailScreenState extends State<CardDetailScreen> with SingleTickerPr
   void _handleAutoAdd(DeckProvider provider, bool isPt) {
     final xpProvider = context.read<XpProvider>();
 
-    if (widget.targetDeckIndex != null) {
+    if (_targetDeckIndex != null) {
       if (widget.replaceCardIndex != null) {
-        provider.replaceCardInDeck(widget.targetDeckIndex!, widget.replaceCardIndex!, _currentCard);
+        provider.replaceCardInDeck(_targetDeckIndex!, widget.replaceCardIndex!, _currentCard);
         xpProvider.incrementCardsAdded(1);
         xpProvider.incrementArtsViewed();
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(isPt ? "Carta Substituída!" : "Card Replaced!")));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Carta Substituída!")));
         Navigator.of(context)..pop()..pop(); 
       } 
       else {
-        provider.addCardToDeck(widget.targetDeckIndex!, _currentCard);
+        provider.addCardToDeck(_targetDeckIndex!, _currentCard);
         xpProvider.incrementCardsAdded(1);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(isPt ? "Adicionado!" : "Added!")));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Adicionado!")));
       }
     } 
     else {
@@ -360,7 +402,16 @@ class _CardDetailScreenState extends State<CardDetailScreen> with SingleTickerPr
                             : Transform(
                                 transform: Matrix4.identity()..rotateY(math.pi),
                                 alignment: FractionalOffset.center,
-                                child: ClipRRect(borderRadius: BorderRadius.circular(16), child: CachedNetworkImage(imageUrl: CardImages.cardBack, fit: BoxFit.cover)),
+                                // Carta de duas faces: o outro lado; senão, o verso padrão.
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(16),
+                                  child: CachedNetworkImage(
+                                    imageUrl: '${_currentCard['backImageUrl'] ?? ''}'.isNotEmpty ? '${_currentCard['backImageUrl']}' : CardImages.cardBack,
+                                    httpHeaders: CardImages.headers,
+                                    fit: BoxFit.cover,
+                                    errorWidget: (_, _, _) => CachedNetworkImage(imageUrl: CardImages.cardBack, fit: BoxFit.cover),
+                                  ),
+                                ),
                               ),
                       ),
                     ),
@@ -405,7 +456,7 @@ class _CardDetailScreenState extends State<CardDetailScreen> with SingleTickerPr
                         onPressed: () => _showVersionsModal(bgColor, textColor, isPt, themeProvider.cardLanguage),
                         label: FittedBox(
                           child: Text(
-                            isEditingExistingCard ? (isPt ? "TROCAR ARTE" : "CHANGE ART") : (isPt ? "OUTRAS ARTES" : "OTHER ARTS"),
+                            isEditingExistingCard ? "TROCAR ARTE" : "OUTRAS ARTES",
                             style: const TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold),
                           ),
                         ),
@@ -424,7 +475,7 @@ class _CardDetailScreenState extends State<CardDetailScreen> with SingleTickerPr
                           onPressed: () => _handleAutoAdd(deckProvider, isPt),
                           label: FittedBox(
                             child: Text(
-                              isReplacingCard ? (isPt ? "SUBSTITUIR" : "REPLACE") : (isPt ? "AO DECK" : "TO DECK"),
+                              isReplacingCard ? "SUBSTITUIR" : "AO DECK",
                               style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
                             ),
                           ),
@@ -447,9 +498,9 @@ class _CardDetailScreenState extends State<CardDetailScreen> with SingleTickerPr
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          _indicatorLabel(isPt ? "Habilidades" : "Abilities", _currentPage == 0, textColor, 0),
+          _indicatorLabel("Habilidades", _currentPage == 0, textColor, 0),
           const SizedBox(width: 28),
-          _indicatorLabel(isPt ? "Preços" : "Prices", _currentPage == 1, textColor, 1),
+          _indicatorLabel("Preços", _currentPage == 1, textColor, 1),
         ],
       ),
     );
@@ -498,8 +549,36 @@ class _CardDetailScreenState extends State<CardDetailScreen> with SingleTickerPr
           _buildDivider(textColor),
           Text(_currentCard['oracle_text'] ?? '', style: TextStyle(color: textColor, fontSize: 14, height: 1.5)),
           _buildDivider(textColor),
-          _buildInfoRow(isPt ? "Raridade" : "Rarity", _currentCard['rarity']?.toString().toUpperCase() ?? '', rarityColor, isBold: true),
-          _buildInfoRow(isPt ? "Coleção" : "Set", _currentCard['setName']?.toString().toUpperCase() ?? '', Colors.purpleAccent),
+          if ((_full?['flavor_text'] ?? _full?['card_faces']?[0]?['flavor_text']) != null) ...[
+            Text('${_full?['flavor_text'] ?? _full?['card_faces']?[0]?['flavor_text']}',
+                style: TextStyle(color: textColor.withValues(alpha: 0.65), fontSize: 13, fontStyle: FontStyle.italic, height: 1.4)),
+            _buildDivider(textColor),
+          ],
+          _buildInfoRow("Raridade", rarityPt(_currentCard['rarity']?.toString()), rarityColor, isBold: true),
+          _buildInfoRow("Coleção", _currentCard['setName']?.toString() ?? '', Colors.purpleAccent),
+          if (_full?['artist'] != null) _buildInfoRow("Artista", '${_full!['artist']}', textColor),
+          if (_full?['legalities'] is Map) ...[
+            _buildDivider(textColor),
+            Text('Legalidade', style: TextStyle(color: Colors.grey[500], fontSize: 13)),
+            const SizedBox(height: 8),
+            Wrap(spacing: 6, runSpacing: 6, children: [
+              for (final f in DeckTools.formats.entries)
+                () {
+                  final status = '${(_full!['legalities'] as Map)[f.key] ?? 'not_legal'}';
+                  final (label, color) = switch (status) {
+                    'legal' => ('Legal', Colors.green),
+                    'restricted' => ('Restrita', Colors.orange),
+                    'banned' => ('Banida', Colors.red),
+                    _ => ('Não', Colors.grey),
+                  };
+                  return Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(color: color.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(12), border: Border.all(color: color.withValues(alpha: 0.5))),
+                    child: Text('${f.value}: $label', style: TextStyle(color: textColor, fontSize: 12, fontWeight: FontWeight.w600)),
+                  );
+                }(),
+            ]),
+          ],
         ],
       ),
     );
@@ -514,11 +593,14 @@ class _CardDetailScreenState extends State<CardDetailScreen> with SingleTickerPr
     }
 
     final rows = [
-      (isPt ? "Normal (EUA)" : "Normal (US)", price('usdPrice'), '\$'),
-      (isPt ? "Foil (EUA)" : "Foil (US)", price('usdFoil'), '\$'),
-      (isPt ? "Europa" : "Europe", price('eurPrice'), '€'),
+      ("Normal (EUA)", price('usdPrice'), '\$'),
+      ("Foil (EUA)", price('usdFoil'), '\$'),
+      ("Europa", price('eurPrice'), '€'),
       ("MTGO", price('tixPrice'), 'tix '),
     ].where((r) => r.$2 != null).toList();
+    // Em real, pelo dólar de hoje.
+    final usd = price('usdPrice') ?? price('usdFoil');
+    if (usd != null && _brl != null) rows.insert(1, ("Em real (aprox.)", usd * _brl!, 'R\$ '));
 
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(24, 8, 24, 12),
@@ -527,7 +609,7 @@ class _CardDetailScreenState extends State<CardDetailScreen> with SingleTickerPr
         children: [
           if (rows.isEmpty)
             Text(
-              isPt ? "Sem preço para esta versão. Tente a versão em inglês em OUTRAS ARTES." : "No price for this version.",
+              "Sem preço para esta versão. Tente a versão em inglês em OUTRAS ARTES.",
               style: TextStyle(color: textColor.withValues(alpha: 0.6)),
             )
           else
@@ -537,7 +619,7 @@ class _CardDetailScreenState extends State<CardDetailScreen> with SingleTickerPr
             ],
           const SizedBox(height: 12),
           Text(
-            isPt ? "Valores do Scryfall, atualizados uma vez por dia." : "Prices from Scryfall, updated daily.",
+            "Valores do Scryfall, atualizados uma vez por dia.",
             style: TextStyle(color: textColor.withValues(alpha: 0.4), fontSize: 11),
           ),
         ],

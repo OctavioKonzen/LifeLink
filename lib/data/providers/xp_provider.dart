@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../account/user_data.dart';
@@ -10,7 +11,10 @@ class XpProvider extends ChangeNotifier {
 
   // --- VARIÁVEIS DE MISSÕES E COSMÉTICOS ---
   int _currentTier = 1;
-  List<String> _claimedMissions = ["0", "0", "0", "0", "0"]; 
+  List<String> _claimedMissions = ["0", "0", "0", "0", "0"];
+  // Os contadores no começo da seção atual: cada seção conta só o que foi
+  // feito nela (senão, a partir da seção 2, as missões já vinham prontas).
+  Map<String, int> _tierStart = {'decks': 0, 'cards': 0, 'searches': 0, 'arts': 0};
   List<String> _unlockedAvatars = [];
   List<String> _unlockedBorders = ["0"]; 
   List<String> _unlockedTitles = [];
@@ -34,7 +38,24 @@ class XpProvider extends ChangeNotifier {
   int get xp => _xp;
   int get level => _level;
   int get currentTier => _currentTier;
-  List<String> get claimedMissions => _claimedMissions;
+  /// Sempre com 5 posições (uma lista menor vinda da conta não quebra a tela).
+  List<String> get claimedMissions => [for (var i = 0; i < 5; i++) i < _claimedMissions.length ? _claimedMissions[i] : "0"];
+
+  /// Quanto foi feito desde o começo da seção atual.
+  int sinceTierStart(String stat) {
+    final now = switch (stat) {
+      'decks' => _statDecksCreated,
+      'cards' => _statCardsAdded,
+      'searches' => _statSearches,
+      _ => _statArtsViewed,
+    };
+    return now - (_tierStart[stat] ?? 0) < 0 ? 0 : now - (_tierStart[stat] ?? 0);
+  }
+
+  Map<String, int> _snapshot() => {'decks': _statDecksCreated, 'cards': _statCardsAdded, 'searches': _statSearches, 'arts': _statArtsViewed};
+
+  static Map<String, int>? _readStart(dynamic v) =>
+      v is Map ? {for (final e in v.entries) e.key.toString(): (e.value as num?)?.toInt() ?? 0} : null;
   List<String> get unlockedAvatars => _unlockedAvatars;
   List<String> get unlockedBorders => _unlockedBorders;
   List<String> get unlockedTitles => _unlockedTitles;
@@ -113,6 +134,7 @@ class XpProvider extends ChangeNotifier {
         'level': _level,
         'tier': _currentTier,
         'claimedMissions': _claimedMissions,
+        'tierStart': _tierStart,
         'unlockedAvatars': _unlockedAvatars,
         'unlockedBorders': _unlockedBorders,
         'unlockedTitles': _unlockedTitles,
@@ -149,6 +171,8 @@ class XpProvider extends ChangeNotifier {
     _statCardsAdded = i('statCards', 0);
     _statSearches = i('statSearches', 0);
     _statArtsViewed = i('statArts', 0);
+    // Contas antigas (sem o começo da seção): da seção 2 em diante, conta a partir de agora.
+    _tierStart = _readStart(v?['tierStart']) ?? (_currentTier > 1 ? _snapshot() : {'decks': 0, 'cards': 0, 'searches': 0, 'arts': 0});
     await _writePrefs();
     notifyListeners();
   }
@@ -172,6 +196,9 @@ class XpProvider extends ChangeNotifier {
     _statCardsAdded = prefs.getInt('stat_cards') ?? 0;
     _statSearches = prefs.getInt('stat_searches') ?? 0;
     _statArtsViewed = prefs.getInt('stat_arts') ?? 0;
+    final start = prefs.getString('tier_start');
+    _tierStart = (start == null ? null : _readStart(jsonDecode(start))) ??
+        (_currentTier > 1 ? _snapshot() : {'decks': 0, 'cards': 0, 'searches': 0, 'arts': 0});
     notifyListeners();
   }
 
@@ -183,6 +210,7 @@ class XpProvider extends ChangeNotifier {
   Future<void> _writePrefs() async {
     final prefs = await SharedPreferences.getInstance();
     prefs.setInt('user_xp', _xp);
+    prefs.setString('tier_start', jsonEncode(_tierStart));
     prefs.setInt('user_level', _level);
     prefs.setInt('user_tier', _currentTier);
     prefs.setStringList('claimed_missions', _claimedMissions);
@@ -222,6 +250,18 @@ class XpProvider extends ChangeNotifier {
     return null;
   }
 
+  /// A vitória foi desfeita (a partida não acabou): tira os 50 XP e a partida.
+  /// O banner que ela desbloqueou fica (ao vencer de novo, não ganha outro).
+  void undoMatch() {
+    if (_totalMatchesPlayed > 0) _totalMatchesPlayed--;
+    _xp = _xp < 50 ? 0 : _xp - 50;
+    while (_level > 1 && _xp < (_level - 1) * (_level - 1) * 100) {
+      _level--;
+    }
+    _saveData();
+    notifyListeners();
+  }
+
   void selectBanner(String id) { _selectedBannerId = id; _saveData(); notifyListeners(); }
   void incrementDecksCreated() { _statDecksCreated++; addXp(100); _saveData(); notifyListeners(); }
   void incrementCardsAdded(int amount) { _statCardsAdded += amount; addXp(5 * amount); _saveData(); notifyListeners(); }
@@ -235,8 +275,20 @@ class XpProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  void claimMission(int index) { _claimedMissions[index] = "1"; _saveData(); notifyListeners(); }
-  void advanceTier() { _currentTier++; _claimedMissions = ["0", "0", "0", "0", "0"]; _saveData(); notifyListeners(); }
+  void claimMission(int index) {
+    if (index < 0 || index >= 5) return;
+    _claimedMissions = claimedMissions..[index] = "1";
+    _saveData();
+    notifyListeners();
+  }
+
+  void advanceTier() {
+    _currentTier++;
+    _claimedMissions = ["0", "0", "0", "0", "0"];
+    _tierStart = _snapshot();
+    _saveData();
+    notifyListeners();
+  }
 
   void unlockReward(String type, String value) {
     if (type == 'avatar' && !_unlockedAvatars.contains(value)) _unlockedAvatars.add(value);

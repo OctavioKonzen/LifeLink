@@ -18,13 +18,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final currentBg = themeProvider.backgroundColor;
     final bool isLight = currentBg.computeLuminance() > 0.5;
     final Color textColor = isLight ? Colors.black87 : Colors.white;
-    final bool isPt = themeProvider.cardLanguage == 'pt';
 
     return Scaffold(
       backgroundColor: currentBg,
       resizeToAvoidBottomInset: false, 
       appBar: AppBar(
-        title: Text(isPt ? "Configurações" : "Settings", style: TextStyle(color: textColor)), 
+        title: Text("Configurações", style: TextStyle(color: textColor)), 
         backgroundColor: Colors.transparent, 
         elevation: 0, 
         foregroundColor: textColor
@@ -35,7 +34,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // CORES
-            Text(isPt ? "COR DE FUNDO" : "BACKGROUND COLOR", style: TextStyle(color: textColor.withValues(alpha: 0.5), fontSize: 12, fontWeight: FontWeight.bold)),
+            Text("COR DE FUNDO", style: TextStyle(color: textColor.withValues(alpha: 0.5), fontSize: 12, fontWeight: FontWeight.bold)),
             const SizedBox(height: 10),
             Wrap(
               spacing: 20,
@@ -58,8 +57,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
             const SizedBox(height: 30),
 
-            // IDIOMA DAS CARTAS E APP
-            Text(isPt ? "IDIOMA DO APP E CARTAS" : "APP & CARD LANGUAGE", style: TextStyle(color: textColor.withValues(alpha: 0.5), fontSize: 12, fontWeight: FontWeight.bold)),
+            // O app é em português; aqui é o idioma que aparece primeiro em "Outras artes".
+            Text("IDIOMA DAS CARTAS (EM OUTRAS ARTES)", style: TextStyle(color: textColor.withValues(alpha: 0.5), fontSize: 12, fontWeight: FontWeight.bold)),
             const SizedBox(height: 10),
             Container(
               decoration: neonDecoration(AreaColors.profile, neonSurface(context, currentBg), radius: 16, glow: 0.12),
@@ -75,7 +74,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                   Divider(height: 1, color: textColor.withValues(alpha: 0.1)),
                   ListTile(
-                    title: Text("English (EN)", style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
+                    title: Text("Inglês (EN)", style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
                     trailing: Icon(
                       themeProvider.cardLanguage == 'en' ? Icons.radio_button_checked : Icons.radio_button_off,
                       color: themeProvider.cardLanguage == 'en' ? Colors.blueAccent : textColor.withValues(alpha: 0.3),
@@ -89,19 +88,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
             const SizedBox(height: 30),
 
             // VERSÃO DO APP E ATUALIZAÇÃO (GitHub Releases)
-            Text(isPt ? "VERSÃO DO APP" : "APP VERSION", style: TextStyle(color: textColor.withValues(alpha: 0.5), fontSize: 12, fontWeight: FontWeight.bold)),
+            Text("VERSÃO DO APP", style: TextStyle(color: textColor.withValues(alpha: 0.5), fontSize: 12, fontWeight: FontWeight.bold)),
             const SizedBox(height: 10),
             Container(
               decoration: neonDecoration(AreaColors.profile, neonSurface(context, currentBg), radius: 16, glow: 0.12),
               child: ListTile(
                 title: FutureBuilder<String>(
                   future: UpdateService.currentVersion(),
-                  builder: (context, snap) => Text(isPt ? "Versão ${snap.data ?? '...'}" : "Version ${snap.data ?? '...'}", style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
+                  builder: (context, snap) => Text("Versão ${snap.data ?? '...'}", style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
                 ),
                 trailing: UpdateService.supported
                     ? TextButton(
                         onPressed: () => UpdateService.checkNow(context),
-                        child: Text(isPt ? "Procurar atualização" : "Check for update"),
+                        child: Text("Procurar atualização"),
                       )
                     : null,
               ),

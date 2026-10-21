@@ -94,7 +94,7 @@ export async function fetchDeckList(lines) {
   lines.forEach((l, i) => {
     const c = found.get(i)
     if (!c) return
-    const card = toDeckCard(c)
+    const card = l.commander ? { ...toDeckCard(c), commander: true } : toDeckCard(c)
     for (let q = 0; q < l.qty; q++) out.push(card)
   })
   return { cards: out, missing }

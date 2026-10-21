@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/material.dart';
@@ -59,7 +60,7 @@ class GameProvider with ChangeNotifier {
   // Segunda cor (degradê, como deck de duas cores); -1 = só uma cor.
   List<int> _colors2 = List.filled(maxPlayers, -1);
   List<List<int>> _commanderDamage = List.generate(maxPlayers, (_) => List.filled(maxPlayers, 0));
-  List<String> _playerNames = List.generate(maxPlayers, (i) => "Player ${i + 1}");
+  List<String> _playerNames = List.generate(maxPlayers, (i) => "Jogador ${i + 1}");
   // O deck de cada jogador nesta partida (nome; vazio = não disse), para as estatísticas.
   List<String> _decks = List.filled(maxPlayers, '');
 
@@ -84,6 +85,10 @@ class GameProvider with ChangeNotifier {
   // Histórico da partida (só neste aparelho), do mais antigo ao mais novo.
   final List<GameEvent> _history = [];
 
+  /// Muda a cada partida nova neste aparelho (para saber se o "desfazer"
+  /// ainda é da partida que terminou).
+  int gameId = 0;
+
   int get playerCount => _playerCount;
   int get startingLife => _startingLife;
   List<int> get lives => _lives;
@@ -105,6 +110,12 @@ class GameProvider with ChangeNotifier {
 
   /// Tempo total que o jogador usou nas vezes dele (contando a atual).
   Duration turnTotal(int player) => Duration(milliseconds: _turnTotals[player]) + (player == _turnPlayer ? turnElapsed : Duration.zero);
+
+  /// O nome padrão antigo ("Player 2") vira "Jogador 2".
+  static String _ptName(String name) {
+    final m = RegExp(r'^Player (\d)$').firstMatch(name);
+    return m == null ? name : 'Jogador ${m.group(1)}';
+  }
 
   String deckOf(int player) => _decks[player];
 
@@ -245,8 +256,8 @@ class GameProvider with ChangeNotifier {
     _commanderDamage = List.generate(maxPlayers, (i) => _ints(i < cmd.length ? cmd[i] : null, 0));
     final decks = [for (final d in (v?['playerDecks'] as List? ?? const [])) d.toString()];
     _decks = List.generate(maxPlayers, (i) => i < decks.length ? decks[i] : '');
-    final names = [for (final n in (v?['playerNames'] as List? ?? const [])) n.toString()];
-    _playerNames = List.generate(maxPlayers, (i) => i < names.length ? names[i] : "Player ${i + 1}");
+    final names = [for (final n in (v?['playerNames'] as List? ?? const [])) _ptName(n.toString())];
+    _playerNames = List.generate(maxPlayers, (i) => i < names.length ? names[i] : "Jogador ${i + 1}");
     if (!keepHistory) _history.clear();
     await _save();
     notifyListeners();
@@ -279,8 +290,6 @@ class GameProvider with ChangeNotifier {
     _record(GameEvent(index, 'life', delta));
     _changed(GameEvent(index, 'life', delta), wasDead);
   }
-
-  void updatePoison(int index, int delta) => updateCounter(Counter.poison, index, delta);
 
   void updateCounter(Counter kind, int index, int delta) {
     final list = _counterList(kind);
@@ -450,9 +459,8 @@ class GameProvider with ChangeNotifier {
     resetGame();
   }
 
-  void toggleCMDMode() => setStartingLife(_startingLife == 20 ? 40 : 20);
-
   void resetGame() {
+    gameId++;
     _lives = List.filled(maxPlayers, _startingLife);
     _poison = List.filled(maxPlayers, 0);
     _energy = List.filled(maxPlayers, 0);
@@ -484,11 +492,18 @@ class GameProvider with ChangeNotifier {
   /// Chamado a cada mudança feita aqui (a mesa online manda para os outros).
   void Function()? onLocalChange;
 
+  // Segurando o + ou o −, a vida muda várias vezes por segundo: grava no
+  // aparelho e avisa a conta uma vez só, logo depois que para.
+  Timer? _saveTimer;
+
   Future<void> _saveAndNotify() async {
     notifyListeners();
     onLocalChange?.call();
-    await _save();
-    UserData.instance.changed('game');
+    _saveTimer?.cancel();
+    _saveTimer = Timer(const Duration(milliseconds: 350), () {
+      _save();
+      UserData.instance.changed('game');
+    });
   }
 
   Future<void> _save() async {
@@ -543,8 +558,8 @@ class GameProvider with ChangeNotifier {
 
     final n = prefs.getString('playerNames');
     if (n != null) {
-      final names = List<String>.from(jsonDecode(n));
-      _playerNames = List.generate(maxPlayers, (i) => i < names.length ? names[i] : "Player ${i + 1}");
+      final names = [for (final x in jsonDecode(n) as List) _ptName(x.toString())];
+      _playerNames = List.generate(maxPlayers, (i) => i < names.length ? names[i] : "Jogador ${i + 1}");
     }
 
     notifyListeners();

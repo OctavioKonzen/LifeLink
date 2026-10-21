@@ -12,15 +12,18 @@ import '../../../data/services/deck_tools.dart';
 import 'deck_tools_screens.dart';
 
 class DeckDetailScreen extends StatefulWidget {
-  final int deckIndex;
+  final String deckId;
 
-  const DeckDetailScreen({super.key, required this.deckIndex});
+  const DeckDetailScreen({super.key, required this.deckId});
 
   @override
   State<DeckDetailScreen> createState() => _DeckDetailScreenState();
 }
 
 class _DeckDetailScreenState extends State<DeckDetailScreen> {
+  /// A posição atual do deck (pelo id: a lista pode mudar com a tela aberta).
+  int get _deckIndex => context.read<DeckProvider>().indexOfId(widget.deckId);
+
   String _searchQuery = "";
   final TextEditingController _searchController = TextEditingController();
   
@@ -61,7 +64,7 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
             onPressed: () {
-              provider.deleteDeck(widget.deckIndex);
+              provider.deleteDeck(_deckIndex);
               Navigator.pop(ctx); 
               Navigator.pop(context); 
             },
@@ -75,10 +78,11 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
   Future<void> _translateDeckCards(String langCode, DeckProvider provider) async {
     setState(() => _isTranslating = true);
     
-    final deck = provider.allDecks[widget.deckIndex];
+    final deck = provider.allDecks[_deckIndex];
     int translatedCount = 0;
 
     for (int i = 0; i < deck.cards.length; i++) {
+      if (!mounted) return; // saiu da tela no meio
       var card = deck.cards[i];
       try {
         final oracleId = card['oracle_id'];
@@ -107,9 +111,9 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
             updatedCard['name'] = validPrint['printed_name'] ?? validPrint['name'] ?? card['name'];
             updatedCard['type_line'] = validPrint['printed_type_line'] ?? validPrint['type_line'] ?? card['type_line'];
             updatedCard['oracle_text'] = validPrint['printed_text'] ?? validPrint['oracle_text'] ?? card['oracle_text'];
-            updatedCard['setName'] = (validPrint['set'] ?? card['setName']).toString().toUpperCase();
+            updatedCard['setName'] = validPrint['set_name'] ?? card['setName'];
 
-            provider.updateCardInDeck(widget.deckIndex, i, updatedCard);
+            provider.updateCardInDeck(_deckIndex, i, updatedCard);
             translatedCount++;
           }
         }
@@ -118,6 +122,7 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
       }
     }
 
+    if (!mounted) return;
     setState(() => _isTranslating = false);
     
     if (mounted) {
@@ -140,7 +145,7 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
     var ok = true;
     try {
       final result = await DeckTools.fetch(input.lines);
-      provider.addCardsToDeck(widget.deckIndex, result.cards);
+      provider.addCardsToDeck(_deckIndex, result.cards);
       if (result.cards.isNotEmpty && mounted) context.read<XpProvider>().incrementCardsAdded(result.cards.length);
       message = '${result.cards.length} cartas adicionadas!';
       if (result.missing.isNotEmpty) {
@@ -168,18 +173,30 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
     final theme = context.watch<ThemeProvider>();
     final deckProvider = context.watch<DeckProvider>();
 
-    if (widget.deckIndex >= deckProvider.allDecks.length) {
-      return const Scaffold(body: Center(child: Text("Deck não encontrado")));
+    if (_deckIndex < 0) {
+      return Scaffold(appBar: AppBar(), body: const Center(child: Text("Esse deck não existe mais (foi apagado em outro aparelho?).")));
     }
 
-    final deck = deckProvider.allDecks[widget.deckIndex];
+    final deck = deckProvider.allDecks[_deckIndex];
     final isLight = theme.backgroundColor.computeLuminance() > 0.5;
     final textColor = isLight ? Colors.black87 : Colors.white;
 
-    final filteredCards = deck.cards.where((card) {
-      final name = card['name']?.toString().toLowerCase() ?? "";
-      return name.contains(_searchQuery.toLowerCase());
-    }).toList();
+    final search = _searchQuery.toLowerCase();
+
+    // Cópias iguais (mesmo nome e mesma arte) viram uma carta com "4×"; o
+    // comandante vem primeiro.
+    final byKey = <String, List<int>>{};
+    for (var i = 0; i < deck.cards.length; i++) {
+      final c = deck.cards[i];
+      if (search.isNotEmpty && !(c['name']?.toString().toLowerCase() ?? '').contains(search)) continue;
+      byKey.putIfAbsent('${c['name']}|${c['imageUrl']}', () => []).add(i);
+    }
+    final groups = byKey.values.toList()
+      ..sort((a, b) {
+        final ca = deck.cards[a.first]['commander'] == true ? 0 : 1;
+        final cb = deck.cards[b.first]['commander'] == true ? 0 : 1;
+        return ca != cb ? ca - cb : a.first - b.first;
+      });
 
     return Stack(
       children: [
@@ -189,12 +206,20 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
             backgroundColor: Colors.transparent,
             elevation: 0,
             iconTheme: IconThemeData(color: textColor),
-            title: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(deck.name, style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 18)),
-                Text("${deck.type} • ${deck.cards.length} cartas", style: const TextStyle(fontSize: 12, color: Colors.grey)),
-              ],
+            // Tocar no nome renomeia o deck.
+            title: GestureDetector(
+              onTap: () => _rename(deck.name),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(mainAxisSize: MainAxisSize.min, children: [
+                    Flexible(child: Text(deck.name, overflow: TextOverflow.ellipsis, style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 18))),
+                    const SizedBox(width: 6),
+                    Icon(Icons.edit, size: 14, color: textColor.withValues(alpha: 0.5)),
+                  ]),
+                  Text("${deck.type} • ${deck.cards.length} cartas", style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                ],
+              ),
             ),
             actions: [
               IconButton(
@@ -204,7 +229,7 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
               ),
               IconButton(
                 icon: const Icon(Icons.price_check, color: Colors.amber),
-                tooltip: "Preço e legalidade",
+                tooltip: "Curva, preço e legalidade",
                 onPressed: deck.cards.isEmpty ? null : () => Navigator.push(context, MaterialPageRoute(builder: (_) => DeckAnalysisScreen(deck: deck))),
               ),
               IconButton(
@@ -271,7 +296,7 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
                   ],
                 ),
               )
-            : filteredCards.isEmpty
+            : groups.isEmpty
               ? _buildEmptyState(textColor)
               : GridView.builder(
                   padding: const EdgeInsets.all(16),
@@ -281,17 +306,16 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
                     crossAxisSpacing: 12,
                     mainAxisSpacing: 20,
                   ),
-                  itemCount: filteredCards.length,
+                  itemCount: groups.length,
                   itemBuilder: (context, index) {
-                    final card = filteredCards[index];
-                    final realIndex = deck.cards.indexOf(card);
-                    return _buildGridCard(card, realIndex, isLight);
+                    final g = groups[index];
+                    return _buildGridCard(deck.cards[g.first], g, isLight);
                   },
                 ),
           floatingActionButton: FloatingActionButton(
             onPressed: () {
               Navigator.push(context, MaterialPageRoute(
-                builder: (context) => CardSearchScreen(targetDeckIndex: widget.deckIndex),
+                builder: (context) => CardSearchScreen(targetDeckId: widget.deckId),
               ));
             },
             backgroundColor: Colors.blueAccent,
@@ -318,8 +342,97 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
     );
   }
 
-  Widget _buildGridCard(Map<String, dynamic> card, int indexInDeck, bool isLight) {
+  /// Tira a carta, com "Desfazer" para quem tocou sem querer.
+  void _removeCard(Map<String, dynamic> card, int indexInDeck) {
+    final provider = context.read<DeckProvider>();
+    final deckIndex = _deckIndex;
+    if (deckIndex < 0) return;
+    provider.removeCardFromDeck(deckIndex, indexInDeck);
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(SnackBar(
+      content: Text('${card['name'] ?? 'Carta'} saiu do deck.'),
+      duration: const Duration(seconds: 4),
+      action: SnackBarAction(
+        label: 'Desfazer',
+        onPressed: () {
+          final i = provider.indexOfId(widget.deckId);
+          if (i >= 0) provider.insertCardInDeck(i, indexInDeck, card);
+        },
+      ),
+    ));
+  }
+
+  /// Renomear o deck.
+  Future<void> _rename(String current) async {
+    final ctrl = TextEditingController(text: current);
+    final name = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Nome do deck'),
+        content: TextField(controller: ctrl, autofocus: true, textCapitalization: TextCapitalization.sentences, onSubmitted: (v) => Navigator.pop(ctx, v)),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, ctrl.text), child: const Text('Salvar')),
+        ],
+      ),
+    );
+    ctrl.dispose();
+    if (name == null || !mounted) return;
+    context.read<DeckProvider>().renameDeck(_deckIndex, name);
+  }
+
+  /// O que dá para fazer com a carta (segurar em cima dela).
+  void _cardMenu(Map<String, dynamic> card, List<int> copies) {
+    final commander = card['commander'] == true;
+    showModalBottomSheet(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) => SafeArea(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          ListTile(title: Text('${card['name'] ?? ''}', style: const TextStyle(fontWeight: FontWeight.w800)), subtitle: Text('${copies.length} ${copies.length == 1 ? 'cópia' : 'cópias'} no deck')),
+          ListTile(
+            leading: const Icon(Icons.add_circle_outline),
+            title: const Text('Mais uma cópia'),
+            onTap: () {
+              Navigator.pop(ctx);
+              final copy = Map<String, dynamic>.from(card);
+              context.read<DeckProvider>().addCardToDeck(_deckIndex, copy);
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.remove_circle_outline),
+            title: const Text('Tirar uma cópia'),
+            onTap: () {
+              Navigator.pop(ctx);
+              _removeCard(card, copies.last);
+            },
+          ),
+          ListTile(
+            leading: Icon(Icons.workspace_premium, color: commander ? Colors.amber : null),
+            title: Text(commander ? 'Não é mais o comandante' : 'Marcar como comandante'),
+            onTap: () {
+              Navigator.pop(ctx);
+              context.read<DeckProvider>().setCommander(_deckIndex, copies, !commander);
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.swap_horiz),
+            title: const Text('Trocar por outra carta'),
+            onTap: () {
+              Navigator.pop(ctx);
+              Navigator.push(context, MaterialPageRoute(builder: (_) => CardSearchScreen(targetDeckId: widget.deckId, replaceCardIndex: copies.first)));
+            },
+          ),
+        ]),
+      ),
+    );
+  }
+
+  /// Uma carta do deck, com a quantidade de cópias (ex.: 4×).
+  Widget _buildGridCard(Map<String, dynamic> card, List<int> copies, bool isLight) {
     final rarityColor = _getRarityColor(card['rarity']);
+    final indexInDeck = copies.last;
 
     return GestureDetector(
       onTap: () {
@@ -327,20 +440,12 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
           context,
           MaterialPageRoute(builder: (context) => CardDetailScreen(
             card: card,
-            targetDeckIndex: widget.deckIndex,
-            existingCardIndex: indexInDeck, 
+            targetDeckId: widget.deckId,
+            existingCardIndex: copies.first,
           )),
         );
       },
-      onLongPress: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => CardSearchScreen(
-            targetDeckIndex: widget.deckIndex,
-            replaceCardIndex: indexInDeck, 
-          )),
-        );
-      },
+      onLongPress: () => _cardMenu(card, copies),
       child: Stack(
         clipBehavior: Clip.none,
         children: [
@@ -349,6 +454,7 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
             borderRadius: BorderRadius.circular(8),
             child: CachedNetworkImage(
               imageUrl: card['imageUrl'] ?? '',
+              memCacheWidth: 320, // miniatura: não decodifica a imagem inteira
               fit: BoxFit.cover,
               width: double.infinity,
               height: double.infinity,
@@ -356,17 +462,34 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
               errorWidget: (context, url, error) => const Icon(Icons.broken_image, size: 20),
             ),
           ),
-          Positioned(
-            top: -6,
-            right: -6,
-            child: GestureDetector(
-              onTap: () {
-                context.read<DeckProvider>().removeCardFromDeck(widget.deckIndex, indexInDeck);
-              },
+          // Quantas cópias e se é o comandante.
+          if (copies.length > 1 || card['commander'] == true)
+            Positioned(
+              left: 4,
+              bottom: 4,
               child: Container(
-                padding: const EdgeInsets.all(4),
-                decoration: const BoxDecoration(color: Colors.redAccent, shape: BoxShape.circle),
-                child: const Icon(Icons.close, color: Colors.white, size: 14),
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.75), borderRadius: BorderRadius.circular(10)),
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  if (card['commander'] == true) const Icon(Icons.workspace_premium, color: Colors.amber, size: 14),
+                  if (copies.length > 1) Text('${copies.length}×', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 13)),
+                ]),
+              ),
+            ),
+          Positioned(
+            top: -10,
+            right: -10,
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () => _removeCard(card, indexInDeck),
+              // Área de toque maior que o círculo (fácil de acertar no celular).
+              child: Padding(
+                padding: const EdgeInsets.all(6),
+                child: Container(
+                  padding: const EdgeInsets.all(5),
+                  decoration: const BoxDecoration(color: Colors.redAccent, shape: BoxShape.circle, boxShadow: [BoxShadow(color: Colors.black38, blurRadius: 4)]),
+                  child: const Icon(Icons.close, color: Colors.white, size: 16),
+                ),
               ),
             ),
           ),

@@ -122,7 +122,7 @@ class DeckTools {
     for (var i = 0; i < lines.length; i++) {
       final c = found[i];
       if (c == null) continue;
-      final card = deckCardOf(c);
+      final card = {...deckCardOf(c), if (lines[i].commander) 'commander': true};
       if (lines[i].commander) commanders.add(card);
       for (var q = 0; q < lines[i].qty; q++) {
         out.add(card);
@@ -150,6 +150,7 @@ class DeckTools {
         'id': data['id'],
         'name': data['name'] ?? 'Carta Desconhecida',
         'imageUrl': CardImages.normalOf(data) ?? CardImages.cardBack,
+        'backImageUrl': data['card_faces']?[1]?['image_uris']?['normal'],
         'type_line': data['type_line'] ?? data['card_faces']?[0]?['type_line'] ?? '',
         'oracle_text': data['oracle_text'] ?? data['card_faces']?[0]?['oracle_text'] ?? '',
         'rarity': data['rarity'] ?? 'common',
@@ -158,7 +159,7 @@ class DeckTools {
         'power': data['power']?.toString(),
         'toughness': data['toughness']?.toString(),
         'color_identity': (data['color_identity'] as List?)?.join('') ?? '',
-        'setName': (data['set'] ?? '').toString().toUpperCase(),
+        'setName': data['set_name'] ?? '',
         'collectorNumber': data['collector_number'] ?? '',
         'oracle_id': data['oracle_id'],
         'usdPrice': data['prices']?['usd'] ?? data['prices']?['usd_foil'] ?? '0.00',
