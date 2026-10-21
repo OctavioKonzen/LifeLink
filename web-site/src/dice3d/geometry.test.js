@@ -45,3 +45,11 @@ test('D100: faces opostas somam 101 e 6/9 ganham ponto', () => {
   expect(die.faces.find((f) => f.value === 69).label).toBe('69') // 69 de cabeça para baixo é 69
   expect(die.faces.find((f) => f.value === 10).label).toBe('10')
 })
+
+test('dado planar: caos no 1, viagem no 6 e o resto em branco', () => {
+  const die = dieShape('planar')
+  expect(die.sides).toBe(6)
+  expect(die.faces.find((f) => f.value === 1).symbol).toBe('caos')
+  expect(die.faces.find((f) => f.value === 6).symbol).toBe('viagem')
+  expect(die.faces.filter((f) => !f.symbol).every((f) => f.label === '')).toBe(true)
+})

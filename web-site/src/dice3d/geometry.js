@@ -146,6 +146,15 @@ const cache = new Map()
  */
 export function dieShape(kind) {
   if (cache.has(kind)) return cache.get(kind)
+  if (kind === 'planar') {
+    // Dado planar (Planechase): um D6 com o símbolo do caos no 1, o de
+    // viajar entre planos no 6 e as outras quatro faces em branco.
+    const d6 = dieShape('d6')
+    const faces = d6.faces.map((f) => ({ ...f, label: '', symbol: PLANAR_FACES[f.value] ?? null }))
+    const shape = { ...d6, kind, faces }
+    cache.set(kind, shape)
+    return shape
+  }
   const solid = kind === 'd100' ? d100Solid() : null
   const raw = solid ? solid.vertices : rawVertices(kind)
   const radius = Math.max(...raw.map(len))
@@ -207,6 +216,10 @@ export function dieShape(kind) {
   cache.set(kind, shape)
   return shape
 }
+
+/** O que vale cada face do dado planar (as outras são em branco). */
+export const PLANAR_FACES = { 1: 'caos', 6: 'viagem' }
+export const PLANAR = { kind: 'planar', label: 'Planar', color: '#37474f' }
 
 export const DICE = [
   { kind: 'd4', label: 'D4', color: '#43a047' },

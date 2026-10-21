@@ -5,7 +5,7 @@
 
 import * as THREE from 'three'
 import * as CANNON from 'cannon-es'
-import { DICE, dieShape, vec } from './geometry'
+import { DICE, PLANAR, dieShape, vec } from './geometry'
 import { playClack, unlockSound } from './sound'
 
 const UP = new THREE.Vector3(0, 1, 0)
@@ -43,6 +43,47 @@ function faceTexture(color, draw, px = 256) {
   texture.colorSpace = THREE.SRGBColorSpace
   texture.anisotropy = 4
   return texture
+}
+
+/** Os símbolos do dado planar: o caos (um redemoinho de pontas) e o de viajar entre planos. */
+function drawSymbol(g, symbol, x, y, r) {
+  g.save()
+  g.translate(x, y)
+  g.lineWidth = r * 0.12
+  g.beginPath()
+  if (symbol === 'caos') {
+    // Estrela de 8 pontas curvas, girando.
+    const n = 8
+    for (let k = 0; k <= n * 2; k++) {
+      const a = (k * Math.PI) / n
+      const rr = k % 2 === 0 ? r : r * 0.42
+      const px = Math.cos(a) * rr
+      const py = Math.sin(a) * rr
+      if (k === 0) g.moveTo(px, py)
+      else g.quadraticCurveTo(Math.cos(a - 0.35) * rr * 0.9, Math.sin(a - 0.35) * rr * 0.9, px, py)
+    }
+    g.closePath()
+    g.stroke()
+    g.fill()
+    g.fillStyle = 'rgba(0,0,0,0.45)'
+    g.beginPath()
+    g.arc(0, 0, r * 0.2, 0, Math.PI * 2)
+    g.fill()
+  } else {
+    // Viagem: a chama do planeswalker (uma ponta alta no meio e duas do lado).
+    g.moveTo(0, -r)
+    g.quadraticCurveTo(r * 0.18, -r * 0.2, r * 0.12, r * 0.55)
+    g.lineTo(r * 0.55, -r * 0.35)
+    g.quadraticCurveTo(r * 0.62, r * 0.35, r * 0.2, r * 0.95)
+    g.lineTo(-r * 0.2, r * 0.95)
+    g.quadraticCurveTo(-r * 0.62, r * 0.35, -r * 0.55, -r * 0.35)
+    g.lineTo(-r * 0.12, r * 0.55)
+    g.quadraticCurveTo(-r * 0.18, -r * 0.2, 0, -r)
+    g.closePath()
+    g.stroke()
+    g.fill()
+  }
+  g.restore()
 }
 
 function writeNumber(g, text, x, y, px, angle = 0) {
@@ -101,7 +142,9 @@ function buildMesh(shape, color, SIZE) {
           const cy = 128 - y * scale * 0.98 * 0.55
           writeNumber(g, String(shape.vertexValues[m]), cx, cy, inr * scale * 0.62, Math.atan2(x, y))
         })
-      } else {
+      } else if (f.symbol) {
+        drawSymbol(g, f.symbol, 128, 128, inr * scale * 0.62)
+      } else if (f.label) {
         const digits = f.label.replace('.', '').length
         const px = inr * scale * (digits === 1 ? 1.05 : digits === 2 ? 0.8 : 0.66)
         writeNumber(g, f.label, 128, 128, px)
@@ -280,7 +323,7 @@ export function createDiceTable(container, { onResult, onRollStart, dieSize, top
   }
 
   function diceFor(k) {
-    const info = DICE.find((d) => d.kind === k) ?? DICE[5]
+    const info = [...DICE, PLANAR].find((d) => d.kind === k) ?? DICE[5]
     return [makeDie(k, info.color)]
   }
 

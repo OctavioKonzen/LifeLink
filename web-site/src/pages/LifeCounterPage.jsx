@@ -3,6 +3,9 @@ import { defaultGame, updateSection, useUserData } from '../lib/userData'
 import { incrementMatches } from '../lib/xp'
 import DiceModal from '../components/DiceModal'
 import { playSound, setSoundsOn, soundFor, soundsOn } from '../lib/sounds'
+import { clock, isDead, nextTurn, startTurns, stopTurns, turnTotal } from '../lib/turns'
+import TableCardsModal from '../components/TableCardsModal'
+import { Modal } from '../components/ui'
 
 // O mesmo contador do app (game_provider.dart): 2 a 6 jogadores, vida
 // inicial à vontade, veneno até 10 e dano de comandante até 21, que também tira
@@ -33,7 +36,42 @@ const toApp = ({ players, names, commander, ...rest }) => ({ ...rest, playerCoun
 // Partida nova: zera tudo, mas mantém nomes e cores.
 const newGame = (g, startingLife) => ({ ...g, ...view(defaultGame(startingLife, g.players, g.names)) })
 
-const isDead = (g, i) => g.lives[i] <= 0 || g.poison[i] >= 10 || g.commander[i].some((d) => d >= 21)
+// Contadores extras de cada jogador: [campo, nome, ícone, passo, máximo].
+const COUNTERS = [
+  ['energy', 'Energia', '⚡', 1, 99],
+  ['experience', 'Experiência', '✨', 1, 99],
+  ['tax', 'Imposto do comandante', '🏛', 2, 99],
+  ['treasure', 'Tesouro', '💰', 1, 99],
+  ['storm', 'Tempestade', '🌩', 1, 99],
+]
+const setAt = (list, i, value) => Array.from({ length: 6 }, (_, k) => (k === i ? value : (list?.[k] ?? 0)))
+
+/** Deixa a tela acesa enquanto o contador está aberto (onde o navegador deixa). */
+function useWakeLock() {
+  useEffect(() => {
+    let lock = null
+    const take = () => {
+      if (document.visibilityState !== 'visible' || !navigator.wakeLock) return
+      navigator.wakeLock.request('screen').then((l) => (lock = l)).catch(() => {})
+    }
+    take()
+    document.addEventListener('visibilitychange', take)
+    return () => {
+      document.removeEventListener('visibilitychange', take)
+      lock?.release().catch(() => {})
+    }
+  }, [])
+}
+
+/** Atualiza a tela a cada segundo (o relógio da vez). */
+function useTick(on) {
+  const [, setNow] = useState(0)
+  useEffect(() => {
+    if (!on) return undefined
+    const id = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(id)
+  }, [on])
+}
 
 const clamp = (v, min, max) => Math.min(max, Math.max(min, v))
 
@@ -77,9 +115,23 @@ function Player({ i, game, update, history }) {
   // (unidades cq, do tamanho deste quadro).
   return (
     <div
-      className="relative flex min-h-0 min-w-0 flex-1 flex-col rounded-2xl p-3 text-white shadow-lg [container-type:size]"
+      className={`relative flex min-h-0 min-w-0 flex-1 flex-col rounded-2xl p-3 text-white shadow-lg [container-type:size] ${game.turnPlayer === i ? 'ring-4 ring-white' : ''}`}
       style={{ background: backgroundOf(game, i), opacity: dead ? 0.55 : 1 }}
     >
+      <div className="flex min-h-6 flex-wrap justify-center gap-1 text-xs font-black">
+        {game.monarch === i && <span className="rounded-full bg-black/30 px-2 py-0.5 text-amber-300">👑 Monarca</span>}
+        {game.initiative === i && <span className="rounded-full bg-black/30 px-2 py-0.5 text-orange-300">🏰 Iniciativa</span>}
+        {game.turnPlayer === i && (
+          <button
+            type="button"
+            onClick={() => update((g) => nextTurn(g), { silent: true })}
+            className="rounded-full bg-white px-2.5 py-0.5 text-black"
+            title="Passar a vez"
+          >
+            Rodada {game.turnRound} · {clock(Date.now() - game.turnStartedAt)} · Passar ⏭
+          </button>
+        )}
+      </div>
       <input
         value={game.names[i]}
         onChange={(e) => update((g) => ({ ...g, names: g.names.map((n, k) => (k === i ? e.target.value : n)) }))}
@@ -109,7 +161,9 @@ function Player({ i, game, update, history }) {
         </div>
       </div>
       <button type="button" onClick={() => setDetails((d) => !d)} className="w-full truncate rounded-full bg-black/20 px-2 py-1 text-sm font-semibold">
-        ☣ {game.poison[i]} · ⚔ Comandante · 📈 Histórico {details ? '▲' : '▼'}
+        ☣ {game.poison[i]}
+        {COUNTERS.filter(([key]) => game[key]?.[i] > 0).map(([key, , icon]) => ` · ${icon} ${game[key][i]}`)}
+        {game.blessing?.[i] > 0 ? ' · 🏙' : ''} · ⚔ Contadores · 📈 {details ? '▲' : '▼'}
       </button>
       {details && (
         <div className="absolute inset-x-3 top-10 bottom-12 z-10 space-y-2 overflow-y-auto rounded-xl bg-black/55 p-2 text-sm backdrop-blur">
@@ -152,6 +206,25 @@ function Player({ i, game, update, history }) {
             value={game.poison[i]}
             onChange={(d) => update((g) => ({ ...g, poison: g.poison.map((v, k) => (k === i ? clamp(v + d, 0, 10) : v)) }))}
           />
+          {COUNTERS.map(([key, label, icon, step, max]) => (
+            <Row
+              key={key}
+              label={`${icon} ${label}`}
+              value={game[key]?.[i] ?? 0}
+              onChange={(d) => update((g) => ({ ...g, [key]: setAt(g[key], i, clamp((g[key]?.[i] ?? 0) + d * step, 0, max)) }))}
+            />
+          ))}
+          <div className="flex flex-wrap gap-1.5">
+            {[
+              ['blessing', '🏙 Cidade abençoada', game.blessing?.[i] > 0, () => update((g) => ({ ...g, blessing: setAt(g.blessing, i, g.blessing?.[i] > 0 ? 0 : 1) }), { silent: true })],
+              ['monarch', '👑 Monarca', game.monarch === i, () => update((g) => ({ ...g, monarch: g.monarch === i ? -1 : i }), { silent: true })],
+              ['initiative', '🏰 Iniciativa', game.initiative === i, () => update((g) => ({ ...g, initiative: g.initiative === i ? -1 : i }), { silent: true })],
+            ].map(([key, label, on, toggle]) => (
+              <button key={key} type="button" onClick={toggle} className={`rounded-full px-3 py-1 text-xs font-bold ${on ? 'bg-white text-black' : 'bg-black/25'}`}>
+                {label}
+              </button>
+            ))}
+          </div>
           {others.map((j) => (
             <Row
               key={j}
@@ -247,9 +320,15 @@ export default function LifeCounterPage() {
       return next.slice(-300)
     })
   }
+  // Desfazer: as partidas de antes de cada mudança (neste navegador).
+  const undoStack = useRef([])
+  const [canUndo, setCanUndo] = useState(false)
   const setGame = (update, { silent = false, reset = false } = {}) =>
     updateSection('game', (g) => {
       const before = view(g)
+      if (reset) undoStack.current = []
+      else undoStack.current = [...undoStack.current.slice(-49), g]
+      setCanUndo(undoStack.current.length > 0)
       const after = update(before)
       const sound = silent ? null : soundFor(before, after)
       if (sound) playSound(sound)
@@ -266,6 +345,17 @@ export default function LifeCounterPage() {
     }
     setGame((g) => newGame(g, life), { silent: true, reset: true })
   }
+  const undo = () => {
+    const previous = undoStack.current.pop()
+    setCanUndo(undoStack.current.length > 0)
+    if (!previous) return
+    updateSection('game', () => previous)
+    setLog((old) => old.slice(0, -1))
+  }
+  useWakeLock()
+  useTick(game.turnPlayer >= 0)
+  const [turns, setTurns] = useState(false)
+  const [cards, setCards] = useState(null) // 'planechase' | 'archenemy'
   const [sounds, setSounds] = useState(soundsOn)
   const [banner, setBanner] = useState(null)
   const [dice, setDice] = useState(false)
@@ -331,6 +421,24 @@ export default function LifeCounterPage() {
         </button>
         <button
           type="button"
+          disabled={!canUndo}
+          onClick={undo}
+          className="rounded-full bg-text/10 px-3 py-1.5 text-sm font-bold hover:bg-text/20 disabled:opacity-40"
+          title="Desfazer a última mudança"
+        >
+          ↶ Desfazer
+        </button>
+        <button type="button" onClick={() => setTurns(true)} className="rounded-full bg-text/10 px-3 py-1.5 text-sm font-bold hover:bg-text/20">
+          ⏱ {game.turnPlayer >= 0 ? `Rodada ${game.turnRound}` : 'Turnos'}
+        </button>
+        <button type="button" onClick={() => setCards('planechase')} className="rounded-full bg-text/10 px-3 py-1.5 text-sm font-bold hover:bg-text/20">
+          🌍 Planechase
+        </button>
+        <button type="button" onClick={() => setCards('archenemy')} className="rounded-full bg-text/10 px-3 py-1.5 text-sm font-bold hover:bg-text/20">
+          🔥 Archenemy
+        </button>
+        <button
+          type="button"
           onClick={() => setDice(true)}
           className="rounded-full bg-amber-500 px-4 py-1.5 text-sm font-bold text-black hover:brightness-110"
         >
@@ -345,6 +453,53 @@ export default function LifeCounterPage() {
         </button>
       </div>
       {dice && <DiceModal onClose={() => setDice(false)} />}
+      {cards && (
+        <TableCardsModal
+          mode={cards}
+          card={cards === 'planechase' ? game.plane : game.scheme}
+          onCard={(card) => setGame((g) => ({ ...g, [cards === 'planechase' ? 'plane' : 'scheme']: card }), { silent: true })}
+          turnKey={`${game.turnPlayer}-${game.turnRound}`}
+          onClose={() => setCards(null)}
+        />
+      )}
+      {turns && (
+        <Modal onClose={() => setTurns(false)}>
+          <h2 className="mb-1 text-2xl font-black">{game.turnPlayer >= 0 ? `Turnos · rodada ${game.turnRound}` : 'Quem joga primeiro?'}</h2>
+          <p className="mb-3 text-sm text-muted">
+            {game.turnPlayer >= 0 ? 'Tempo que cada um já usou nas vezes dele.' : 'A vez passa na ordem dos jogadores. No quadro de quem joga aparece o tempo e o botão de passar.'}
+          </p>
+          <ul className="space-y-1.5">
+            {Array.from({ length: game.players }, (_, i) => (
+              <li key={i}>
+                <button
+                  type="button"
+                  disabled={game.turnPlayer >= 0}
+                  onClick={() => {
+                    setGame((g) => startTurns(g, i), { silent: true })
+                    setTurns(false)
+                  }}
+                  className="flex w-full items-center gap-3 rounded-xl bg-text/5 px-3 py-2 text-left enabled:hover:bg-text/10"
+                >
+                  <span className="h-4 w-4 rounded-full" style={{ background: backgroundOf(game, i) }} />
+                  <span className={`flex-1 ${game.turnPlayer === i ? 'font-black' : 'font-semibold'}`}>{game.names[i]}</span>
+                  {game.turnPlayer >= 0 && <span className="tabular-nums text-muted">{clock(turnTotal(game, i))}</span>}
+                  {game.turnPlayer === i && <span>▶</span>}
+                </button>
+              </li>
+            ))}
+          </ul>
+          {game.turnPlayer >= 0 && (
+            <div className="mt-4 flex gap-2">
+              <button type="button" onClick={() => setGame((g) => nextTurn(g), { silent: true })} className="flex-1 rounded-full bg-white py-2 font-black text-black">
+                Passar a vez ⏭
+              </button>
+              <button type="button" onClick={() => setGame((g) => stopTurns(g), { silent: true })} className="flex-1 rounded-full bg-text/10 py-2 font-bold">
+                Parar de contar
+              </button>
+            </div>
+          )}
+        </Modal>
+      )}
       {alive.length === 1 && (
         <p className="mb-3 shrink-0 rounded-xl bg-amber-400/15 p-3 text-center font-bold text-amber-300">
           🏆 {game.names[alive[0]]} venceu! +50 XP{banner ? ` · Novo banner: ${banner}` : ''}

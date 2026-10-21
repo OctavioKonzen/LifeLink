@@ -36,6 +36,20 @@ class _PlayerCardWidgetState extends State<PlayerCardWidget> {
   int _lifeDelta = 0;
   Timer? _deltaTimer;
   Timer? _holdTimer;
+  Timer? _clock; // atualiza o tempo da vez enquanto é a vez deste jogador
+
+  @override
+  void initState() {
+    super.initState();
+    _clock = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted && widget.game.turnPlayer == widget.index) setState(() {});
+    });
+  }
+
+  static String clock(Duration d) {
+    final m = d.inMinutes, s = d.inSeconds % 60;
+    return m >= 60 ? '${m ~/ 60}h${(m % 60).toString().padLeft(2, '0')}' : '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
+  }
 
   void _change(int amount) {
     final wasDead = widget.game.isDead(widget.index);
@@ -66,6 +80,7 @@ class _PlayerCardWidgetState extends State<PlayerCardWidget> {
   void dispose() {
     _deltaTimer?.cancel();
     _holdTimer?.cancel();
+    _clock?.cancel();
     super.dispose();
   }
 
@@ -117,14 +132,22 @@ class _PlayerCardWidgetState extends State<PlayerCardWidget> {
       if (game.counter(Counter.energy, i) > 0) _badge(Icons.bolt, '${game.counter(Counter.energy, i)}', const Color(0xFFFFF59D)),
       if (game.counter(Counter.experience, i) > 0) _badge(Icons.auto_awesome, '${game.counter(Counter.experience, i)}', Colors.white),
       if (game.counter(Counter.tax, i) > 0) _badge(Icons.account_balance, '+${game.counter(Counter.tax, i)}', const Color(0xFFB2DFDB)),
+      if (game.counter(Counter.treasure, i) > 0) _badge(Icons.paid, '${game.counter(Counter.treasure, i)}', const Color(0xFFFFD54F)),
+      if (game.counter(Counter.storm, i) > 0) _badge(Icons.thunderstorm, '${game.counter(Counter.storm, i)}', const Color(0xFF90CAF9)),
+      if (game.counter(Counter.blessing, i) > 0) _badge(Icons.location_city, '', const Color(0xFFFFF8E1)),
     ];
+    final myTurn = game.turnPlayer == i;
 
     return RotatedBox(
       quarterTurns: widget.quarterTurns,
-      child: Container(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 250),
         margin: const EdgeInsets.all(3),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(22),
+          // A vez deste jogador: borda clara em volta.
+          border: myTurn ? Border.all(color: Colors.white, width: 3) : null,
+          boxShadow: myTurn ? [BoxShadow(color: Colors.white.withValues(alpha: 0.45), blurRadius: 14)] : null,
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
@@ -184,6 +207,39 @@ class _PlayerCardWidgetState extends State<PlayerCardWidget> {
                 child: Opacity(opacity: 0.85, child: Text('💀', style: TextStyle(fontSize: 64, shadows: [Shadow(color: Colors.red.shade900, blurRadius: 20)]))),
               ),
             ),
+
+          // Em cima (o lado do meio da mesa): monarca, iniciativa e a vez.
+          Align(
+            alignment: Alignment.topCenter,
+            child: Padding(
+              padding: const EdgeInsets.only(top: 8, left: 8, right: 8),
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  if (game.monarch == i) _badge(Icons.workspace_premium, 'Monarca', const Color(0xFFFFD54F)),
+                  if (game.initiative == i) _badge(Icons.fort, 'Iniciativa', const Color(0xFFFFAB91)),
+                  if (myTurn)
+                    GestureDetector(
+                      onTap: () {
+                        HapticFeedback.mediumImpact();
+                        game.nextTurn();
+                      },
+                      child: Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 3),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
+                        child: Row(mainAxisSize: MainAxisSize.min, children: [
+                          Text('Rodada ${game.turnRound} · ${clock(game.turnElapsed)}', style: const TextStyle(color: Colors.black, fontWeight: FontWeight.w900, fontSize: 14)),
+                          const SizedBox(width: 6),
+                          const Text('Passar', style: TextStyle(color: Colors.black54, fontWeight: FontWeight.w800, fontSize: 13)),
+                          const Icon(Icons.skip_next, size: 18, color: Colors.black87),
+                        ]),
+                      ),
+                    ),
+                ]),
+              ),
+            ),
+          ),
 
           // Embaixo (o lado de quem joga, longe do botão do meio): o nome,
           // que troca nome e cor, e os contadores em uso, que abrem todos.

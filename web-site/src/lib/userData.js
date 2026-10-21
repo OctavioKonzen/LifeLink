@@ -40,6 +40,20 @@ export const defaultGame = (startingLife = 40, playerCount = 2, playerNames) => 
   energy: Array(6).fill(0),
   experience: Array(6).fill(0),
   tax: Array(6).fill(0),
+  treasure: Array(6).fill(0),
+  storm: Array(6).fill(0),
+  blessing: Array(6).fill(0),
+  monarch: -1,
+  initiative: -1,
+  // Turnos: de quem é a vez (-1 = sem contar), quem começou, a rodada, quando
+  // a vez começou (ms) e o tempo de cada um. Planechase/Archenemy: a carta virada.
+  turnPlayer: -1,
+  turnFirst: 0,
+  turnRound: 1,
+  turnStartedAt: 0,
+  turnTotals: Array(6).fill(0),
+  plane: null,
+  scheme: null,
   commanderDamage: Array.from({ length: 6 }, () => Array(6).fill(0)),
   playerNames: playerNames || Array.from({ length: 6 }, (_, i) => `Player ${i + 1}`),
 })
