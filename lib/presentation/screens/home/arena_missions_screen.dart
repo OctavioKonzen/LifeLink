@@ -6,6 +6,7 @@ import '../../../data/providers/deck_provider.dart';
 import '../../../data/providers/xp_provider.dart';
 import '../../widgets/custom_back_button.dart';
 import '../../../data/services/scryfall_service.dart';
+import '../../widgets/neon.dart';
 
 class ArenaMissionsScreen extends StatefulWidget {
   const ArenaMissionsScreen({super.key});
@@ -174,13 +175,13 @@ class _ArenaMissionsScreenState extends State<ArenaMissionsScreen> {
           backgroundColor: theme.backgroundColor,
           appBar: AppBar(
             automaticallyImplyLeading: false, backgroundColor: Colors.transparent, elevation: 0,
-            title: Text("Missões Arena - Rank $tier", style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
+            title: Text("Missões · Rank $tier", style: TextStyle(color: textColor)),
           ),
           body: Column(
             children: [
               Container(
                 margin: const EdgeInsets.all(16), padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(color: isLight ? Colors.white : const Color(0xFF1E1E24), borderRadius: BorderRadius.circular(20), border: Border.all(color: Colors.blueAccent.withValues(alpha: 0.3))),
+                decoration: neonDecoration(AreaColors.missions, neonSurface(context, theme.backgroundColor)),
                 child: Column(
                   children: [
                     Row(
@@ -214,7 +215,7 @@ class _ArenaMissionsScreenState extends State<ArenaMissionsScreen> {
 
                     return Container(
                       margin: const EdgeInsets.only(bottom: 16), padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(color: isLight ? Colors.white : const Color(0xFF2A2A35), borderRadius: BorderRadius.circular(16)),
+                      decoration: neonDecoration(isGoalMet ? ach['color'] as Color : AreaColors.missions, neonSurface(context, theme.backgroundColor), radius: 16, glow: isGoalMet ? 0.3 : 0.1),
                       child: Row(
                         children: [
                           Icon(ach['icon'], size: 30, color: isGoalMet ? ach['color'] : Colors.grey),

@@ -8,6 +8,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../../../data/providers/theme_provider.dart';
 import 'community_deck_detail_screen.dart';
 import '../../widgets/custom_back_button.dart';
+import '../../widgets/neon.dart';
 
 class CommunityDecksScreen extends StatefulWidget {
   const CommunityDecksScreen({super.key});
@@ -203,7 +204,7 @@ class _CommunityDecksScreenState extends State<CommunityDecksScreen> {
             backgroundColor: Colors.transparent, 
             elevation: 0, 
             iconTheme: IconThemeData(color: textColor),
-            title: Text("Comunidade", style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
+            title: Text("Decks oficiais", style: TextStyle(color: textColor)),
           ),
           body: _isLoading 
             ? const Center(child: CircularProgressIndicator())
@@ -278,10 +279,10 @@ class _CommunityDecksScreenState extends State<CommunityDecksScreen> {
         duration: const Duration(milliseconds: 250),
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
         decoration: BoxDecoration(
-          color: sel ? Colors.blueAccent : Colors.blueAccent.withValues(alpha: 0.1),
+          color: sel ? AreaColors.official : AreaColors.official.withValues(alpha: 0.12),
           borderRadius: BorderRadius.circular(25),
         ),
-        child: Text(label, style: TextStyle(color: sel ? Colors.white : Colors.blueAccent, fontWeight: FontWeight.bold, fontSize: 13)),
+        child: Text(label, style: TextStyle(color: sel ? Colors.white : AreaColors.official, fontWeight: FontWeight.bold, fontSize: 13)),
       ),
     );
   }
@@ -294,11 +295,7 @@ class _CommunityDecksScreenState extends State<CommunityDecksScreen> {
         )));
       },
       child: Container(
-        decoration: BoxDecoration(
-          color: isLight ? Colors.white : const Color(0xFF2A2A35),
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 10)]
-        ),
+        decoration: neonDecoration(AreaColors.official, neonSurface(context, context.read<ThemeProvider>().backgroundColor), glow: 0.15),
         child: Column(
           children: [
             Expanded(flex: 5, child: CommunityDeckCoverWidget(isLight: isLight, imageUrls: coverImages)),

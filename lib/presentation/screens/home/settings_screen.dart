@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../data/providers/theme_provider.dart';
 import '../../../data/services/update_service.dart';
+import '../../widgets/neon.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -23,7 +24,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       backgroundColor: currentBg,
       resizeToAvoidBottomInset: false, 
       appBar: AppBar(
-        title: Text(isPt ? "CONFIGURAÇÕES" : "SETTINGS"), 
+        title: Text(isPt ? "Configurações" : "Settings", style: TextStyle(color: textColor)), 
         backgroundColor: Colors.transparent, 
         elevation: 0, 
         foregroundColor: textColor
@@ -61,10 +62,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             Text(isPt ? "IDIOMA DO APP E CARTAS" : "APP & CARD LANGUAGE", style: TextStyle(color: textColor.withValues(alpha: 0.5), fontSize: 12, fontWeight: FontWeight.bold)),
             const SizedBox(height: 10),
             Container(
-              decoration: BoxDecoration(
-                color: isLight ? Colors.black.withValues(alpha: 0.05) : Colors.white10, 
-                borderRadius: BorderRadius.circular(12)
-              ),
+              decoration: neonDecoration(AreaColors.profile, neonSurface(context, currentBg), radius: 16, glow: 0.12),
               child: Column(
                 children: [
                   ListTile(
@@ -94,10 +92,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             Text(isPt ? "VERSÃO DO APP" : "APP VERSION", style: TextStyle(color: textColor.withValues(alpha: 0.5), fontSize: 12, fontWeight: FontWeight.bold)),
             const SizedBox(height: 10),
             Container(
-              decoration: BoxDecoration(
-                color: isLight ? Colors.black.withValues(alpha: 0.05) : Colors.white10, 
-                borderRadius: BorderRadius.circular(12)
-              ),
+              decoration: neonDecoration(AreaColors.profile, neonSurface(context, currentBg), radius: 16, glow: 0.12),
               child: ListTile(
                 title: FutureBuilder<String>(
                   future: UpdateService.currentVersion(),

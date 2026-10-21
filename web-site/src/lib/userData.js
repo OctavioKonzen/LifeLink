@@ -37,6 +37,9 @@ export const defaultGame = (startingLife = 40, playerCount = 2, playerNames) => 
   startingLife,
   lives: Array(6).fill(startingLife),
   poison: Array(6).fill(0),
+  energy: Array(6).fill(0),
+  experience: Array(6).fill(0),
+  tax: Array(6).fill(0),
   commanderDamage: Array.from({ length: 6 }, () => Array(6).fill(0)),
   playerNames: playerNames || Array.from({ length: 6 }, (_, i) => `Player ${i + 1}`),
 })
