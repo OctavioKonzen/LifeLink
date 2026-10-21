@@ -196,6 +196,47 @@ class ScryfallService {
     return list?.map((s) => Map<String, String>.from(s as Map)).toList();
   }
 
+  /// As coleções para os anúncios do Início: as que estão para sair e as
+  /// mais novas (só as principais, com cartas já mostradas), da mais nova
+  /// para a mais antiga. Cada uma abre a própria página no Scryfall.
+  Future<List<Map<String, dynamic>>> featuredSets({int max = 3, DateTime? today}) async {
+    final list = await cachedList('sets_full', '/sets', pick: (data) {
+      final List sets = data['data'] ?? [];
+      return [
+        for (final s in sets)
+          {
+            'code': s['code'],
+            'name': s['name'],
+            'released_at': s['released_at'],
+            'set_type': s['set_type'],
+            'digital': s['digital'] == true,
+            'card_count': s['card_count'] ?? 0,
+            'scryfall_uri': s['scryfall_uri'],
+          }
+      ];
+    });
+    return pickFeaturedSets(list ?? const [], max: max, today: today ?? DateTime.now());
+  }
+
+  /// Os tipos de coleção que viram anúncio (coleções principais).
+  static const _featuredTypes = {'expansion', 'core', 'masters', 'draft_innovation'};
+
+  static List<Map<String, dynamic>> pickFeaturedSets(List<dynamic> sets, {required int max, required DateTime today}) {
+    // Até 6 meses à frente: o que já foi anunciado e tem cartas mostradas.
+    final limit = today.add(const Duration(days: 180));
+    final picked = <Map<String, dynamic>>[];
+    for (final raw in sets) {
+      final s = Map<String, dynamic>.from(raw as Map);
+      final date = DateTime.tryParse(s['released_at']?.toString() ?? '');
+      if (date == null || date.isAfter(limit)) continue;
+      if (!_featuredTypes.contains(s['set_type']) || s['digital'] == true) continue;
+      if ((s['card_count'] as num? ?? 0) <= 0 || s['scryfall_uri'] == null) continue;
+      picked.add({...s, 'date': date});
+    }
+    picked.sort((a, b) => (b['date'] as DateTime).compareTo(a['date'] as DateTime));
+    return picked.take(max).toList();
+  }
+
   // ------------------------------------------------------- buscas recentes
 
   static const String _recentKey = 'recent_card_searches';
@@ -246,6 +287,11 @@ class CardImages {
   /// Arte recortada de uma carta pelo nome (o Scryfall redireciona para a imagem).
   static String artCropByName(String name) =>
       'https://api.scryfall.com/cards/named?exact=${Uri.encodeQueryComponent(name)}&format=image&version=art_crop';
+
+  /// Arte recortada de uma carta rara ou mítica da coleção (o Scryfall
+  /// redireciona para a imagem).
+  static String artCropOfSet(String code) =>
+      'https://api.scryfall.com/cards/random?q=${Uri.encodeQueryComponent('set:$code (rarity:mythic or rarity:rare)')}&format=image&version=art_crop';
 
   /// Verso padrão das cartas de Magic.
   static const String cardBack = 'https://upload.wikimedia.org/wikipedia/en/a/aa/Magic_the_gathering-card_back.jpg';

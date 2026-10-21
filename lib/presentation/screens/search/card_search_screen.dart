@@ -2,8 +2,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:flutter_svg/flutter_svg.dart'; 
 import 'card_detail_screen.dart';
+import 'card_filters_sheet.dart';
 import '../../../data/providers/theme_provider.dart';
 import '../../../data/providers/deck_provider.dart'; 
 import '../../../data/providers/xp_provider.dart'; // IMPORT DO XP PROVIDER
@@ -38,14 +38,8 @@ class _CardSearchScreenState extends State<CardSearchScreen> {
   List<String> _recentSearches = [];
   int _searchId = 0; // descarta respostas de buscas antigas
   
-  final List<String> _selectedTypes = [];
-  final List<String> _selectedColors = []; 
-  String? _selectedSet; 
+  CardFilters _filters = const CardFilters();
 
-  List<String> _apiCardTypes = [
-    "Artifact", "Battle", "Creature", "Enchantment", "Instant", "Land", "Planeswalker", "Sorcery", 
-    "Basic", "Legendary", "Ongoing", "Snow", "World"
-  ];
   List<String> _apiCreatureTypes = [
     "Alien", "Angel", "Archer", "Artificer", "Assassin", "Avatar", "Barbarian", "Bear", "Beast", 
     "Bird", "Boar", "Cat", "Centaur", "Cleric", "Construct", "Demon", "Dinosaur", "Dog", "Dragon", 
@@ -104,17 +98,14 @@ class _CardSearchScreenState extends State<CardSearchScreen> {
     _fetchSets(); 
 
     final lists = await Future.wait([
-      _scryfall.catalog('supertypes'),
-      _scryfall.catalog('card-types'),
       _scryfall.catalog('creature-types'),
       _scryfall.catalog('artifact-types'),
       _scryfall.catalog('enchantment-types'),
     ]);
     if (!mounted) return;
     setState(() {
-      if (lists[0] != null && lists[1] != null) _apiCardTypes = [...lists[0]!, ...lists[1]!];
-      if (lists[2] != null) _apiCreatureTypes = lists[2]!;
-      if (lists[3] != null && lists[4] != null) _apiOtherTypes = [...lists[3]!, ...lists[4]!];
+      if (lists[0] != null) _apiCreatureTypes = lists[0]!;
+      if (lists[1] != null && lists[2] != null) _apiOtherTypes = [...lists[1]!, ...lists[2]!]..sort();
     });
   }
 
@@ -174,17 +165,7 @@ class _CardSearchScreenState extends State<CardSearchScreen> {
     
     String q = queryText.trim().isEmpty ? "is:commander" : ScryfallService.buildTextQuery(queryText);
     
-    if (_selectedTypes.isNotEmpty) {
-      final typeQuery = _selectedTypes.map((t) => 't:"$t"').join(" or ");
-      q = "$q ($typeQuery)";
-    }
-    
-    if (_selectedColors.isNotEmpty) {
-      q = "$q id<=${_selectedColors.join('')}";
-    }
-    if (_selectedSet != null) {
-      q = "$q set:$_selectedSet";
-    }
+    if (!_filters.isEmpty) q = "$q ${_filters.toQuery()}";
 
     await _fetchFromScryfall(query: q);
   }
@@ -263,174 +244,19 @@ class _CardSearchScreenState extends State<CardSearchScreen> {
     }
   }
 
-  void _showFilters(BuildContext context, Color bgColor, Color textColor) {
-    final PageController pageController = PageController();
-
-    showModalBottomSheet(
-      context: context, 
-      isScrollControlled: true, 
-      backgroundColor: bgColor,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(30))),
-      builder: (context) => StatefulBuilder(
-        builder: (context, setModalState) {
-          return SizedBox(
-            height: MediaQuery.of(context).size.height * 0.85,
-            child: Column(children: [
-              const SizedBox(height: 20),
-              Text("Filtros", style: TextStyle(color: textColor, fontSize: 32, fontWeight: FontWeight.bold)),
-              
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 20),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: ["W", "U", "B", "R", "G", "C"].map((mana) {
-                    bool isSel = _selectedColors.contains(mana);
-                    return GestureDetector(
-                      onTap: () {
-                        setModalState(() {
-                          if (isSel) {
-                            _selectedColors.remove(mana);
-                          } else {
-                            _selectedColors.add(mana);
-                          }
-                        });
-                      },
-                      child: Container(
-                        margin: const EdgeInsets.symmetric(horizontal: 8),
-                        width: 45, height: 45,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(color: isSel ? Colors.blueAccent : Colors.transparent, width: 3),
-                        ),
-                        child: Opacity(
-                          opacity: isSel ? 1.0 : 0.4,
-                          child: SvgPicture.network(
-                            "https://svgs.scryfall.io/card-symbols/$mana.svg",
-                            headers: const {'User-Agent': 'LifelinkApp/1.0'},
-                            placeholderBuilder: (context) => const Center(child: CircularProgressIndicator(strokeWidth: 2)),
-                          ),
-                        ),
-                      ),
-                    );
-                  }).toList(),
-                ),
-              ),
-
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 10),
-                child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                  IconButton(icon: Icon(Icons.arrow_back_ios, color: textColor, size: 18), onPressed: () => pageController.previousPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut)),
-                  Text("Arraste para o lado", style: TextStyle(color: textColor.withValues(alpha: 0.5), fontSize: 12)),
-                  IconButton(icon: Icon(Icons.arrow_forward_ios, color: textColor, size: 18), onPressed: () => pageController.nextPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut)),
-                ]),
-              ),
-
-              Expanded(
-                child: PageView(
-                  controller: pageController,
-                  children: [
-                    _buildPage("Tipos & Super Tipos", _apiCardTypes, setModalState, textColor),
-                    _buildPage("Raças (Criaturas)", _apiCreatureTypes, setModalState, textColor),
-                    _buildPage("Artefatos & Encantamentos", _apiOtherTypes, setModalState, textColor),
-                    _buildSetsPage(setModalState, textColor),
-                  ],
-                ),
-              ),
-
-              Padding(
-                padding: const EdgeInsets.all(25),
-                child: Row(children: [
-                  Expanded(child: OutlinedButton(
-                    onPressed: () {
-                      setState(() { 
-                        _selectedTypes.clear(); 
-                        _selectedColors.clear(); 
-                        _selectedSet = null; 
-                      });
-                      Navigator.pop(context);
-                      _performSearch("");
-                    }, 
-                    child: const Text("Limpar")
-                  )),
-                  const SizedBox(width: 20),
-                  Expanded(child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(backgroundColor: Colors.blueAccent, minimumSize: const Size(0, 60)),
-                    onPressed: () {
-                      Navigator.pop(context);
-                      _performSearch(_searchController.text);
-                    }, 
-                    child: const Text("APLICAR", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))
-                  )),
-                ]),
-              ),
-            ]),
-          );
-        }
-      ),
+  Future<void> _showFilters(BuildContext context, Color bgColor, Color textColor) async {
+    final result = await showCardFilters(
+      context,
+      current: _filters,
+      sets: _allSets,
+      races: _apiCreatureTypes,
+      subtypes: _apiOtherTypes,
+      background: bgColor,
+      textColor: textColor,
     );
-  }
-
-  Widget _buildPage(String title, List<String> options, StateSetter setModalState, Color textColor) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(title.toUpperCase(), style: const TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold, fontSize: 18)),
-        const SizedBox(height: 15),
-        Wrap(spacing: 8, runSpacing: 8, children: options.map((t) {
-          bool isSel = _selectedTypes.contains(t);
-          return FilterChip(
-            label: Text(t, style: TextStyle(color: isSel ? Colors.white : textColor, fontSize: 13)),
-            selected: isSel,
-            onSelected: (v) {
-              setModalState(() {
-                if (v) {
-                  _selectedTypes.add(t);
-                } else {
-                  _selectedTypes.remove(t);
-                }
-              });
-            },
-            selectedColor: Colors.blueAccent,
-            checkmarkColor: Colors.white,
-          );
-        }).toList()),
-      ]),
-    );
-  }
-
-  Widget _buildSetsPage(StateSetter setModalState, Color textColor) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 20),
-          child: Text("EDIÇÕES / SETS", style: TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold, fontSize: 18)),
-        ),
-        const SizedBox(height: 10),
-        Expanded(
-          child: ListView.builder(
-            itemCount: _allSets.length,
-            itemBuilder: (context, index) {
-              final set = _allSets[index];
-              bool isSel = _selectedSet == set['code'];
-              return ListTile(
-                title: Text(set['name']!, style: TextStyle(color: isSel ? Colors.blueAccent : textColor)),
-                trailing: isSel ? const Icon(Icons.check_circle, color: Colors.blueAccent) : null,
-                onTap: () {
-                  setModalState(() {
-                    if (isSel) {
-                      _selectedSet = null;
-                    } else {
-                      _selectedSet = set['code'];
-                    }
-                  });
-                },
-              );
-            },
-          ),
-        ),
-      ],
-    );
+    if (result == null || !mounted) return;
+    setState(() => _filters = result);
+    _performSearch(_searchController.text);
   }
 
   @override
