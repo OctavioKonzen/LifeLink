@@ -4,7 +4,7 @@
   <img src="https://img.shields.io/badge/Flutter-3.x-blue?logo=flutter&style=for-the-badge" />
   <img src="https://img.shields.io/badge/React-19-61DAFB?logo=react&style=for-the-badge" />
   <img src="https://img.shields.io/badge/Firebase-FFCA28?logo=firebase&style=for-the-badge" />
-  <img src="https://img.shields.io/badge/Android-1.0.13-green?logo=android&style=for-the-badge" />
+  <img src="https://img.shields.io/badge/Android-1.0.14-green?logo=android&style=for-the-badge" />
 </p>
 
 <div align="center">
@@ -68,6 +68,11 @@ Feito para a mesa, como os apps do gênero (Lifetap, MTG Companion): de **2 a 6 
 * **Sons** de dano, cura, veneno, dano de comandante e morte (dá para desligar). A tela não apaga durante a partida.
 
 A partida fica salva e, com a conta, é a mesma no app e no site. Cada partida terminada vale XP para o perfil.
+
+### Mesa online e amigos
+
+* **Mesa online**: no contador, "Mesa online" cria uma mesa com um **código de 6 letras**; cada um entra com o código no próprio celular (app) ou no site e a vida, os contadores e a vez de todos aparecem **em tempo real** em todos. Cada jogador fica num pedaço separado da mesa, então dois celulares mexendo ao mesmo tempo não se atrapalham. O dono fecha a mesa para todos.
+* **Amigos pelo nick**: peça amizade pelo nick, aceite os pedidos, veja os **decks dos amigos** (e copie para os seus) e **convide amigos** para a sua mesa online. No app fica no menu do início → Amigos; no site, no Perfil.
 
 ### Partidas e estatísticas
 

@@ -224,7 +224,9 @@ class GameProvider with ChangeNotifier {
     return list;
   }
 
-  Future<void> applySync(Map<String, dynamic>? v) async {
+  /// Aplica a partida que veio de fora (da conta ou da mesa online). Na mesa
+  /// online ([keepHistory]) o histórico daqui fica, para o desfazer e o gráfico.
+  Future<void> applySync(Map<String, dynamic>? v, {bool keepHistory = false}) async {
     _playerCount = (v?['playerCount'] as num?)?.toInt() ?? 2;
     _startingLife = (v?['startingLife'] as num?)?.toInt() ?? 40;
     _lives = _ints(v?['lives'], _startingLife);
@@ -245,7 +247,7 @@ class GameProvider with ChangeNotifier {
     _decks = List.generate(maxPlayers, (i) => i < decks.length ? decks[i] : '');
     final names = [for (final n in (v?['playerNames'] as List? ?? const [])) n.toString()];
     _playerNames = List.generate(maxPlayers, (i) => i < names.length ? names[i] : "Player ${i + 1}");
-    _history.clear();
+    if (!keepHistory) _history.clear();
     await _save();
     notifyListeners();
   }
@@ -479,8 +481,12 @@ class GameProvider with ChangeNotifier {
     'turnRound', 'turnStartedAt', 'turnTotals', 'plane', 'scheme',
   ];
 
+  /// Chamado a cada mudança feita aqui (a mesa online manda para os outros).
+  void Function()? onLocalChange;
+
   Future<void> _saveAndNotify() async {
     notifyListeners();
+    onLocalChange?.call();
     await _save();
     UserData.instance.changed('game');
   }

@@ -125,7 +125,17 @@ export function updateSection(key, update) {
   const value = typeof update === 'function' ? update(state[key]) : update
   state = { ...state, [key]: value }
   persist()
-  if (!applyingRemote) hooks.onLocalChange?.(key)
+  if (!applyingRemote) {
+    hooks.onLocalChange?.(key)
+    for (const listener of localListeners) listener(key)
+  }
+}
+
+// Outros interessados nas mudanças feitas aqui (a mesa online).
+const localListeners = new Set()
+export function onLocalChange(listener) {
+  localListeners.add(listener)
+  return () => localListeners.delete(listener)
 }
 
 export function saveDeck(deck) {

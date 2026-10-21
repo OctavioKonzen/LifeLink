@@ -5,6 +5,7 @@ import PricesPage from './pages/PricesPage'
 import DecksPage from './pages/DecksPage'
 import LifeCounterPage from './pages/LifeCounterPage'
 import MatchesPage from './pages/MatchesPage'
+import FriendsPage from './pages/FriendsPage'
 import MyDecksPage from './pages/MyDecksPage'
 import ProfilePage from './pages/ProfilePage'
 import AccountPage from './pages/AccountPage'
@@ -240,6 +241,7 @@ export default function App() {
             <Route path="/decks" element={<DecksPage />} />
             <Route path="/contador" element={<LifeCounterPage />} />
             <Route path="/partidas" element={<MatchesPage />} />
+            <Route path="/amigos" element={<FriendsPage />} />
             <Route path="/meus-decks" element={<MyDecksPage />} />
             <Route path="/perfil" element={<ProfilePage />} />
             <Route path="/conta" element={<AccountPage />} />

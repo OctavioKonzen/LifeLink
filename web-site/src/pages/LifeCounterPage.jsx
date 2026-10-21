@@ -5,6 +5,8 @@ import DiceModal from '../components/DiceModal'
 import { playSound, setSoundsOn, soundFor, soundsOn } from '../lib/sounds'
 import { clock, isDead, nextTurn, startTurns, stopTurns, turnTotal } from '../lib/turns'
 import TableCardsModal from '../components/TableCardsModal'
+import OnlineModal from '../components/OnlineModal'
+import { useOnlineTable } from '../lib/online'
 import { Modal } from '../components/ui'
 import { Link } from 'react-router-dom'
 import { addMatch, matchFromGame, removeMatch } from '../lib/matches'
@@ -379,6 +381,8 @@ export default function LifeCounterPage() {
   useTick(game.turnPlayer >= 0)
   const [turns, setTurns] = useState(false)
   const [cards, setCards] = useState(null) // 'planechase' | 'archenemy'
+  const [online, setOnline] = useState(false)
+  const table = useOnlineTable()
   const [sounds, setSounds] = useState(soundsOn)
   const [banner, setBanner] = useState(null)
   const [dice, setDice] = useState(false)
@@ -463,6 +467,13 @@ export default function LifeCounterPage() {
         <button type="button" onClick={() => setTurns(true)} className="rounded-full bg-text/10 px-3 py-1.5 text-sm font-bold hover:bg-text/20">
           ⏱ {game.turnPlayer >= 0 ? `Rodada ${game.turnRound}` : 'Turnos'}
         </button>
+        <button
+          type="button"
+          onClick={() => setOnline(true)}
+          className={`rounded-full px-3 py-1.5 text-sm font-bold ${table.code ? 'bg-emerald-500 text-white' : 'bg-text/10 hover:bg-text/20'}`}
+        >
+          🌐 {table.code ? `Mesa ${table.code}` : 'Mesa online'}
+        </button>
         <button type="button" onClick={() => setCards('planechase')} className="rounded-full bg-text/10 px-3 py-1.5 text-sm font-bold hover:bg-text/20">
           🌍 Planechase
         </button>
@@ -485,6 +496,7 @@ export default function LifeCounterPage() {
         </button>
       </div>
       {dice && <DiceModal onClose={() => setDice(false)} />}
+      {online && <OnlineModal onClose={() => setOnline(false)} />}
       {cards && (
         <TableCardsModal
           mode={cards}

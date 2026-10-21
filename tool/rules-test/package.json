@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "firebase emulators:exec --only firestore --project lifelink-test \"node test.mjs\""
+    "test": "firebase emulators:exec --only firestore --project lifelink-test \"node test.mjs && node online.mjs\""
   },
   "devDependencies": {
     "@firebase/rules-unit-testing": "^5.0.0",

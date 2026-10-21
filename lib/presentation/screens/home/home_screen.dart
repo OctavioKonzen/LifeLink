@@ -8,7 +8,8 @@ import '../../../data/providers/xp_provider.dart';
 import '../../../data/services/scryfall_service.dart';
 import 'life_counter_screen.dart';
 import 'settings_screen.dart'; 
-import 'match_history_screen.dart'; 
+import 'match_history_screen.dart';
+import 'online_screens.dart';
 import '../deck/my_decks_screen.dart';
 import '../deck/community_decks_screen.dart';
 import '../search/card_search_screen.dart'; 
@@ -405,6 +406,14 @@ class _HomeScreenState extends State<HomeScreen> {
             onTap: () {
               Navigator.pop(context);
               Navigator.push(context, MaterialPageRoute(builder: (context) => const ProfileScreen()));
+            },
+          ),
+          ListTile(
+            leading: Icon(Icons.group, color: textColor),
+            title: Text("Amigos", style: TextStyle(color: textColor)),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(context, MaterialPageRoute(builder: (context) => const FriendsScreen()));
             },
           ),
           ListTile(

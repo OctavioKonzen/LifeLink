@@ -13,6 +13,8 @@ import '../../widgets/player_card_widget.dart';
 import '../../widgets/dice_table.dart';
 import '../../widgets/continuous_action_button.dart';
 import 'planar_dialogs.dart';
+import 'online_screens.dart';
+import '../../../data/account/online.dart';
 
 /// O contador de vida, inspirado nos apps do gênero (Lifetap, MTG Companion):
 /// cada jogador virado para o seu lado da mesa, toque para ±1 e segurar para
@@ -273,6 +275,10 @@ class _LifeCounterScreenState extends State<LifeCounterScreen> {
                     _menuButton(Icons.emoji_people, 'Quem começa', const Color(0xFF69F0AE), () => _showFirstPlayer(game)),
                     _menuButton(Icons.history, 'Histórico', const Color(0xFFB388FF), () => _showHistory(game)),
                     _menuButton(Icons.timer, game.countingTurns ? 'Turnos' : 'Contar turnos', const Color(0xFFFFFFFF), () => _showTurns(game)),
+                    _menuButton(Icons.wifi_tethering, OnlineTable.instance.active ? 'Mesa ${OnlineTable.instance.code}' : 'Mesa online', const Color(0xFF64FFDA), () {
+                      close();
+                      showDialog(context: context, builder: (_) => OnlineTableDialog(game: game));
+                    }),
                     _menuButton(Icons.public, 'Planechase', const Color(0xFF90A4AE), () {
                       close();
                       showDialog(context: context, builder: (_) => PlanechaseDialog(game: game));

@@ -1,9 +1,9 @@
 // O Firestore (o banco de dados da conta) é a maior parte do Firebase: fica
 // neste arquivo separado, baixado só depois que a tela já apareceu.
 
-import { collection, deleteDoc, doc, getDoc, getDocs, getFirestore, onSnapshot, runTransaction, serverTimestamp, setDoc, writeBatch } from 'firebase/firestore'
+import { collection, deleteDoc, doc, getDoc, getDocs, getFirestore, onSnapshot, runTransaction, serverTimestamp, setDoc, updateDoc, writeBatch } from 'firebase/firestore'
 
-export { collection, doc, onSnapshot, serverTimestamp, setDoc, writeBatch }
+export { collection, deleteDoc, doc, getDoc, getDocs, onSnapshot, serverTimestamp, setDoc, updateDoc, writeBatch }
 
 let db = null
 
