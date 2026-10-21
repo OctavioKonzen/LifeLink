@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { defaultGame, updateSection, useUserData } from '../lib/userData'
 import { incrementMatches, undoMatch } from '../lib/xp'
 import DiceModal from '../components/DiceModal'
-import { playSound, setSoundsOn, soundFor, soundsOn } from '../lib/sounds'
+import { beginHold, endHold, playSound, setSoundsOn, soundFor, soundsOn } from '../lib/sounds'
 import { clock, isDead, nextTurn, startTurns, stopTurns, turnTotal } from '../lib/turns'
 import TableCardsModal from '../components/TableCardsModal'
 import OnlineModal from '../components/OnlineModal'
@@ -98,12 +98,14 @@ function Step({ onClick, children, label }) {
   const stop = () => {
     clearTimeout(timer.current)
     timer.current = null
+    endHold() // o som da mudança toca uma vez, ao soltar
   }
   useEffect(() => stop, [])
   const start = (e) => {
     if (e.button !== undefined && e.button !== 0) return
     e.currentTarget.setPointerCapture?.(e.pointerId)
     stop()
+    beginHold()
     onClick()
     let steps = 0
     const repeat = () => {

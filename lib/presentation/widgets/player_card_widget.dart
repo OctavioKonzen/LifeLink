@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../data/providers/game_provider.dart';
+import '../../../data/services/sound_service.dart';
 
 /// O quadro de um jogador no contador de vida, como nos apps do gênero:
 ///   • toque na metade esquerda tira 1 de vida, na direita soma 1;
@@ -102,6 +103,7 @@ class _PlayerCardWidgetState extends State<PlayerCardWidget> {
   // (dá para parar no número certo).
   void _startHold(int sign, [void Function(int)? action]) {
     HapticFeedback.mediumImpact();
+    SoundService.instance.beginHold(); // o som toca uma vez, ao soltar
     _holdTimer?.cancel();
     var steps = 0;
     void tick() {
@@ -117,6 +119,7 @@ class _PlayerCardWidgetState extends State<PlayerCardWidget> {
   void _stopHold() {
     _holdTimer?.cancel();
     _holdTimer = null;
+    SoundService.instance.endHold();
   }
 
   @override
