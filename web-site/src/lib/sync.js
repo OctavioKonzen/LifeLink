@@ -7,7 +7,7 @@
 //   • ao sair, os dados da conta saem do navegador.
 
 import { deleteAccount as deleteAuthAccount, getAuthState, loadFirestore, onAuthChange, signOut } from './auth'
-import { SECTION_KEYS, applyRemote, applyRemoteDecks, clearAll, getState, hooks } from './userData'
+import { SECTION_KEYS, applyRemote, applyRemoteDecks, clearAll, fromCloud, getState, hooks, toCloud } from './userData'
 
 let uid = null
 let session = 0 // muda a cada troca de conta: listen() antigo desiste
@@ -57,7 +57,7 @@ async function listen(id) {
         // Ignora o "eco" das gravações feitas aqui.
         if (snap.metadata.hasPendingWrites || uid !== id) return
         if (snap.metadata.fromCache && !snap.exists()) return
-        const remote = snap.data()?.data
+        const remote = fromCloud(snap.data()?.data)
         if (remote && typeof remote === 'object') {
           if (!ready) keepBestProfile(remote)
           // O que foi mudado aqui e ainda não foi gravado tem preferência.
@@ -104,7 +104,7 @@ export async function flush() {
     const keys = [...dirty]
     dirty.clear()
     const state = getState()
-    const data = Object.fromEntries(keys.map((k) => [k, state[k]]))
+    const data = Object.fromEntries(keys.map((k) => [k, toCloud(k, state[k])]))
     try {
       await setDoc(userRef, { data, updatedAt: serverTimestamp() }, { merge: true })
     } catch {

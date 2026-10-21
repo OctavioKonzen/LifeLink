@@ -43,9 +43,9 @@ function waitTurn() {
   return turn
 }
 
-export async function getJson(url) {
+export async function getJson(url, { useCache = true } = {}) {
   const hit = cache.get(url)
-  if (hit && Date.now() - hit.at < CACHE_MS) return hit.data
+  if (useCache && hit && Date.now() - hit.at < CACHE_MS) return hit.data
 
   await waitTurn()
   let response
@@ -62,6 +62,25 @@ export async function getJson(url) {
   }
   if (!response.ok) throw errorFor(response.status, data)
   cache.set(url, { at: Date.now(), data })
+  return data
+}
+
+/** POST (ex.: /cards/collection, até 75 cartas por pedido). */
+export async function postJson(url, body) {
+  await waitTurn()
+  let response
+  try {
+    response = await fetch(url, { method: 'POST', headers: { Accept: 'application/json', 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+  } catch {
+    throw new ScryfallError('Sem conexão com a internet.')
+  }
+  let data
+  try {
+    data = await response.json()
+  } catch {
+    throw new ScryfallError(`Resposta inválida do Scryfall (erro ${response.status}).`)
+  }
+  if (!response.ok) throw errorFor(response.status, data)
   return data
 }
 

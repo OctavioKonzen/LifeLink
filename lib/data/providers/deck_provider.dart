@@ -97,6 +97,15 @@ class DeckProvider with ChangeNotifier implements SyncedDecks {
     }
   }
 
+  /// Várias cartas de uma vez (importar lista): grava uma vez só.
+  void addCardsToDeck(int deckIndex, List<Map<String, dynamic>> cards) {
+    if (deckIndex >= 0 && deckIndex < _allDecks.length && cards.isNotEmpty) {
+      _allDecks[deckIndex].cards.addAll(cards);
+      _changed(deckIndex);
+      _saveDecks();
+    }
+  }
+
   void removeCardFromDeck(int deckIndex, int cardIndex) {
     if (deckIndex >= 0 && deckIndex < _allDecks.length) {
       if (cardIndex >= 0 && cardIndex < _allDecks[deckIndex].cards.length) {

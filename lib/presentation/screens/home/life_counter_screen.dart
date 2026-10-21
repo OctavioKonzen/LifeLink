@@ -6,6 +6,8 @@ import 'package:provider/provider.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 import '../../../data/providers/game_provider.dart';
 import '../../../data/providers/xp_provider.dart';
+import '../../../data/providers/match_provider.dart';
+import '../../../data/providers/deck_provider.dart';
 import '../../../data/services/sound_service.dart';
 import '../../widgets/player_card_widget.dart';
 import '../../widgets/dice_table.dart';
@@ -75,9 +77,12 @@ class _LifeCounterScreenState extends State<LifeCounterScreen> {
     _shownWinner = winner;
     if (winner == null || !mounted) return;
     final banner = context.read<XpProvider>().incrementMatches();
+    // A partida vai para o histórico (e para as estatísticas).
+    final match = MatchRecord.fromGame(game);
+    context.read<MatchProvider>().add(match);
     HapticFeedback.heavyImpact();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _showVictory(game, winner, banner);
+      if (mounted) _showVictory(game, winner, banner, match.id);
     });
   }
 
@@ -527,6 +532,7 @@ class _LifeCounterScreenState extends State<LifeCounterScreen> {
 
   void _showPlayerSettings(GameProvider game, int index, int turns) {
     final ctrl = TextEditingController(text: game.playerNames[index]);
+    final deckCtrl = TextEditingController(text: game.deckOf(index));
     _playerDialog(turns, (ctx) {
       return AnimatedBuilder(
         animation: game,
@@ -547,6 +553,35 @@ class _LifeCounterScreenState extends State<LifeCounterScreen> {
                   if (v.trim().isNotEmpty) game.updatePlayerName(index, v.trim());
                 },
               ),
+              const SizedBox(height: 12),
+              // O deck que a pessoa está usando (para as estatísticas).
+              () {
+                final myDecks = [for (final d in context.read<DeckProvider>().allDecks) d.name];
+                return Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
+                  const Text('DECK (OPCIONAL, PARA AS ESTATÍSTICAS)', style: TextStyle(color: Colors.white54, fontSize: 12, fontWeight: FontWeight.w800)),
+                  TextField(
+                    controller: deckCtrl,
+                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+                    decoration: const InputDecoration(hintText: 'Nome do deck ou comandante', hintStyle: TextStyle(color: Colors.white24)),
+                    onChanged: (v) => game.setDeck(index, v),
+                  ),
+                  if (myDecks.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Wrap(spacing: 6, runSpacing: 6, children: [
+                      for (final name in myDecks.take(12))
+                        ChoiceChip(
+                          label: Text(name, overflow: TextOverflow.ellipsis),
+                          selected: game.deckOf(index) == name.trim(),
+                          onSelected: (_) {
+                            final pick = game.deckOf(index) == name.trim() ? '' : name.trim();
+                            deckCtrl.text = pick;
+                            game.setDeck(index, pick);
+                          },
+                        ),
+                    ]),
+                  ],
+                ]);
+              }(),
               const SizedBox(height: 18),
               () {
               Widget dot({required Color? color, required bool selected, required VoidCallback onTap}) => GestureDetector(
@@ -716,7 +751,7 @@ class _LifeCounterScreenState extends State<LifeCounterScreen> {
     );
   }
 
-  void _showVictory(GameProvider game, int winner, String? banner) {
+  void _showVictory(GameProvider game, int winner, String? banner, String matchId) {
     showDialog(
       context: context,
       builder: (ctx) => Dialog(
@@ -738,6 +773,8 @@ class _LifeCounterScreenState extends State<LifeCounterScreen> {
                 child: OutlinedButton(
                   onPressed: () {
                     Navigator.pop(ctx);
+                    // Foi engano: a partida não acabou (sai do histórico).
+                    context.read<MatchProvider>().remove(matchId);
                     game.undo();
                   },
                   child: const Text('Desfazer'),

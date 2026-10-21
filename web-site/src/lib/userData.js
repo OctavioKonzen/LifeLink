@@ -3,13 +3,14 @@
 //   profile:  { xp, level, tier, claimedMissions, unlocked*, selected*,
 //               totalMatches, statDecks, statCards, statSearches, statArts }
 //   game:     { playerCount, startingLife, lives, poison, commanderDamage, playerNames }
+//   matches:  { list: [partidas terminadas] } (matches.js)
 //   decks:    { [id]: { id, name, type, cards } }
 // Sem conta, ficam só neste navegador. Com conta, sync.js leva para o
 // Firestore e traz o que mudou no app.
 
 import { useSyncExternalStore } from 'react'
 
-export const SECTION_KEYS = ['settings', 'profile', 'game']
+export const SECTION_KEYS = ['settings', 'profile', 'game', 'matches']
 const STORAGE_KEY = 'magic_user_data_v1'
 
 export const defaultProfile = () => ({
@@ -60,7 +61,24 @@ export const defaultGame = (startingLife = 40, playerCount = 2, playerNames) => 
 
 export const defaultSettings = () => ({ bgColor: 0xff1e1e24, playerName: 'Player 1', cardLanguage: 'pt' })
 
-const defaults = () => ({ settings: defaultSettings(), profile: defaultProfile(), game: defaultGame(), decks: {} })
+const defaults = () => ({ settings: defaultSettings(), profile: defaultProfile(), game: defaultGame(), matches: { list: [] }, decks: {} })
+
+// O Firestore não aceita lista dentro de lista: na conta, o dano de
+// comandante vai como cmdRows (uma linha de texto por jogador), como no app.
+export function toCloud(key, value) {
+  if (key !== 'game' || !value) return value
+  const { commanderDamage, ...rest } = value
+  return { ...rest, cmdRows: (commanderDamage || []).map((row) => row.join(',')) }
+}
+
+export function fromCloud(data) {
+  const game = data?.game
+  if (!game || !Array.isArray(game.cmdRows)) return data
+  const { cmdRows, ...rest } = game
+  const rows = cmdRows.map((r) => String(r).split(',').filter(Boolean).map((v) => Number(v) || 0))
+  const commanderDamage = Array.from({ length: 6 }, (_, i) => Array.from({ length: 6 }, (_, j) => rows[i]?.[j] ?? 0))
+  return { ...data, game: { ...rest, commanderDamage } }
+}
 
 function load() {
   try {

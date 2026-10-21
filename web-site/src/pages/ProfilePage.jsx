@@ -47,7 +47,9 @@ export default function ProfilePage() {
         <Stat label="Cartas adicionadas" value={profile.statCards} />
         <Stat label="Buscas" value={profile.statSearches} />
         <Stat label="Artes vistas" value={profile.statArts} />
-        <Stat label="Partidas" value={profile.totalMatches} />
+        <Link to="/partidas" className="block hover:opacity-80">
+          <Stat label="Partidas" value={profile.totalMatches} />
+        </Link>
       </div>
 
       <p className="mt-5 text-sm text-muted">
