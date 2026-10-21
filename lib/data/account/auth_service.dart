@@ -106,9 +106,12 @@ class AuthService extends ChangeNotifier {
         tx.set(userRef, {'nick': nick, 'name': nick}, SetOptions(merge: true));
       });
     } on FirebaseException catch (e) {
-      // As regras recusam quem tenta pegar um nick que já tem dono.
-      if (e.code == 'permission-denied') throw AuthException(_nickTaken);
-      rethrow;
+      if (e.code != 'permission-denied') rethrow;
+      // Recusado: ou o nick tem dono (as regras não deixam pegar), ou as
+      // regras do banco não estão publicadas. Só diz "nick ocupado" se for.
+      final owner = await nickRef.get().then((d) => d.data()?['uid'], onError: (_) => null);
+      if (owner != null && owner != u.uid) throw AuthException(_nickTaken);
+      throw AuthException('O servidor recusou salvar o nick. As regras do banco (firestore.rules) precisam ser publicadas no Firebase.');
     }
     await u.updateDisplayName(nick);
   }
