@@ -227,9 +227,21 @@ class _CommunityDecksScreenState extends State<CommunityDecksScreen> {
                   _buildCategorySelector(textColor),
                   Expanded(
                     child: _errorMessage != null
-                      ? Center(child: Text(_errorMessage!, textAlign: TextAlign.center, style: TextStyle(color: textColor)))
+                      ? StatusMessage(
+                          icon: Icons.wifi_off,
+                          color: AreaColors.official,
+                          title: "Não deu para carregar os decks",
+                          message: "Confira a internet e tente de novo.",
+                          actionLabel: "Tentar de novo",
+                          onAction: _fetchOfficialDecks,
+                        )
                       : filteredDecks.isEmpty
-                        ? Center(child: Text("Nenhum deck encontrado.", style: TextStyle(color: textColor.withValues(alpha: 0.5))))
+                        ? const StatusMessage(
+                            icon: Icons.search_off,
+                            color: AreaColors.official,
+                            title: "Nenhum deck encontrado",
+                            message: "Tente outro nome ou outra categoria.",
+                          )
                         : GridView.builder(
                             padding: const EdgeInsets.all(16),
                             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
