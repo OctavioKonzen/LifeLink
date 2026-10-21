@@ -7,7 +7,6 @@ import '../../../data/providers/theme_provider.dart';
 import '../../../data/providers/xp_provider.dart'; // IMPORT DO XP PROVIDER
 import 'deck_detail_screen.dart';
 import 'community_decks_screen.dart'; 
-import '../../widgets/custom_back_button.dart';
 import '../../widgets/neon.dart';
 
 class MyDecksScreen extends StatefulWidget {
@@ -111,7 +110,6 @@ class _MyDecksScreenState extends State<MyDecksScreen> {
         Scaffold(
           backgroundColor: theme.backgroundColor,
           appBar: AppBar(
-            automaticallyImplyLeading: false, 
             title: Text("Meus decks", style: TextStyle(color: textColor)),
             backgroundColor: Colors.transparent,
             elevation: 0,
@@ -145,10 +143,6 @@ class _MyDecksScreenState extends State<MyDecksScreen> {
               return _buildDeckCard(deck, deckIndex, deckProvider, textColor, isLight);
             },
           ),
-        ),
-        const Material(
-          type: MaterialType.transparency,
-          child: CustomBackButton(),
         ),
       ],
     );

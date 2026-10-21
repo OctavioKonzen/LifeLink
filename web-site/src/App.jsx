@@ -227,7 +227,7 @@ export default function App() {
   // Sem estar logado, a primeira tela é sempre a de login (a mesma conta do
   // app). Sem Firebase configurado, o login fica desligado e o site abre direto.
   if (status === 'loading') return <Splash />
-  if (status === 'signedOut') return <LoginPage />
+  if (status === 'signedOut' || status === 'needsNick') return <LoginPage />
   return (
     <HashRouter>
       <TopBar />

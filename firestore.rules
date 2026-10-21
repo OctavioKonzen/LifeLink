@@ -1,8 +1,14 @@
 rules_version = '2';
 
-// Regras do banco do Magic (Firestore). Cada pessoa só lê e grava os
-// próprios dados: users/{uid} (perfil, preferências e contador) e
+// Regras do banco do LifeLink (Firestore). Cada pessoa só lê e grava os
+// próprios dados: users/{uid} (nick, perfil, preferências e contador) e
 // users/{uid}/decks/{id} (um documento por deck).
+//
+// Nick: cada nick é de uma pessoa só (sem diferença de maiúscula e
+// minúscula) e cada pessoa escolhe o nick uma vez só. O dono de cada nick
+// fica em nicks/{nick em minúsculas} = { uid, nick }, criado junto com o
+// nick do perfil (na mesma transação).
+//
 // Para usar: Console do Firebase → Firestore Database → Regras → colar e Publicar.
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -10,12 +16,44 @@ service cloud.firestore {
       return request.auth != null && request.auth.uid == uid;
     }
 
+    function userPath(uid) {
+      return /databases/$(database)/documents/users/$(uid);
+    }
+
+    function nickPath(nick) {
+      return /databases/$(database)/documents/nicks/$(nick.lower());
+    }
+
+    // O nick do perfil não muda depois de escolhido; ao escolher, o nick
+    // precisa ficar registrado em nome desta pessoa (nicks/...).
+    function nickOk(uid) {
+      let before = resource == null ? null : resource.data.get('nick', null);
+      let after = request.resource.data.get('nick', null);
+      return before != null
+        ? after == before
+        : after == null || getAfter(nickPath(after)).data.uid == uid;
+    }
+
     match /users/{uid} {
-      allow read, write: if isOwner(uid);
+      allow read, delete: if isOwner(uid);
+      allow create, update: if isOwner(uid) && nickOk(uid);
 
       match /decks/{deckId} {
         allow read, write: if isOwner(uid);
       }
+    }
+
+    match /nicks/{key} {
+      // Qualquer um vê se um nick está livre (inclusive antes de criar a conta).
+      allow read: if true;
+      // Só quem ainda não tem nick registra um, e junto com o próprio perfil.
+      allow create: if request.auth != null
+        && request.resource.data.uid == request.auth.uid
+        && key == request.resource.data.nick.lower()
+        && (!exists(userPath(request.auth.uid)) || get(userPath(request.auth.uid)).data.get('nick', null) == null)
+        && getAfter(userPath(request.auth.uid)).data.get('nick', null) == request.resource.data.nick;
+      // Ao excluir a conta, o nick fica livre de novo.
+      allow delete: if request.auth != null && resource.data.uid == request.auth.uid;
     }
   }
 }

@@ -6,7 +6,6 @@ import '../../../data/providers/theme_provider.dart';
 import '../../../data/services/scryfall_service.dart';
 import '../../../data/repositories/card_repository.dart';
 import '../../../data/models/card_model.dart';
-import '../../widgets/custom_back_button.dart';
 import 'card_detail_screen.dart';
 import '../../widgets/neon.dart';
 
@@ -81,7 +80,6 @@ class _TodayPricesScreenState extends State<TodayPricesScreen> {
         Scaffold(
           backgroundColor: theme.backgroundColor,
           appBar: AppBar(
-            automaticallyImplyLeading: false, // Mantém o CustomBackButton
             backgroundColor: Colors.transparent,
             elevation: 0,
             title: Container(
@@ -114,7 +112,6 @@ class _TodayPricesScreenState extends State<TodayPricesScreen> {
                       itemBuilder: (context, index) => _buildCardTile(_cards[index], index, textColor, isLight),
                     ),
         ),
-        const CustomBackButton(),
       ],
     );
   }

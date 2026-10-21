@@ -8,7 +8,6 @@ import '../../../data/services/pdf_service.dart';
 import '../../../data/services/scryfall_service.dart';
 import '../search/card_detail_screen.dart'; 
 import '../search/card_search_screen.dart';
-import '../../widgets/custom_back_button.dart';
 
 class DeckDetailScreen extends StatefulWidget {
   final int deckIndex;
@@ -234,6 +233,9 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
           'collectorNumber': data['collector_number'] ?? '',
           'oracle_id': data['oracle_id'],
           'usdPrice': data['prices']?['usd'] ?? '0.00',
+            'usdFoil': data['prices']?['usd_foil'],
+            'eurPrice': data['prices']?['eur'],
+            'tixPrice': data['prices']?['tix'],
         };
 
         for (int i = 0; i < qty; i++) {
@@ -287,7 +289,6 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
         Scaffold(
           backgroundColor: theme.backgroundColor,
           appBar: AppBar(
-            automaticallyImplyLeading: false, 
             backgroundColor: Colors.transparent,
             elevation: 0,
             iconTheme: IconThemeData(color: textColor),
@@ -390,7 +391,6 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
             child: const Icon(Icons.add, color: Colors.white, size: 30),
           ),
         ),
-        const CustomBackButton(), 
       ],
     );
   }

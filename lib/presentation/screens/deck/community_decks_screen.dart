@@ -7,7 +7,6 @@ import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../../data/providers/theme_provider.dart';
 import 'community_deck_detail_screen.dart';
-import '../../widgets/custom_back_button.dart';
 import '../../widgets/neon.dart';
 
 class CommunityDecksScreen extends StatefulWidget {
@@ -200,7 +199,6 @@ class _CommunityDecksScreenState extends State<CommunityDecksScreen> {
         Scaffold(
           backgroundColor: theme.backgroundColor,
           appBar: AppBar(
-            automaticallyImplyLeading: false, 
             backgroundColor: Colors.transparent, 
             elevation: 0, 
             iconTheme: IconThemeData(color: textColor),
@@ -250,7 +248,6 @@ class _CommunityDecksScreenState extends State<CommunityDecksScreen> {
                 ],
               ),
         ),
-        const Material(type: MaterialType.transparency, child: CustomBackButton()),
       ],
     );
   }

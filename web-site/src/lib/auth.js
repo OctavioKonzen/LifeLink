@@ -1,6 +1,7 @@
 // Login com Firebase — a MESMA conta do app (lib/data/account/auth_service.dart):
-// e-mail e senha ou Google.
-//   users/{uid}          → { name, email, data, ... }
+// e-mail e senha ou Google. Toda conta tem um nick; quem entra com Google
+// pela primeira vez escolhe o nick antes de entrar (status 'needsNick').
+//   users/{uid}          → { nick, name, email, data, ... }
 //   users/{uid}/decks/*  → um documento por deck
 
 import { useSyncExternalStore } from 'react'
@@ -21,6 +22,7 @@ import { firebaseConfig, isConfigured } from './firebaseConfig'
 
 let app = null
 let auth = null
+let creatingNick = null // nick de quem está criando a conta agora
 let state = { status: isConfigured ? 'loading' : 'disabled', user: null }
 const listeners = new Set()
 
@@ -39,13 +41,21 @@ export function startAuth() {
   if (!isConfigured || auth) return
   app = initializeApp(firebaseConfig)
   auth = getAuth(app)
-  onAuthStateChanged(auth, (u) => {
+  onAuthStateChanged(auth, async (u) => {
     if (!u) {
       set({ status: 'signedOut', user: null })
       return
     }
-    set({ status: 'signedIn', user: { uid: u.uid, email: u.email, name: u.displayName, photo: u.photoURL } })
-    saveProfile(u)
+    // Conta criada agora com e-mail: o nick veio do formulário.
+    const nick = creatingNick ?? (await nickOf(u))
+    if (auth.currentUser?.uid !== u.uid) return // saiu enquanto lia
+    const user = { uid: u.uid, email: u.email, name: nick ?? u.displayName, photo: u.photoURL }
+    if (!nick) {
+      set({ status: 'needsNick', user })
+      return
+    }
+    set({ status: 'signedIn', user })
+    saveProfile(u, nick)
   })
 }
 
@@ -66,9 +76,42 @@ export function onAuthChange(listener) {
   return () => listeners.delete(listener)
 }
 
-function saveProfile(u, name) {
-  import('./firestore').then((fs) => fs.saveProfile(app, u, name)).catch(() => {})
+function saveProfile(u, nick) {
+  return import('./firestore').then((fs) => fs.saveProfile(app, u, nick)).catch(() => {})
 }
+
+/** O nick da conta (null se ainda não escolheu). Sem internet, entra com o nome do Google. */
+async function nickOf(u) {
+  const fallback = u.displayName || u.email?.split('@')[0] || 'Jogador'
+  try {
+    const fs = await import('./firestore')
+    return await Promise.race([fs.readNick(app, u.uid), new Promise((resolve) => setTimeout(() => resolve(fallback), 8000))])
+  } catch {
+    return fallback
+  }
+}
+
+/** Valida o nick: de 3 a 20 letras, números, espaço, _ ou -. */
+export function nickError(nick) {
+  const n = nick.trim()
+  if (n.length < 3) return 'O nick precisa ter pelo menos 3 letras.'
+  if (n.length > 20) return 'O nick pode ter no máximo 20 letras.'
+  if (!/^[\p{L}\p{N} _-]+$/u.test(n)) return 'Use só letras, números, espaço, _ ou -.'
+  return null
+}
+
+/** Salva o nick (depois de entrar com Google) e entra no site. */
+export const setNick = (nick) =>
+  guard(async () => {
+    const error = nickError(nick)
+    if (error) throw new Error(error)
+    const u = auth.currentUser
+    if (!u) return
+    const fs = await import('./firestore')
+    await fs.claimNick(app, u.uid, nick.trim())
+    await updateProfile(u, { displayName: nick.trim() })
+    set({ status: 'signedIn', user: { uid: u.uid, email: u.email, name: nick.trim(), photo: u.photoURL } })
+  })
 
 const MESSAGES = {
   'auth/invalid-email': 'E-mail inválido.',
@@ -100,11 +143,28 @@ export const signIn = (email, password) => guard(() => signInWithEmailAndPasswor
 
 export const signUp = (name, email, password) =>
   guard(async () => {
-    if (name.trim().length < 2) throw new Error('Escolha um nome com pelo menos 2 letras.')
-    const { user } = await createUserWithEmailAndPassword(auth, email.trim(), password)
-    await updateProfile(user, { displayName: name.trim() })
-    saveProfile(user, name.trim())
-    set({ status: 'signedIn', user: { uid: user.uid, email: user.email, name: name.trim(), photo: null } })
+    const error = nickError(name)
+    if (error) throw new Error(error)
+    const nick = name.trim()
+    const fs = await import('./firestore')
+    // Confere antes de criar a conta, para não criar com um nick repetido.
+    if (!(await fs.isNickFree(app, nick))) throw new Error(fs.NICK_TAKEN)
+    creatingNick = nick
+    try {
+      const { user } = await createUserWithEmailAndPassword(auth, email.trim(), password)
+      try {
+        await fs.claimNick(app, user.uid, nick)
+      } catch {
+        // Alguém pegou o nick nesse meio tempo: a conta já existe, então pede
+        // outro nick (como no login com Google).
+        creatingNick = null
+        set({ status: 'needsNick', user: { uid: user.uid, email: user.email, name: null, photo: user.photoURL } })
+        throw new Error(fs.NICK_TAKEN)
+      }
+      await updateProfile(user, { displayName: nick })
+    } finally {
+      creatingNick = null
+    }
   })
 
 export const signInWithGoogle = () =>

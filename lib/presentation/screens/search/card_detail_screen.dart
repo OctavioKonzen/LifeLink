@@ -6,13 +6,11 @@ import 'package:provider/provider.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:audioplayers/audioplayers.dart'; 
 import 'package:cached_network_image/cached_network_image.dart'; 
-import 'package:fl_chart/fl_chart.dart';
 import '../../../data/providers/deck_provider.dart';
 import '../../../data/providers/theme_provider.dart';
 import '../../../data/services/scryfall_service.dart';
 import '../../../data/repositories/card_repository.dart';
 import '../../../data/providers/xp_provider.dart'; 
-import '../../widgets/custom_back_button.dart'; 
 
 class CardDetailScreen extends StatefulWidget {
   final Map<String, dynamic> card;
@@ -318,7 +316,6 @@ class _CardDetailScreenState extends State<CardDetailScreen> with SingleTickerPr
     final bgColor = themeProvider.backgroundColor;
     final bool isLight = bgColor.computeLuminance() > 0.5;
     final Color textColor = isLight ? Colors.black87 : Colors.white;
-    final Color cardContainerColor = isLight ? Colors.black.withValues(alpha: 0.05) : const Color(0xFF1E1E24); 
     final bool isPt = themeProvider.cardLanguage == 'pt';
 
     bool isFrontVisible = math.cos(_currentAngle) > 0;
@@ -327,113 +324,119 @@ class _CardDetailScreenState extends State<CardDetailScreen> with SingleTickerPr
     final bool isEditingExistingCard = widget.existingCardIndex != null;
     final bool isReplacingCard = widget.replaceCardIndex != null;
 
+    final media = MediaQuery.of(context);
+    // Como no Pocketdex: a carta fica parada em cima (arrastar para o lado a
+    // vira) e o painel de baixo tem altura fixa; as abas trocam arrastando
+    // para o lado e só o conteúdo de cada aba rola.
+    final panelHeight = media.size.height * 0.5;
+    final panelColor = isLight ? Colors.white : const Color(0xFF16161B);
+
     return Scaffold(
       backgroundColor: bgColor,
-      appBar: AppBar(
-        automaticallyImplyLeading: false, 
-        backgroundColor: Colors.transparent, elevation: 0,
-        title: Text(_currentCard['name'] ?? '', style: TextStyle(color: textColor, fontSize: 18, fontWeight: FontWeight.bold)),
-      ),
-      body: Stack(
+      appBar: AppBar(backgroundColor: Colors.transparent, elevation: 0, foregroundColor: textColor),
+      body: Column(
         children: [
-          SingleChildScrollView(
-            child: Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 10),
-                  child: GestureDetector(
-                    onPanUpdate: _onPanUpdate, onPanEnd: _onPanEnd,
-                    child: Transform(
-                      transform: Matrix4.identity()..setEntry(3, 2, 0.001)..rotateY(_currentAngle), 
-                      alignment: FractionalOffset.center,
-                      child: Center(
-                        child: Container(
-                          width: MediaQuery.of(context).size.width * 0.70,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(16), 
-                            boxShadow: [BoxShadow(color: rarityColor.withValues(alpha: 0.4), blurRadius: 30)]
-                          ),
-                          child: AspectRatio(
-                            aspectRatio: 0.71,
-                            child: isFrontVisible 
-                              ? ClipRRect(borderRadius: BorderRadius.circular(16), child: _buildMainImage(mainCardUrl))
-                              : Transform(transform: Matrix4.identity()..rotateY(math.pi), alignment: FractionalOffset.center, child: ClipRRect(borderRadius: BorderRadius.circular(16), child: CachedNetworkImage(imageUrl: CardImages.cardBack, fit: BoxFit.cover))),
-                          ),
-                        ),
+          Expanded(
+            child: LayoutBuilder(builder: (context, box) {
+              // A carta do maior tamanho que couber no espaço de cima.
+              final width = math.min(box.maxWidth * 0.78, (box.maxHeight - 16) * 0.71);
+              return GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onPanUpdate: _onPanUpdate,
+                onPanEnd: _onPanEnd,
+                child: Center(
+                  child: Transform(
+                    transform: Matrix4.identity()..setEntry(3, 2, 0.001)..rotateY(_currentAngle),
+                    alignment: FractionalOffset.center,
+                    child: Container(
+                      width: width,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [BoxShadow(color: rarityColor.withValues(alpha: 0.4), blurRadius: 30)],
+                      ),
+                      child: AspectRatio(
+                        aspectRatio: 0.71,
+                        child: isFrontVisible
+                            ? ClipRRect(borderRadius: BorderRadius.circular(16), child: _buildMainImage(mainCardUrl))
+                            : Transform(
+                                transform: Matrix4.identity()..rotateY(math.pi),
+                                alignment: FractionalOffset.center,
+                                child: ClipRRect(borderRadius: BorderRadius.circular(16), child: CachedNetworkImage(imageUrl: CardImages.cardBack, fit: BoxFit.cover)),
+                              ),
                       ),
                     ),
                   ),
                 ),
-
-                Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: cardContainerColor, 
-                    borderRadius: BorderRadius.circular(24),
-                    border: Border.all(color: Colors.white.withValues(alpha: 0.05))
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min, 
+              );
+            }),
+          ),
+          Container(
+            height: panelHeight,
+            decoration: BoxDecoration(
+              color: panelColor,
+              borderRadius: const BorderRadius.only(topLeft: Radius.circular(30), topRight: Radius.circular(30)),
+              boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 16, offset: Offset(0, -4))],
+            ),
+            padding: EdgeInsets.only(top: 18, bottom: media.padding.bottom + 12),
+            child: Column(
+              children: [
+                _buildSwipeIndicator(isPt, textColor),
+                const SizedBox(height: 8),
+                Expanded(
+                  child: PageView(
+                    controller: _pageController,
+                    onPageChanged: (index) => setState(() => _currentPage = index),
                     children: [
-                      _buildSwipeIndicator(isPt, textColor),
-                      SizedBox(
-                        height: 380, 
-                        child: PageView(
-                          controller: _pageController,
-                          onPageChanged: (index) => setState(() => _currentPage = index),
-                          children: [
-                            _buildAbilitiesTab(textColor, isPt, rarityColor),
-                            _buildPricesTab(textColor, isPt),
-                          ],
-                        ),
-                      ),
+                      _buildAbilitiesTab(textColor, isPt, rarityColor),
+                      _buildPricesTab(textColor, isPt),
                     ],
                   ),
                 ),
-
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                  child: Column(
-                    children: [
-                      OutlinedButton.icon(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                  child: Row(children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
                         style: OutlinedButton.styleFrom(
-                          minimumSize: Size(double.infinity, 50), 
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          side: BorderSide(color: Colors.blueAccent.withValues(alpha: 0.5))
+                          minimumSize: const Size(0, 48),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                          side: BorderSide(color: Colors.blueAccent.withValues(alpha: 0.5)),
                         ),
-                        icon: Icon(Icons.style, color: Colors.blueAccent),
+                        icon: const Icon(Icons.style, color: Colors.blueAccent, size: 20),
                         onPressed: () => _showVersionsModal(bgColor, textColor, isPt, themeProvider.cardLanguage),
-                        label: Text(
-                          isEditingExistingCard ? (isPt ? "TROCAR ARTE NO DECK" : "CHANGE ART IN DECK") : (isPt ? "VER OUTRAS ARTES" : "VIEW OTHER ARTS"), 
-                          style: TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold)
+                        label: FittedBox(
+                          child: Text(
+                            isEditingExistingCard ? (isPt ? "TROCAR ARTE" : "CHANGE ART") : (isPt ? "OUTRAS ARTES" : "OTHER ARTS"),
+                            style: const TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold),
+                          ),
                         ),
                       ),
-                      const SizedBox(height: 12),
-                      
-                      if (!isEditingExistingCard)
-                        ElevatedButton.icon(
+                    ),
+                    if (!isEditingExistingCard) ...[
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: ElevatedButton.icon(
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: isReplacingCard ? Colors.orangeAccent : Colors.blueAccent, 
-                            minimumSize: Size(double.infinity, 55), 
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))
+                            backgroundColor: isReplacingCard ? Colors.orangeAccent : Colors.blueAccent,
+                            minimumSize: const Size(0, 48),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                           ),
-                          icon: Icon(isReplacingCard ? Icons.autorenew : Icons.add_box_rounded, color: Colors.white),
+                          icon: Icon(isReplacingCard ? Icons.autorenew : Icons.add_box_rounded, color: Colors.white, size: 20),
                           onPressed: () => _handleAutoAdd(deckProvider, isPt),
-                          label: Text(
-                            isReplacingCard 
-                              ? (isPt ? "SUBSTITUIR CARTA" : "REPLACE CARD") 
-                              : (isPt ? "ADICIONAR AO DECK" : "ADD TO DECK"), 
-                            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)
+                          label: FittedBox(
+                            child: Text(
+                              isReplacingCard ? (isPt ? "SUBSTITUIR" : "REPLACE") : (isPt ? "AO DECK" : "TO DECK"),
+                              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                            ),
                           ),
                         ),
+                      ),
                     ],
-                  ),
+                  ]),
                 ),
-                const SizedBox(height: 30),
               ],
             ),
           ),
-          const CustomBackButton(),
         ],
       ),
     );
@@ -441,30 +444,45 @@ class _CardDetailScreenState extends State<CardDetailScreen> with SingleTickerPr
 
   Widget _buildSwipeIndicator(bool isPt, Color textColor) {
     return Padding(
-      padding: const EdgeInsets.only(top: 15, bottom: 5),
+      padding: EdgeInsets.zero,
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          _indicatorLabel(isPt ? "Habilidades" : "Abilities", _currentPage == 0, textColor),
-          const SizedBox(width: 20),
-          _indicatorLabel(isPt ? "Preços" : "Prices", _currentPage == 1, textColor),
+          _indicatorLabel(isPt ? "Habilidades" : "Abilities", _currentPage == 0, textColor, 0),
+          const SizedBox(width: 28),
+          _indicatorLabel(isPt ? "Preços" : "Prices", _currentPage == 1, textColor, 1),
         ],
       ),
     );
   }
 
-  Widget _indicatorLabel(String text, bool active, Color textColor) {
-    return Column(
-      children: [
-        Text(text, style: TextStyle(color: active ? Colors.blueAccent : textColor.withValues(alpha: 0.3), fontSize: 12, fontWeight: FontWeight.bold)),
-        AnimatedContainer(duration: Duration(milliseconds: 300), margin: EdgeInsets.only(top: 4), width: active ? 30 : 0, height: 2, color: Colors.blueAccent),
-      ],
+  Widget _indicatorLabel(String text, bool active, Color textColor, int page) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => _pageController.animateToPage(page, duration: const Duration(milliseconds: 300), curve: Curves.easeInOut),
+      child: Column(
+        children: [
+          Text(text,
+              style: TextStyle(
+                color: active ? textColor : textColor.withValues(alpha: 0.4),
+                fontSize: 16,
+                fontWeight: active ? FontWeight.bold : FontWeight.normal,
+              )),
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 300),
+            margin: const EdgeInsets.only(top: 4),
+            width: active ? 24 : 0,
+            height: 3,
+            decoration: BoxDecoration(color: Colors.blueAccent, borderRadius: BorderRadius.circular(2)),
+          ),
+        ],
+      ),
     );
   }
 
   Widget _buildAbilitiesTab(Color textColor, bool isPt, Color rarityColor) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(20, 5, 20, 20),
+      padding: const EdgeInsets.fromLTRB(24, 8, 24, 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -488,58 +506,47 @@ class _CardDetailScreenState extends State<CardDetailScreen> with SingleTickerPr
     );
   }
 
+  /// Os preços que o Scryfall informa para esta versão da carta (TCGplayer,
+  /// Cardmarket e MTGO, atualizados uma vez por dia).
   Widget _buildPricesTab(Color textColor, bool isPt) {
-    double currentPrice = double.tryParse(_currentCard['usdPrice']?.toString() ?? '0') ?? 0.0;
-    
+    double? price(String key) {
+      final v = double.tryParse(_currentCard[key]?.toString() ?? '');
+      return v != null && v > 0 ? v : null;
+    }
+
+    final rows = [
+      (isPt ? "Normal (EUA)" : "Normal (US)", price('usdPrice'), '\$'),
+      (isPt ? "Foil (EUA)" : "Foil (US)", price('usdFoil'), '\$'),
+      (isPt ? "Europa" : "Europe", price('eurPrice'), '€'),
+      ("MTGO", price('tixPrice'), 'tix '),
+    ].where((r) => r.$2 != null).toList();
+
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.fromLTRB(24, 8, 24, 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(isPt ? "HISTÓRICO DE PREÇOS (USD)" : "PRICE HISTORY (USD)", 
-            style: TextStyle(color: textColor.withValues(alpha: 0.5), fontSize: 11, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 15),
-          
-          SizedBox(
-            height: 120,
-            child: LineChart(
-              LineChartData(
-                gridData: FlGridData(show: true, drawVerticalLine: false, 
-                  getDrawingHorizontalLine: (value) => FlLine(color: textColor.withValues(alpha: 0.05), strokeWidth: 1)),
-                titlesData: FlTitlesData(show: false),
-                borderData: FlBorderData(show: false),
-                lineBarsData: [
-                  LineChartBarData(
-                    spots: [
-                      FlSpot(0, currentPrice * 0.98),
-                      FlSpot(1, currentPrice * 1.02),
-                      FlSpot(2, currentPrice * 1.05),
-                      FlSpot(3, currentPrice * 1.01),
-                      FlSpot(4, currentPrice * 0.95),
-                      FlSpot(5, currentPrice),
-                    ],
-                    isCurved: true,
-                    color: Colors.redAccent.withValues(alpha: 0.7),
-                    barWidth: 2,
-                    dotData: FlDotData(show: false),
-                    belowBarData: BarAreaData(show: true, color: Colors.redAccent.withValues(alpha: 0.1)),
-                  ),
-                ],
-              ),
-            ),
+          if (rows.isEmpty)
+            Text(
+              isPt ? "Sem preço para esta versão. Tente a versão em inglês em OUTRAS ARTES." : "No price for this version.",
+              style: TextStyle(color: textColor.withValues(alpha: 0.6)),
+            )
+          else
+            for (final (i, r) in rows.indexed) ...[
+              if (i > 0) _buildDivider(textColor),
+              _priceRow(r.$1, r.$2!, textColor, prefix: r.$3, isBold: i == 0),
+            ],
+          const SizedBox(height: 12),
+          Text(
+            isPt ? "Valores do Scryfall, atualizados uma vez por dia." : "Prices from Scryfall, updated daily.",
+            style: TextStyle(color: textColor.withValues(alpha: 0.4), fontSize: 11),
           ),
-          const SizedBox(height: 20),
-          _priceRow(isPt ? "Preço de Mercado" : "Market Price", currentPrice, textColor, isBold: true),
-          _buildDivider(textColor),
-          _priceRow(isPt ? "Mínimo (7 dias)" : "Low (7 days)", currentPrice * 0.92, textColor),
-          _priceRow(isPt ? "Máximo (7 dias)" : "High (7 days)", currentPrice * 1.08, textColor),
-          _priceRow(isPt ? "Foil" : "Foil Market", currentPrice * 1.5, textColor),
         ],
       ),
     );
   }
 
-  Widget _priceRow(String label, double price, Color textColor, {bool isBold = false}) {
+  Widget _priceRow(String label, double price, Color textColor, {String prefix = '\$', bool isBold = false}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
@@ -550,7 +557,7 @@ class _CardDetailScreenState extends State<CardDetailScreen> with SingleTickerPr
             fontSize: isBold ? 14 : 13,
             fontWeight: isBold ? FontWeight.bold : FontWeight.normal
           )),
-          Text("\$${price.toStringAsFixed(2)}", style: TextStyle(
+          Text("$prefix${price.toStringAsFixed(2)}", style: TextStyle(
             color: isBold ? Colors.greenAccent : textColor,
             fontWeight: FontWeight.bold,
             fontSize: isBold ? 16 : 14

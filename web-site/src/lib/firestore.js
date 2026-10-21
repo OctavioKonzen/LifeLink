@@ -1,7 +1,7 @@
 // O Firestore (o banco de dados da conta) é a maior parte do Firebase: fica
 // neste arquivo separado, baixado só depois que a tela já apareceu.
 
-import { collection, deleteDoc, doc, getDocs, getFirestore, onSnapshot, serverTimestamp, setDoc, writeBatch } from 'firebase/firestore'
+import { collection, deleteDoc, doc, getDoc, getDocs, getFirestore, onSnapshot, runTransaction, serverTimestamp, setDoc, writeBatch } from 'firebase/firestore'
 
 export { collection, doc, onSnapshot, serverTimestamp, setDoc, writeBatch }
 
@@ -12,17 +12,51 @@ export function getDb(app) {
   return db
 }
 
-export function saveProfile(app, u, name) {
-  return setDoc(
-    doc(getDb(app), 'users', u.uid),
-    { name: name || u.displayName || u.email?.split('@')[0] || 'Jogador', email: u.email || '', lastLogin: serverTimestamp() },
-    { merge: true },
-  )
+/** Atualiza o perfil a cada entrada (o nick em si só muda em claimNick). */
+export function saveProfile(app, u, nick) {
+  return setDoc(doc(getDb(app), 'users', u.uid), { name: nick, email: u.email || '', lastLogin: serverTimestamp() }, { merge: true })
+}
+
+// Cada nick é de uma pessoa só (sem diferença de maiúscula e minúscula):
+// nicks/{nick em minúsculas} = { uid, nick }. As regras (firestore.rules)
+// garantem que ninguém pega o nick de outro nem troca o seu.
+export const NICK_TAKEN = 'Esse nick já é de outra pessoa. Escolha outro.'
+export const nickKey = (nick) => nick.trim().toLowerCase()
+
+export async function isNickFree(app, nick) {
+  return !(await getDoc(doc(getDb(app), 'nicks', nickKey(nick)))).exists()
+}
+
+/** Registra o nick em nome desta pessoa e no perfil, juntos (transação). */
+export async function claimNick(app, uid, nick) {
+  const db = getDb(app)
+  const nickRef = doc(db, 'nicks', nickKey(nick))
+  try {
+    await runTransaction(db, async (tx) => {
+      const owner = await tx.get(nickRef)
+      if (owner.exists() && owner.data().uid !== uid) throw new Error(NICK_TAKEN)
+      if (!owner.exists()) tx.set(nickRef, { uid, nick })
+      tx.set(doc(db, 'users', uid), { nick, name: nick }, { merge: true })
+    })
+  } catch (e) {
+    // As regras recusam quem tenta pegar um nick que já tem dono.
+    if (e.code === 'permission-denied') throw new Error(NICK_TAKEN)
+    throw e
+  }
+}
+
+/** O nick salvo na conta; null se ainda não escolheu. */
+export async function readNick(app, uid) {
+  const nick = (await getDoc(doc(getDb(app), 'users', uid))).data()?.nick
+  return typeof nick === 'string' && nick.trim() ? nick : null
 }
 
 /** Apaga os decks e o perfil da conta. */
 export async function deleteUserData(app, uid) {
   const db = getDb(app)
+  // O nick fica livre para outra pessoa.
+  const nick = (await getDoc(doc(db, 'users', uid))).data()?.nick
+  if (typeof nick === 'string') await deleteDoc(doc(db, 'nicks', nickKey(nick)))
   const decks = await getDocs(collection(db, 'users', uid, 'decks'))
   for (const d of decks.docs) await deleteDoc(d.ref)
   await deleteDoc(doc(db, 'users', uid))
