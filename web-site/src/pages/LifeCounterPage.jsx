@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { defaultGame, updateSection, useUserData } from '../lib/userData'
-import { incrementMatches } from '../lib/xp'
+import { incrementMatches, undoMatch } from '../lib/xp'
 import DiceModal from '../components/DiceModal'
 import { playSound, setSoundsOn, soundFor, soundsOn } from '../lib/sounds'
 import { clock, isDead, nextTurn, startTurns, stopTurns, turnTotal } from '../lib/turns'
@@ -370,8 +370,10 @@ export default function LifeCounterPage() {
   // Desfazer: as partidas de antes de cada mudança (neste navegador).
   const undoStack = useRef([])
   const [canUndo, setCanUndo] = useState(false)
+  const lastLocal = useRef(0) // quando houve a última mudança feita aqui
   const setGame = (update, { silent = false, reset = false } = {}) =>
     updateSection('game', (g) => {
+      lastLocal.current = Date.now()
       const before = view(g)
       if (reset) {
         undoStack.current = []
@@ -399,6 +401,7 @@ export default function LifeCounterPage() {
     const previous = undoStack.current.pop()
     setCanUndo(undoStack.current.length > 0)
     if (!previous) return
+    lastLocal.current = Date.now()
     updateSection('game', () => previous)
     setLog((old) => old.slice(0, -1))
   }
@@ -415,20 +418,29 @@ export default function LifeCounterPage() {
   // Sobrou um só jogador vivo: a partida conta para o perfil (+50 XP), uma
   // vez por partida, como no app.
   const alive = Array.from({ length: game.players }, (_, i) => i).filter((i) => !isDead(game, i))
+  const [wonHere, setWonHere] = useState(false) // a vitória valeu XP aqui
   const counted = useRef(alive.length === 1) // partida que já tinha acabado não conta de novo
   useEffect(() => {
     if (alive.length === 1 && !counted.current) {
       counted.current = true
+      // Só quem deu o golpe final registra a partida e ganha o XP: a vitória
+      // que chegou da conta (app) ou da mesa online já foi registrada lá.
+      if (Date.now() - lastLocal.current > 2000) return
       const unlocked = incrementMatches()
       if (unlocked) setBanner(unlocked)
       const match = matchFromGame(game, log, { winner: alive[0] })
       addMatch(match)
       lastMatch.current = match.id
+      setWonHere(true)
     } else if (alive.length > 1) {
       counted.current = false
-      // Desfez a vitória: a partida não acabou.
-      if (lastMatch.current) removeMatch(lastMatch.current)
+      // Desfez a vitória: a partida não acabou (sai do histórico e o XP volta).
+      if (lastMatch.current) {
+        removeMatch(lastMatch.current)
+        undoMatch()
+      }
       lastMatch.current = null
+      setWonHere(false)
     }
   }, [alive.length])
 
@@ -571,7 +583,7 @@ export default function LifeCounterPage() {
       )}
       {alive.length === 1 && (
         <p className="mb-3 shrink-0 rounded-xl bg-amber-400/15 p-3 text-center font-bold text-amber-300">
-          🏆 {game.names[alive[0]]} venceu! +50 XP{banner ? ` · Novo banner: ${banner}` : ''}
+          🏆 {game.names[alive[0]]} venceu!{wonHere ? ` +50 XP${banner ? ` · Novo banner: ${banner}` : ''}` : ''}
         </p>
       )}
       {/* A tela inteira para as vidas, dividida em linhas conforme o número

@@ -14,14 +14,14 @@ import '../../../data/providers/xp_provider.dart';
 
 class CardDetailScreen extends StatefulWidget {
   final Map<String, dynamic> card;
-  final int? targetDeckIndex; 
+  final String? targetDeckId;
   final int? existingCardIndex; 
   final int? replaceCardIndex;  
 
   const CardDetailScreen({
     super.key, 
     required this.card, 
-    this.targetDeckIndex,
+    this.targetDeckId,
     this.existingCardIndex,
     this.replaceCardIndex,
   });
@@ -31,6 +31,14 @@ class CardDetailScreen extends StatefulWidget {
 }
 
 class _CardDetailScreenState extends State<CardDetailScreen> with SingleTickerProviderStateMixin {
+  /// A posição atual do deck de destino (pelo id), ou null.
+  int? get _targetDeckIndex {
+    final id = widget.targetDeckId;
+    if (id == null) return null;
+    final i = context.read<DeckProvider>().indexOfId(id);
+    return i < 0 ? null : i;
+  }
+
   late AnimationController _controller;
   late Animation<double> _animation;
   double _currentAngle = 0.0;
@@ -192,13 +200,13 @@ class _CardDetailScreenState extends State<CardDetailScreen> with SingleTickerPr
                         return Center(
                           child: GestureDetector(
                             onTap: () {
+                              // Ver outra arte vale XP (a mesma carta de novo, não).
+                              if (vCard['imageUrl'] != _currentCard['imageUrl']) this.context.read<XpProvider>().incrementArtsViewed();
                               setState(() => _currentCard = vCard);
                               
-                              this.context.read<XpProvider>().incrementArtsViewed();
-                              
-                              if (widget.targetDeckIndex != null && widget.existingCardIndex != null) {
+                              if (_targetDeckIndex != null && widget.existingCardIndex != null) {
                                 final provider = this.context.read<DeckProvider>();
-                                provider.replaceCardInDeck(widget.targetDeckIndex!, widget.existingCardIndex!, vCard);
+                                provider.replaceCardInDeck(_targetDeckIndex!, widget.existingCardIndex!, vCard);
                                 
                                 ScaffoldMessenger.of(this.context).showSnackBar(SnackBar(
                                   content: Text(isPt ? "Arte atualizada no deck!" : "Artwork updated in deck!"),
@@ -289,16 +297,16 @@ class _CardDetailScreenState extends State<CardDetailScreen> with SingleTickerPr
   void _handleAutoAdd(DeckProvider provider, bool isPt) {
     final xpProvider = context.read<XpProvider>();
 
-    if (widget.targetDeckIndex != null) {
+    if (_targetDeckIndex != null) {
       if (widget.replaceCardIndex != null) {
-        provider.replaceCardInDeck(widget.targetDeckIndex!, widget.replaceCardIndex!, _currentCard);
+        provider.replaceCardInDeck(_targetDeckIndex!, widget.replaceCardIndex!, _currentCard);
         xpProvider.incrementCardsAdded(1);
         xpProvider.incrementArtsViewed();
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(isPt ? "Carta Substituída!" : "Card Replaced!")));
         Navigator.of(context)..pop()..pop(); 
       } 
       else {
-        provider.addCardToDeck(widget.targetDeckIndex!, _currentCard);
+        provider.addCardToDeck(_targetDeckIndex!, _currentCard);
         xpProvider.incrementCardsAdded(1);
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(isPt ? "Adicionado!" : "Added!")));
       }

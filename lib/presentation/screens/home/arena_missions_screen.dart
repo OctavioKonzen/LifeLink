@@ -107,58 +107,60 @@ class _ArenaMissionsScreenState extends State<ArenaMissionsScreen> {
     final textColor = isLight ? Colors.black87 : Colors.white;
 
     int tier = xpProvider.currentTier;
-    // CÁLCULO: Aumenta 1% por nível (1.0 + 0.01 * tier)
-    double diffMult = 1.0 + (0.01 * (tier - 1));
-    
+    // Cada seção pede 50% a mais que a anterior e conta só o que foi feito nela.
+    double diffMult = 1.0 + 0.5 * (tier - 1);
+
+    const roman = ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'];
     String getTitle(List<String> titles) {
       if (tier <= titles.length) return titles[tier - 1];
-      return "${titles.last} $tier"; 
+      final n = tier - titles.length + 1;
+      return "${titles.last} ${n < roman.length ? roman[n] : n}";
     }
 
     final List<Map<String, dynamic>> currentMissions = [
       {
-        'title': getTitle(['Construtor Aprendiz', 'Mestre Forjador']), 
-        'desc': 'Crie decks novos.', 
-        'icon': Icons.handyman, 
-        'target': (5 * diffMult).ceil(), 
-        'current': xpProvider.statDecksCreated, // VOLTOU AO NORMAL
-        'xp': 100 * tier, 
+        'title': getTitle(['Construtor Aprendiz', 'Mestre Forjador']),
+        'desc': 'Crie decks novos nesta seção.',
+        'icon': Icons.handyman,
+        'target': (3 * diffMult).ceil(),
+        'current': xpProvider.sinceTierStart('decks'),
+        'xp': 100 * tier,
         'color': Colors.amberAccent
       },
       {
-        'title': getTitle(['O Colecionador', 'Acumulador']), 
-        'desc': 'Adicione cartas.', 
-        'icon': Icons.library_books, 
-        'target': (100 * diffMult).ceil(), 
-        'current': xpProvider.statCardsAdded, // VOLTOU AO NORMAL
-        'xp': 150 * tier, 
+        'title': getTitle(['O Colecionador', 'Acumulador']),
+        'desc': 'Adicione cartas aos decks nesta seção.',
+        'icon': Icons.library_books,
+        'target': (60 * diffMult).ceil(),
+        'current': xpProvider.sinceTierStart('cards'),
+        'xp': 150 * tier,
         'color': Colors.purpleAccent
       },
       {
-        'title': getTitle(['Arquimago', 'Lenda']), 
-        'desc': 'Decks na biblioteca.', 
-        'icon': Icons.auto_awesome, 
-        'target': (5 * diffMult).ceil(), 
-        'current': deckProvider.allDecks.length, // VOLTOU AO NORMAL
-        'xp': 200 * tier, 
+        'title': getTitle(['Arquimago', 'Lenda']),
+        'desc': 'Tenha decks na biblioteca.',
+        'icon': Icons.auto_awesome,
+        'target': 4 + tier,
+        'current': deckProvider.allDecks.length,
+        'xp': 200 * tier,
         'color': Colors.blueAccent
       },
       {
-        'title': getTitle(['Explorador', 'Viajante']), 
-        'desc': 'Pesquise cartas.', 
-        'icon': Icons.travel_explore, 
-        'target': (50 * diffMult).ceil(), 
-        'current': xpProvider.statSearches, // VOLTOU AO NORMAL
-        'xp': 100 * tier, 
+        'title': getTitle(['Explorador', 'Viajante']),
+        'desc': 'Pesquise cartas nesta seção.',
+        'icon': Icons.travel_explore,
+        'target': (30 * diffMult).ceil(),
+        'current': xpProvider.sinceTierStart('searches'),
+        'xp': 100 * tier,
         'color': Colors.greenAccent
       },
       {
-        'title': getTitle(['Estrategista', 'Erudito']), 
-        'desc': 'Veja outras artes.', 
-        'icon': Icons.psychology, 
-        'target': (20 * diffMult).ceil(), 
-        'current': xpProvider.statArtsViewed, // VOLTOU AO NORMAL
-        'xp': 150 * tier, 
+        'title': getTitle(['Estrategista', 'Erudito']),
+        'desc': 'Veja outras artes de cartas nesta seção.',
+        'icon': Icons.psychology,
+        'target': (15 * diffMult).ceil(),
+        'current': xpProvider.sinceTierStart('arts'),
+        'xp': 150 * tier,
         'color': Colors.redAccent
       },
     ];
@@ -229,7 +231,7 @@ class _ArenaMissionsScreenState extends State<ArenaMissionsScreen> {
                                 if (!isClaimed) ...[
                                   LinearProgressIndicator(value: progress, backgroundColor: Colors.black12, valueColor: AlwaysStoppedAnimation(ach['color'])),
                                   const SizedBox(height: 5),
-                                  Text("${ach['current']} / ${ach['target']}", style: const TextStyle(fontSize: 10)),
+                                  Text("${ach['current']} / ${ach['target']}", style: TextStyle(fontSize: 11, color: textColor.withValues(alpha: 0.7))),
                                 ],
                                 if (isGoalMet && !isClaimed)
                                   Padding(

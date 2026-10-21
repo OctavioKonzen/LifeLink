@@ -25,6 +25,16 @@ export const BANNERS = [
   'Alvorada Dourada', 'Névoa Etérea', 'Cidadela de Aço', 'Horizonte Neon', 'Aura Mítica',
 ]
 
+/** A vitória foi desfeita: tira os 50 XP e a partida (o banner desbloqueado fica). */
+export function undoMatch() {
+  updateSection('profile', (p) => {
+    const xp = Math.max(0, (p.xp || 0) - 50)
+    let level = p.level || 1
+    while (level > 1 && xp < xpForNextLevel(level - 1)) level--
+    return { ...p, xp, level, totalMatches: Math.max(0, (p.totalMatches || 0) - 1) }
+  })
+}
+
 /** Fim de partida no contador: +50 XP e, nas partidas 1, 2, 4, 8..., um banner novo. Devolve o nome dele. */
 export function incrementMatches() {
   let unlocked = null

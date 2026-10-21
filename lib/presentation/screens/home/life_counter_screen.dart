@@ -15,6 +15,7 @@ import '../../widgets/continuous_action_button.dart';
 import 'planar_dialogs.dart';
 import 'online_screens.dart';
 import '../../../data/account/online.dart';
+import '../../../data/account/user_data.dart';
 
 /// O contador de vida, inspirado nos apps do gênero (Lifetap, MTG Companion):
 /// cada jogador virado para o seu lado da mesa, toque para ±1 e segurar para
@@ -40,16 +41,19 @@ class _LifeCounterScreenState extends State<LifeCounterScreen> {
     // Tela cheia (sem relógio e bateria) e sempre acesa durante a partida.
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
     WakelockPlus.enable().catchError((_) {});
-    final game = context.read<GameProvider>();
+    final game = _game = context.read<GameProvider>();
     _shownWinner = game.winner;
     game.addListener(_onGameChanged);
     game.onChange = _playSound;
     SoundService.instance.load();
   }
 
+  // Guardado no começo: no dispose o context já não pode procurar o provider.
+  late final GameProvider _game;
+
   @override
   void dispose() {
-    final game = context.read<GameProvider>();
+    final game = _game;
     game.removeListener(_onGameChanged);
     game.onChange = null;
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
@@ -71,20 +75,41 @@ class _LifeCounterScreenState extends State<LifeCounterScreen> {
     if (sound != null) SoundService.instance.play(sound);
   }
 
+  // A vitória registrada nesta partida (para desfazer se o jogador "voltar").
+  String? _matchId;
+  int? _matchGameId;
+
   // Sobrou um só vivo: a vitória vale XP (uma vez por partida) e aparece na tela.
   void _onGameChanged() {
+    if (!mounted) return;
     final game = context.read<GameProvider>();
     final winner = game.winner;
     if (winner == _shownWinner) return;
     _shownWinner = winner;
-    if (winner == null || !mounted) return;
-    final banner = context.read<XpProvider>().incrementMatches();
-    // A partida vai para o histórico (e para as estatísticas).
-    final match = MatchRecord.fromGame(game);
-    context.read<MatchProvider>().add(match);
+    if (winner == null) {
+      // Desfez a vitória (na janela ou no menu): a partida não acabou.
+      if (_matchId != null && _matchGameId == game.gameId) {
+        context.read<MatchProvider>().remove(_matchId!);
+        context.read<XpProvider>().undoMatch();
+      }
+      _matchId = null;
+      return;
+    }
+    // Só quem deu o golpe final registra a partida e ganha o XP: a mudança
+    // que veio da conta (site) ou de outro celular da mesa online já foi
+    // registrada lá.
+    final local = !UserData.instance.applying && !OnlineTable.instance.applying;
+    String? banner;
+    if (local) {
+      banner = context.read<XpProvider>().incrementMatches();
+      final match = MatchRecord.fromGame(game);
+      context.read<MatchProvider>().add(match);
+      _matchId = match.id;
+      _matchGameId = game.gameId;
+    }
     HapticFeedback.heavyImpact();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _showVictory(game, winner, banner, match.id);
+      if (mounted) _showVictory(game, winner, banner, xp: local);
     });
   }
 
@@ -777,7 +802,7 @@ class _LifeCounterScreenState extends State<LifeCounterScreen> {
     );
   }
 
-  void _showVictory(GameProvider game, int winner, String? banner, String matchId) {
+  void _showVictory(GameProvider game, int winner, String? banner, {bool xp = true}) {
     showDialog(
       context: context,
       builder: (ctx) => Dialog(
@@ -792,15 +817,14 @@ class _LifeCounterScreenState extends State<LifeCounterScreen> {
             const SizedBox(height: 8),
             Text('${game.playerNames[winner]} venceu a partida!', textAlign: TextAlign.center, style: TextStyle(color: game.colorOf(winner), fontSize: 20, fontWeight: FontWeight.bold)),
             const SizedBox(height: 6),
-            Text(banner == null ? '+50 XP' : '+50 XP · Novo banner: $banner', style: const TextStyle(color: Colors.white54)),
+            if (xp) Text(banner == null ? '+50 XP' : '+50 XP · Novo banner: $banner', style: const TextStyle(color: Colors.white54)),
             const SizedBox(height: 22),
             Row(children: [
               Expanded(
                 child: OutlinedButton(
                   onPressed: () {
                     Navigator.pop(ctx);
-                    // Foi engano: a partida não acabou (sai do histórico).
-                    context.read<MatchProvider>().remove(matchId);
+                    // Foi engano: a partida não acabou (sai do histórico e o XP volta).
                     game.undo();
                   },
                   child: const Text('Desfazer'),

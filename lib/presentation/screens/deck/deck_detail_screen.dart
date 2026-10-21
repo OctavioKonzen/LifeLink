@@ -12,15 +12,18 @@ import '../../../data/services/deck_tools.dart';
 import 'deck_tools_screens.dart';
 
 class DeckDetailScreen extends StatefulWidget {
-  final int deckIndex;
+  final String deckId;
 
-  const DeckDetailScreen({super.key, required this.deckIndex});
+  const DeckDetailScreen({super.key, required this.deckId});
 
   @override
   State<DeckDetailScreen> createState() => _DeckDetailScreenState();
 }
 
 class _DeckDetailScreenState extends State<DeckDetailScreen> {
+  /// A posição atual do deck (pelo id: a lista pode mudar com a tela aberta).
+  int get _deckIndex => context.read<DeckProvider>().indexOfId(widget.deckId);
+
   String _searchQuery = "";
   final TextEditingController _searchController = TextEditingController();
   
@@ -61,7 +64,7 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
             onPressed: () {
-              provider.deleteDeck(widget.deckIndex);
+              provider.deleteDeck(_deckIndex);
               Navigator.pop(ctx); 
               Navigator.pop(context); 
             },
@@ -75,7 +78,7 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
   Future<void> _translateDeckCards(String langCode, DeckProvider provider) async {
     setState(() => _isTranslating = true);
     
-    final deck = provider.allDecks[widget.deckIndex];
+    final deck = provider.allDecks[_deckIndex];
     int translatedCount = 0;
 
     for (int i = 0; i < deck.cards.length; i++) {
@@ -109,7 +112,7 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
             updatedCard['oracle_text'] = validPrint['printed_text'] ?? validPrint['oracle_text'] ?? card['oracle_text'];
             updatedCard['setName'] = (validPrint['set'] ?? card['setName']).toString().toUpperCase();
 
-            provider.updateCardInDeck(widget.deckIndex, i, updatedCard);
+            provider.updateCardInDeck(_deckIndex, i, updatedCard);
             translatedCount++;
           }
         }
@@ -140,7 +143,7 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
     var ok = true;
     try {
       final result = await DeckTools.fetch(input.lines);
-      provider.addCardsToDeck(widget.deckIndex, result.cards);
+      provider.addCardsToDeck(_deckIndex, result.cards);
       if (result.cards.isNotEmpty && mounted) context.read<XpProvider>().incrementCardsAdded(result.cards.length);
       message = '${result.cards.length} cartas adicionadas!';
       if (result.missing.isNotEmpty) {
@@ -168,11 +171,11 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
     final theme = context.watch<ThemeProvider>();
     final deckProvider = context.watch<DeckProvider>();
 
-    if (widget.deckIndex >= deckProvider.allDecks.length) {
+    if (_deckIndex < 0) {
       return const Scaffold(body: Center(child: Text("Deck não encontrado")));
     }
 
-    final deck = deckProvider.allDecks[widget.deckIndex];
+    final deck = deckProvider.allDecks[_deckIndex];
     final isLight = theme.backgroundColor.computeLuminance() > 0.5;
     final textColor = isLight ? Colors.black87 : Colors.white;
 
@@ -291,7 +294,7 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
           floatingActionButton: FloatingActionButton(
             onPressed: () {
               Navigator.push(context, MaterialPageRoute(
-                builder: (context) => CardSearchScreen(targetDeckIndex: widget.deckIndex),
+                builder: (context) => CardSearchScreen(targetDeckId: widget.deckId),
               ));
             },
             backgroundColor: Colors.blueAccent,
@@ -327,7 +330,7 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
           context,
           MaterialPageRoute(builder: (context) => CardDetailScreen(
             card: card,
-            targetDeckIndex: widget.deckIndex,
+            targetDeckId: widget.deckId,
             existingCardIndex: indexInDeck, 
           )),
         );
@@ -336,7 +339,7 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
         Navigator.push(
           context,
           MaterialPageRoute(builder: (context) => CardSearchScreen(
-            targetDeckIndex: widget.deckIndex,
+            targetDeckId: widget.deckId,
             replaceCardIndex: indexInDeck, 
           )),
         );
@@ -361,7 +364,7 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
             right: -6,
             child: GestureDetector(
               onTap: () {
-                context.read<DeckProvider>().removeCardFromDeck(widget.deckIndex, indexInDeck);
+                context.read<DeckProvider>().removeCardFromDeck(_deckIndex, indexInDeck);
               },
               child: Container(
                 padding: const EdgeInsets.all(4),

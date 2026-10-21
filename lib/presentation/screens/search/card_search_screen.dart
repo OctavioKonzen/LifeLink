@@ -5,15 +5,14 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'card_detail_screen.dart';
 import 'card_filters_sheet.dart';
 import '../../../data/providers/theme_provider.dart';
-import '../../../data/providers/deck_provider.dart'; 
 import '../../../data/providers/xp_provider.dart'; // IMPORT DO XP PROVIDER
 import '../../../data/services/scryfall_service.dart';
 
 class CardSearchScreen extends StatefulWidget {
-  final int? targetDeckIndex; 
+  final String? targetDeckId; // adicionando cartas a este deck
   final int? replaceCardIndex;
 
-  const CardSearchScreen({super.key, this.targetDeckIndex, this.replaceCardIndex});
+  const CardSearchScreen({super.key, this.targetDeckId, this.replaceCardIndex});
 
   @override
   State<CardSearchScreen> createState() => _CardSearchScreenState();
@@ -145,15 +144,21 @@ class _CardSearchScreenState extends State<CardSearchScreen> {
   }
 
   Future<void> _rememberSearch(String text) async {
+    // A busca vale XP quando a pessoa confirma (enter ou sugestão), uma vez
+    // por texto: não a cada letra digitada, não a inicial e não um filtro.
+    final counted = text.trim().toLowerCase();
+    if (counted.length >= 2 && counted != _lastCountedSearch) {
+      _lastCountedSearch = counted;
+      context.read<XpProvider>().incrementSearches();
+    }
     final list = await _scryfall.addRecentSearch(text);
     if (mounted) setState(() => _recentSearches = list);
   }
 
+  String _lastCountedSearch = '';
+
   Future<void> _performSearch(String queryText) async {
     if (!mounted) return;
-    
-    // GATILHO: AUMENTA O CONTADOR DE PESQUISAS DE CARTAS
-    context.read<XpProvider>().incrementSearches();
     
     setState(() {
       _isLoading = true;
@@ -211,15 +216,6 @@ class _CardSearchScreenState extends State<CardSearchScreen> {
         }
       }
 
-      if (widget.targetDeckIndex != null && widget.replaceCardIndex == null) {
-        final deckProvider = context.read<DeckProvider>();
-        if (widget.targetDeckIndex! < deckProvider.allDecks.length) {
-          final existingCards = deckProvider.allDecks[widget.targetDeckIndex!].cards;
-          final existingNames = existingCards.map((c) => c['name']?.toString() ?? '').toSet();
-          newCards.removeWhere((card) => existingNames.contains(card['name']));
-        }
-      }
-
       setState(() {
         if (isNextPage) {
           _searchResults.addAll(newCards);
@@ -229,15 +225,17 @@ class _CardSearchScreenState extends State<CardSearchScreen> {
         _isLoading = false;
         _errorMessage = null; 
       });
-    } on ScryfallException catch (e) {
+    } catch (e) {
+      // Qualquer erro (não só os da Scryfall) para o carregando.
+      final message = e is ScryfallException ? e.message : 'Não deu para buscar agora. Tente de novo.';
       if (mounted && id == _searchId) {
-        setState(() { 
-          _isLoading = false; 
+        setState(() {
+          _isLoading = false;
           _hasMore = false;
           if (isNextPage) {
-            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
           } else {
-            _errorMessage = e.message;
+            _errorMessage = message;
           }
         });
       }
@@ -402,7 +400,7 @@ class _CardSearchScreenState extends State<CardSearchScreen> {
                           Navigator.push(context, MaterialPageRoute(
                             builder: (context) => CardDetailScreen(
                               card: card, 
-                              targetDeckIndex: widget.targetDeckIndex,
+                              targetDeckId: widget.targetDeckId,
                               replaceCardIndex: widget.replaceCardIndex, 
                             )
                           ));

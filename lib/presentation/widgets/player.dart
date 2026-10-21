@@ -60,7 +60,7 @@ class LevelBar extends StatelessWidget {
         value: progress,
         minHeight: height,
         color: color,
-        backgroundColor: Colors.white.withValues(alpha: 0.1),
+        backgroundColor: Colors.grey.withValues(alpha: 0.28), // aparece no tema claro e no escuro
       ),
     );
   }

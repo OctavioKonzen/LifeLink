@@ -153,7 +153,8 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Icon(icon, color: color, size: 26, shadows: [Shadow(color: color.withValues(alpha: 0.8), blurRadius: 10)]),
               const SizedBox(height: 8),
-              Text(title.toUpperCase(), style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w800, letterSpacing: 0.5)),
+              // Texto escuro no cartão claro (temas Rosa, Azul, Verde, Branco).
+              Text(title, style: TextStyle(color: cardColor.computeLuminance() > 0.5 ? Colors.black87 : Colors.white, fontSize: 15, fontWeight: FontWeight.w800)),
             ]),
           ),
         ]),

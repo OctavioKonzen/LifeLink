@@ -37,6 +37,10 @@ class DeckProvider with ChangeNotifier implements SyncedDecks {
     if (deckIndex >= 0 && deckIndex < _allDecks.length) UserData.instance.deckChanged(_allDecks[deckIndex].id);
   }
 
+  /// A posição do deck na lista pelo id (-1 se não existe mais). As telas
+  /// guardam o id: a lista muda de ordem quando chega um deck da conta.
+  int indexOfId(String id) => _allDecks.indexWhere((d) => d.id == id);
+
   @override
   Map<String, Map<String, dynamic>> readDecks() => {for (final d in _allDecks) d.id: d.toMap()};
 

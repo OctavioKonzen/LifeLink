@@ -36,26 +36,30 @@ class _TodayPricesScreenState extends State<TodayPricesScreen> {
     super.dispose();
   }
 
-  // Função que carrega os dados, aceitando query opcional
+  int _requestId = 0; // só a busca mais nova aparece
+
+  /// Carrega as cartas mais caras (com a busca, se tiver).
   Future<void> _loadPrices({String? query}) async {
     if (!mounted) return;
+    final id = ++_requestId;
     setState(() => _isLoading = true);
-    
+
     try {
       final result = await _repository.fetchTrendingPrices(query: query);
-      if (mounted) {
+      if (mounted && id == _requestId) {
         setState(() {
           _cards = List<CardModel>.from(result['cards']);
           _isLoading = false;
         });
       }
     } catch (e) {
-      if (mounted) {
+      if (mounted && id == _requestId) {
         setState(() {
           _cards = [];
           _isLoading = false;
         });
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+        final message = e is ScryfallException ? e.message : 'Não deu para carregar os preços agora. Verifique a internet.';
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
       }
     }
   }

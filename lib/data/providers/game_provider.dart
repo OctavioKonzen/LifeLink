@@ -84,6 +84,10 @@ class GameProvider with ChangeNotifier {
   // Histórico da partida (só neste aparelho), do mais antigo ao mais novo.
   final List<GameEvent> _history = [];
 
+  /// Muda a cada partida nova neste aparelho (para saber se o "desfazer"
+  /// ainda é da partida que terminou).
+  int gameId = 0;
+
   int get playerCount => _playerCount;
   int get startingLife => _startingLife;
   List<int> get lives => _lives;
@@ -453,6 +457,7 @@ class GameProvider with ChangeNotifier {
   void toggleCMDMode() => setStartingLife(_startingLife == 20 ? 40 : 20);
 
   void resetGame() {
+    gameId++;
     _lives = List.filled(maxPlayers, _startingLife);
     _poison = List.filled(maxPlayers, 0);
     _energy = List.filled(maxPlayers, 0);

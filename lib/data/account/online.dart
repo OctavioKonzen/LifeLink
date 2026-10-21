@@ -92,6 +92,9 @@ class OnlineTable extends ChangeNotifier {
 
   bool get active => code != null;
 
+  /// Aplicando agora uma mudança que veio de outro celular da mesa.
+  bool get applying => _applying;
+
   String _norm(String c) => c.trim().toUpperCase().replaceAll(RegExp(r'[^A-Z0-9]'), '');
 
   /// Cria uma mesa com a partida atual deste aparelho.

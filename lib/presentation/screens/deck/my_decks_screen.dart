@@ -21,7 +21,7 @@ class MyDecksScreen extends StatefulWidget {
 
 class _MyDecksScreenState extends State<MyDecksScreen> {
   
-  void _confirmDelete(BuildContext context, DeckProvider provider, int index, String deckName) {
+  void _confirmDelete(BuildContext context, DeckProvider provider, String deckId, String deckName) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -37,7 +37,9 @@ class _MyDecksScreenState extends State<MyDecksScreen> {
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
             onPressed: () {
-              provider.deleteDeck(index);
+              // Pelo id: a lista pode ter mudado com a janela aberta.
+              final index = provider.indexOfId(deckId);
+              if (index >= 0) provider.deleteDeck(index);
               Navigator.pop(ctx);
             },
             child: const Text("APAGAR"),
@@ -224,7 +226,7 @@ class _MyDecksScreenState extends State<MyDecksScreen> {
 
   Widget _buildDeckCard(dynamic deck, int index, DeckProvider provider, Color textColor, bool isLight) {
     return GestureDetector(
-      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => DeckDetailScreen(deckIndex: index))),
+      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => DeckDetailScreen(deckId: deck.id))),
       child: Container(
         decoration: neonDecoration(AreaColors.decks, neonSurface(context, context.read<ThemeProvider>().backgroundColor), glow: 0.15),
         child: Column(
@@ -248,7 +250,7 @@ class _MyDecksScreenState extends State<MyDecksScreen> {
                     ),
                   ),
                   GestureDetector(
-                    onTap: () => _confirmDelete(context, provider, index, deck.name),
+                    onTap: () => _confirmDelete(context, provider, deck.id, deck.name),
                     child: Icon(Icons.delete_outline, color: Colors.redAccent.withValues(alpha: 0.7), size: 22),
                   ),
                 ],

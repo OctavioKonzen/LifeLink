@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../../data/providers/theme_provider.dart';
 import '../../../data/providers/deck_provider.dart';
+import '../../../data/providers/xp_provider.dart';
 import '../../../data/services/pdf_service.dart';
 import '../search/card_detail_screen.dart'; 
 
@@ -82,12 +83,11 @@ class _CommunityDeckDetailScreenState extends State<CommunityDeckDetailScreen> {
           }
         }
 
+        // Só o comandante e o deck principal: o arquivo também traz o
+        // comandante repetido (displayCommander), o banco, fichas, planos...
         if (data is Map) {
-          data.forEach((key, value) {
-            if (value is List) {
-              extractCards(value);
-            }
-          });
+          extractCards(data['commander'] as List?);
+          extractCards(data['mainBoard'] as List?);
         }
 
         if (mounted) {
@@ -104,8 +104,18 @@ class _CommunityDeckDetailScreenState extends State<CommunityDeckDetailScreen> {
     }
   }
 
+  bool _saved = false;
+
+  /// "Commander Deck" → "Commander", como os tipos dos decks do app.
+  static String typeOf(String raw) {
+    final t = raw.toLowerCase();
+    if (t.contains('commander')) return 'Commander';
+    if (t.contains('challenger')) return 'Challenger';
+    return 'Normal';
+  }
+
   void _handleSaveDeck() {
-    if (_cards.isEmpty) return;
+    if (_cards.isEmpty || _saved) return;
     
     final deckProvider = context.read<DeckProvider>();
     final theme = context.read<ThemeProvider>();
@@ -113,9 +123,14 @@ class _CommunityDeckDetailScreenState extends State<CommunityDeckDetailScreen> {
 
     try {
       final String deckName = widget.deckData['name'] ?? 'Novo Deck';
-      final String deckType = widget.deckData['type'] ?? 'Casual';
-      
+      final String deckType = typeOf('${widget.deckData['type'] ?? ''}');
+
       deckProvider.importDeck(deckName, deckType, _cards);
+      // Conta como deck criado e cartas adicionadas (missões), como importar lista.
+      final xp = context.read<XpProvider>();
+      xp.incrementDecksCreated();
+      xp.incrementCardsAdded(_cards.length);
+      setState(() => _saved = true);
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -156,12 +171,13 @@ class _CommunityDeckDetailScreenState extends State<CommunityDeckDetailScreen> {
             ),
             actions: [
               IconButton(
-                icon: const Icon(Icons.add_to_photos_rounded, color: Colors.greenAccent),
-                tooltip: "Salvar nos Meus Decks",
-                onPressed: _isLoading ? null : _handleSaveDeck,
+                icon: Icon(_saved ? Icons.check_circle : Icons.add_to_photos_rounded, color: Colors.greenAccent),
+                tooltip: _saved ? "Já está nos Meus Decks" : "Salvar nos Meus Decks",
+                onPressed: _isLoading || _saved ? null : _handleSaveDeck,
               ),
               IconButton(
                 icon: const Icon(Icons.picture_as_pdf, color: Colors.blueAccent),
+                tooltip: "Baixar PDF para imprimir",
                 onPressed: _isLoading ? null : _handleDownloadPdf,
               ),
             ],
