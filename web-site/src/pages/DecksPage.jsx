@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import CardImage from '../components/CardImage'
-import CardModal from '../components/CardModal'
+import CardDetails from '../components/CardDetails'
+import ExpandingGrid from '../components/ExpandingGrid'
 import { ErrorBox, Modal, Spinner } from '../components/ui'
 import { coverIds, deck as loadDeck, deckCards, deckList, imageFor } from '../lib/mtgjson'
 import { fromMtgjson } from '../lib/deckCards'
@@ -35,7 +36,6 @@ function Cover({ fileName }) {
 
 function DeckModal({ info, onClose }) {
   const [state, setState] = useState({ loading: true })
-  const [open, setOpen] = useState(null)
   useEffect(() => {
     loadDeck(info.fileName).then(
       (data) => setState({ loading: false, cards: deckCards(data) }),
@@ -72,13 +72,15 @@ function DeckModal({ info, onClose }) {
       ) : state.error ? (
         <ErrorBox message={state.error} />
       ) : (
-        <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-6">
-          {state.cards.map((c, i) => (
+        <ExpandingGrid
+          items={state.cards}
+          keyOf={(c) => `${c.board}-${c.name}`}
+          minWidth={130}
+          renderItem={(c, i, open, selected) => (
             <button
-              key={`${c.board}-${c.name}-${i}`}
               type="button"
-              onClick={() => c.scryfallId && setOpen(c.scryfallId)}
-              className="relative text-left transition hover:scale-[1.03]"
+              onClick={() => c.scryfallId && open()}
+              className={`relative block w-full rounded-[4.5%] text-left transition hover:scale-[1.03] ${selected ? 'ring-4 ring-accent' : ''}`}
               title={c.name}
             >
               <CardImage src={imageFor(c.scryfallId)} alt={c.name} />
@@ -86,10 +88,10 @@ function DeckModal({ info, onClose }) {
                 <span className="absolute right-1 top-1 rounded-full bg-black/80 px-2 text-xs font-black">{c.count}x</span>
               )}
             </button>
-          ))}
-        </div>
+          )}
+          renderPanel={(c, { close, previous, next }) => <CardDetails id={c.scryfallId} onClose={close} onPrevious={previous} onNext={next} />}
+        />
       )}
-      {open && <CardModal id={open} onClose={() => setOpen(null)} />}
     </Modal>
   )
 }

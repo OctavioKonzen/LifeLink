@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
 import CardGrid from '../components/CardGrid'
-import CardModal from '../components/CardModal'
 import { ErrorBox, Spinner } from '../components/ui'
 import {
   addRecentSearch,
@@ -142,7 +141,6 @@ export default function SearchPage() {
   const [suggestions, setSuggestions] = useState([])
   const [recent, setRecent] = useState(recentSearches)
   const [focused, setFocused] = useState(false)
-  const [open, setOpen] = useState(null)
   const [retry, setRetry] = useState(0)
   const catalogs = useCatalogs()
   const sentinel = useRef(null)
@@ -225,9 +223,8 @@ export default function SearchPage() {
     setFilters(update)
   }
 
-  const openCard = (card) => {
+  const openCard = () => {
     if (text.trim()) setRecent(addRecentSearch(text))
-    setOpen(card)
   }
 
   const typing = text.trim().length > 0
@@ -309,7 +306,6 @@ export default function SearchPage() {
         </>
       )}
 
-      {open && <CardModal card={open} onClose={() => setOpen(null)} />}
     </div>
   )
 }

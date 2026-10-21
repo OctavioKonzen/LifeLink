@@ -6,11 +6,11 @@
 //     que tiver mais XP fica;
 //   • ao sair, os dados da conta saem do navegador.
 
-import { collection, doc, onSnapshot, serverTimestamp, setDoc, writeBatch } from 'firebase/firestore'
-import { deleteAccount as deleteAuthAccount, getAuthState, getDb, onAuthChange, signOut } from './auth'
+import { deleteAccount as deleteAuthAccount, getAuthState, loadFirestore, onAuthChange, signOut } from './auth'
 import { SECTION_KEYS, applyRemote, applyRemoteDecks, clearAll, getState, hooks } from './userData'
 
 let uid = null
+let session = 0 // muda a cada troca de conta: listen() antigo desiste
 let stops = []
 let timer = null
 let ready = false
@@ -20,6 +20,7 @@ const dirtyDecks = new Set()
 const deletedDecks = new Set()
 
 function stop() {
+  session++
   for (const s of stops) s()
   stops = []
   clearTimeout(timer)
@@ -42,8 +43,11 @@ function keepBestProfile(remote) {
   if (localXp > remoteXp) dirty.add('profile')
 }
 
-function listen(id) {
-  const db = getDb()
+async function listen(id) {
+  const mine = session
+  const { fs, db } = await loadFirestore()
+  if (mine !== session) return // saiu (ou trocou de conta) enquanto baixava
+  const { collection, doc, onSnapshot } = fs
   const userRef = doc(db, 'users', id)
   stops.push(
     onSnapshot(
@@ -93,7 +97,8 @@ export async function flush() {
   clearTimeout(timer)
   timer = null
   if (!uid) return
-  const db = getDb()
+  const { fs, db } = await loadFirestore()
+  const { doc, serverTimestamp, setDoc, writeBatch } = fs
   const userRef = doc(db, 'users', uid)
   if (ready && dirty.size) {
     const keys = [...dirty]

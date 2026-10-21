@@ -82,3 +82,32 @@ body {
     animation: none;
   }
 }
+
+/* Painel da carta abrindo embaixo da linha dela (ExpandingGrid): a altura
+   cresce e o conteúdo sai da carta clicada. */
+.panel-open {
+  display: grid;
+  grid-template-rows: 1fr;
+  animation: panel-open 0.45s cubic-bezier(0.65, 0, 0.35, 1);
+}
+@keyframes panel-open {
+  from {
+    grid-template-rows: 0fr;
+    opacity: 0;
+  }
+}
+.panel-pop {
+  animation: panel-pop 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+@keyframes panel-pop {
+  from {
+    transform: scale(0.15);
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .panel-open,
+  .panel-pop {
+    animation: none;
+  }
+}

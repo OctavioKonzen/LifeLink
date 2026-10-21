@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import CardModal from '../components/CardModal'
+import CardDetails from '../components/CardDetails'
+import ExpandingGrid from '../components/ExpandingGrid'
 import { ErrorBox, Spinner } from '../components/ui'
 import { buildTextQuery, displayName, imageOf, search } from '../lib/scryfall'
 
@@ -8,7 +9,6 @@ export default function PricesPage() {
   const [text, setText] = useState('')
   const [query, setQuery] = useState('')
   const [state, setState] = useState({ loading: true, cards: [], error: null })
-  const [open, setOpen] = useState(null)
   const [retry, setRetry] = useState(0)
 
   useEffect(() => {
@@ -46,32 +46,34 @@ export default function PricesPage() {
       ) : state.cards.length === 0 ? (
         <p className="py-12 text-center text-muted">Nenhuma carta com preço encontrada.</p>
       ) : (
-        <ol className="grid gap-2 md:grid-cols-2">
-          {state.cards.map((c, i) => (
-            <li key={c.id}>
-              <button
-                type="button"
-                onClick={() => setOpen(c)}
-                className="flex w-full items-center gap-3 rounded-xl bg-text/5 p-2 text-left hover:bg-text/10"
-              >
-                <img src={imageOf(c, 'small')} alt="" loading="lazy" className="h-[70px] w-[50px] shrink-0 rounded object-cover" />
-                <div className="min-w-0 flex-1">
-                  <div className="truncate font-bold">{displayName(c)}</div>
-                  <div className="truncate text-xs text-muted">
-                    {c.set_name} · {c.lang.toUpperCase()}
-                    {c.finishes?.includes('foil') && !c.finishes.includes('nonfoil') ? ' · Foil' : ''}
-                  </div>
+        <ExpandingGrid
+          items={state.cards}
+          keyOf={(c) => c.id}
+          minWidth={380}
+          gap={8}
+          renderItem={(c, i, open, selected) => (
+            <button
+              type="button"
+              onClick={open}
+              className={`flex w-full items-center gap-3 rounded-xl p-2 text-left ${selected ? 'bg-accent/25 ring-2 ring-accent' : 'bg-text/5 hover:bg-text/10'}`}
+            >
+              <img src={imageOf(c, 'small')} alt="" loading="lazy" className="h-[70px] w-[50px] shrink-0 rounded object-cover" />
+              <div className="min-w-0 flex-1">
+                <div className="truncate font-bold">{displayName(c)}</div>
+                <div className="truncate text-xs text-muted">
+                  {c.set_name} · {c.lang.toUpperCase()}
+                  {c.finishes?.includes('foil') && !c.finishes.includes('nonfoil') ? ' · Foil' : ''}
                 </div>
-                <div className="text-right">
-                  <div className="font-black text-emerald-400">US$ {c.prices.usd ?? c.prices.usd_foil}</div>
-                  {!query && <div className="text-[10px] text-text/30">#{i + 1}</div>}
-                </div>
-              </button>
-            </li>
-          ))}
-        </ol>
+              </div>
+              <div className="text-right">
+                <div className="font-black text-emerald-400">US$ {c.prices.usd ?? c.prices.usd_foil}</div>
+                {!query && <div className="text-[10px] text-text/30">#{i + 1}</div>}
+              </div>
+            </button>
+          )}
+          renderPanel={(c, { close, previous, next }) => <CardDetails card={c} onClose={close} onPrevious={previous} onNext={next} />}
+        />
       )}
-      {open && <CardModal card={open} onClose={() => setOpen(null)} />}
     </div>
   )
 }

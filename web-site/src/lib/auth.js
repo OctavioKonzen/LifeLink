@@ -17,11 +17,10 @@ import {
   signOut as fbSignOut,
   updateProfile,
 } from 'firebase/auth'
-import { getFirestore, doc, setDoc, serverTimestamp, collection, getDocs, deleteDoc } from 'firebase/firestore'
 import { firebaseConfig, isConfigured } from './firebaseConfig'
 
+let app = null
 let auth = null
-let db = null
 let state = { status: isConfigured ? 'loading' : 'disabled', user: null }
 const listeners = new Set()
 
@@ -30,15 +29,16 @@ function set(next) {
   for (const l of listeners) l()
 }
 
-export function getDb() {
-  return db
+/** O Firestore, baixado à parte (ver firestore.js). */
+export async function loadFirestore() {
+  const fs = await import('./firestore')
+  return { fs, db: fs.getDb(app) }
 }
 
 export function startAuth() {
   if (!isConfigured || auth) return
-  const app = initializeApp(firebaseConfig)
+  app = initializeApp(firebaseConfig)
   auth = getAuth(app)
-  db = getFirestore(app)
   onAuthStateChanged(auth, (u) => {
     if (!u) {
       set({ status: 'signedOut', user: null })
@@ -67,11 +67,7 @@ export function onAuthChange(listener) {
 }
 
 function saveProfile(u, name) {
-  setDoc(
-    doc(db, 'users', u.uid),
-    { name: name || u.displayName || u.email?.split('@')[0] || 'Jogador', email: u.email || '', lastLogin: serverTimestamp() },
-    { merge: true },
-  ).catch(() => {})
+  import('./firestore').then((fs) => fs.saveProfile(app, u, name)).catch(() => {})
 }
 
 const MESSAGES = {
@@ -131,8 +127,7 @@ export const deleteAccount = () =>
     // apagar os dados, para não ficar com a conta sem dados.
     const last = Date.parse(u.metadata.lastSignInTime || '')
     if (!last || Date.now() - last > 4 * 60 * 1000) throw new Error(MESSAGES['auth/requires-recent-login'])
-    const decks = await getDocs(collection(db, 'users', u.uid, 'decks'))
-    for (const d of decks.docs) await deleteDoc(d.ref)
-    await deleteDoc(doc(db, 'users', u.uid))
+    const fs = await import('./firestore')
+    await fs.deleteUserData(app, u.uid)
     await deleteUser(u)
   })

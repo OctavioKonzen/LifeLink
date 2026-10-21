@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import CardImage from '../components/CardImage'
-import CardModal from '../components/CardModal'
+import CardDetails from '../components/CardDetails'
+import ExpandingGrid from '../components/ExpandingGrid'
 import { Modal } from '../components/ui'
 import { scryfallIdOf } from '../lib/deckCards'
 import { deckList, deleteDeck, saveDeck, useUserData } from '../lib/userData'
@@ -54,7 +55,6 @@ function NewDeck({ onClose }) {
 }
 
 function DeckView({ deck, onClose }) {
-  const [open, setOpen] = useState(null)
   const total = deck.cards.length
   const price = deck.cards.reduce((sum, c) => sum + (Number.parseFloat(c.usdPrice) || 0), 0)
   const removeCard = (index) => saveDeck({ ...deck, cards: deck.cards.filter((_, i) => i !== index) })
@@ -73,10 +73,18 @@ function DeckView({ deck, onClose }) {
           e use "Adicionar ao deck".
         </p>
       ) : (
-        <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-6">
-          {deck.cards.map((c, i) => (
-            <div key={i} className="relative">
-              <button type="button" onClick={() => scryfallIdOf(c) && setOpen(scryfallIdOf(c))} className="block w-full transition hover:scale-[1.03]" title={c.name}>
+        <ExpandingGrid
+          items={deck.cards.map((c, i) => ({ c, i }))}
+          keyOf={({ c, i }) => `${i}-${c.name}`}
+          minWidth={130}
+          renderItem={({ c, i }, _, open, selected) => (
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => scryfallIdOf(c) && open()}
+                className={`block w-full rounded-[4.5%] transition hover:scale-[1.03] ${selected ? 'ring-4 ring-accent' : ''}`}
+                title={c.name}
+              >
                 <CardImage src={c.imageUrl} alt={c.name} />
               </button>
               <button
@@ -88,8 +96,9 @@ function DeckView({ deck, onClose }) {
                 ✕
               </button>
             </div>
-          ))}
-        </div>
+          )}
+          renderPanel={({ c }, { close, previous, next }) => <CardDetails id={scryfallIdOf(c)} onClose={close} onPrevious={previous} onNext={next} />}
+        />
       )}
       <button
         type="button"
@@ -103,7 +112,6 @@ function DeckView({ deck, onClose }) {
       >
         Apagar deck
       </button>
-      {open && <CardModal id={open} onClose={() => setOpen(null)} />}
     </Modal>
   )
 }
