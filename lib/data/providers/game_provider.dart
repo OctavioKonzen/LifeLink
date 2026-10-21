@@ -32,6 +32,16 @@ class GameProvider with ChangeNotifier {
     Color(0xFF5D4037), // marrom
     Color(0xFF455A64), // grafite
     Color(0xFFB8860B), // dourado
+    // Mais cores para mesas grandes (ex.: dois verdes). As 10 de cima ficam
+    // na mesma ordem: o número salvo de cada jogador continua valendo.
+    Color(0xFF7CB342), // verde-claro
+    Color(0xFF1B5E20), // verde-escuro
+    Color(0xFFC0CA33), // lima
+    Color(0xFF00ACC1), // ciano
+    Color(0xFFF06292), // rosa-claro
+    Color(0xFFF9A825), // amarelo
+    Color(0xFF3949AB), // anil
+    Color(0xFF212121), // preto
   ];
 
   int _playerCount = 2;
@@ -42,6 +52,8 @@ class GameProvider with ChangeNotifier {
   List<int> _experience = List.filled(maxPlayers, 0);
   List<int> _tax = List.filled(maxPlayers, 0);
   List<int> _colors = List.generate(maxPlayers, (i) => i);
+  // Segunda cor (degradê, como deck de duas cores); -1 = só uma cor.
+  List<int> _colors2 = List.filled(maxPlayers, -1);
   List<List<int>> _commanderDamage = List.generate(maxPlayers, (_) => List.filled(maxPlayers, 0));
   List<String> _playerNames = List.generate(maxPlayers, (i) => "Player ${i + 1}");
 
@@ -60,6 +72,10 @@ class GameProvider with ChangeNotifier {
   Color colorOf(int player) => palette[_colors[player] % palette.length];
   int colorIndexOf(int player) => _colors[player];
 
+  /// A segunda cor do degradê, ou null se o jogador usa uma cor só.
+  Color? secondColorOf(int player) => _colors2[player] < 0 ? null : palette[_colors2[player] % palette.length];
+  int secondColorIndexOf(int player) => _colors2[player];
+
   int counter(Counter kind, int player) => switch (kind) {
         Counter.poison => _poison[player],
         Counter.energy => _energy[player],
@@ -73,6 +89,23 @@ class GameProvider with ChangeNotifier {
         Counter.experience => _experience,
         Counter.tax => _tax,
       };
+
+  /// Como a vida do jogador mudou nesta partida, do começo até agora (dano,
+  /// cura e dano de comandante), com a vida depois de cada mudança. Toques
+  /// seguidos já vêm juntos (ex.: −7). A vida antes da primeira mudança é
+  /// calculada de trás para frente a partir da vida atual.
+  ({int start, List<({DateTime at, int delta, int life, String kind, int? attacker})> changes}) lifeTimeline(int player) {
+    final events = [for (final e in _history) if (e.player == player && (e.kind == 'life' || e.kind == 'cmd')) e];
+    int lifeDelta(GameEvent e) => e.kind == 'cmd' ? -e.delta : e.delta;
+    var life = _lives[player] - events.fold<int>(0, (sum, e) => sum + lifeDelta(e));
+    final start = life;
+    final changes = <({DateTime at, int delta, int life, String kind, int? attacker})>[];
+    for (final e in events) {
+      life += lifeDelta(e);
+      changes.add((at: e.at, delta: lifeDelta(e), life: life, kind: e.kind, attacker: e.attacker));
+    }
+    return (start: start, changes: changes);
+  }
 
   /// Morto: vida 0, 10 de veneno ou 21 de dano de um mesmo comandante.
   bool isDead(int player) {
@@ -113,6 +146,7 @@ class GameProvider with ChangeNotifier {
         'experience': _experience,
         'tax': _tax,
         'colors': _colors,
+        'colors2': _colors2,
         'commanderDamage': _commanderDamage,
         'playerNames': _playerNames,
       };
@@ -135,6 +169,7 @@ class GameProvider with ChangeNotifier {
     _tax = _ints(v?['tax'], 0);
     final colors = v?['colors'];
     _colors = colors is List ? _ints(colors, 0) : List.generate(maxPlayers, (i) => i);
+    _colors2 = _ints(v?['colors2'], -1);
     final cmd = (v?['commanderDamage'] as List?) ?? const [];
     _commanderDamage = List.generate(maxPlayers, (i) => _ints(i < cmd.length ? cmd[i] : null, 0));
     final names = [for (final n in (v?['playerNames'] as List? ?? const [])) n.toString()];
@@ -226,6 +261,12 @@ class GameProvider with ChangeNotifier {
     _saveAndNotify();
   }
 
+  /// A segunda cor do degradê (-1 tira o degradê).
+  void setSecondColor(int index, int paletteIndex) {
+    _colors2[index] = paletteIndex;
+    _saveAndNotify();
+  }
+
   void setPlayerColor(int index, int paletteIndex) {
     _colors[index] = paletteIndex;
     _saveAndNotify();
@@ -268,6 +309,7 @@ class GameProvider with ChangeNotifier {
     prefs.setString('experience', jsonEncode(_experience));
     prefs.setString('tax', jsonEncode(_tax));
     prefs.setString('playerColors', jsonEncode(_colors));
+    prefs.setString('playerColors2', jsonEncode(_colors2));
     prefs.setString('commanderDamage', jsonEncode(_commanderDamage));
     await prefs.setString('playerNames', jsonEncode(_playerNames));
   }
@@ -288,6 +330,7 @@ class GameProvider with ChangeNotifier {
     _experience = ints('experience', 0) ?? _experience;
     _tax = ints('tax', 0) ?? _tax;
     _colors = ints('playerColors', 0) ?? _colors;
+    _colors2 = ints('playerColors2', -1) ?? _colors2;
 
     final c = prefs.getString('commanderDamage');
     if (c != null) {

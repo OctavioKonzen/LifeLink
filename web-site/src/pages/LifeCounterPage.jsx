@@ -4,13 +4,27 @@ import { incrementMatches } from '../lib/xp'
 import DiceModal from '../components/DiceModal'
 import { playSound, setSoundsOn, soundFor, soundsOn } from '../lib/sounds'
 
-// O mesmo contador do app (game_provider.dart): 2 a 6 jogadores, vida 20 ou
-// 40 (Commander), veneno até 10 e dano de comandante até 21, que também tira
+// O mesmo contador do app (game_provider.dart): 2 a 6 jogadores, vida
+// inicial à vontade, veneno até 10 e dano de comandante até 21, que também tira
 // vida. É a mesma partida do app: com a conta, o que muda aqui aparece lá.
 
-// As mesmas cores do app (GameProvider.palette); cada jogador escolhe a sua no app.
-const PALETTE = ['#6A3DE8', '#1BA655', '#D32F2F', '#1E6FE0', '#E08A1E', '#00897B', '#C2185B', '#5D4037', '#455A64', '#B8860B']
+// As mesmas cores do app (GameProvider.palette), na mesma ordem.
+const PALETTE = [
+  '#6A3DE8', '#1BA655', '#D32F2F', '#1E6FE0', '#E08A1E', '#00897B', '#C2185B', '#5D4037', '#455A64', '#B8860B',
+  '#7CB342', '#1B5E20', '#C0CA33', '#00ACC1', '#F06292', '#F9A825', '#3949AB', '#212121',
+]
+const LIFE_OPTIONS = [20, 25, 30, 40, 50, 60]
 const colorOf = (game, i) => PALETTE[(game.colors?.[i] ?? i) % PALETTE.length]
+// Segunda cor (degradê, como deck de duas cores); -1 ou vazio = uma cor só.
+const secondColorOf = (game, i) => {
+  const c = game.colors2?.[i] ?? -1
+  return c < 0 ? null : PALETTE[c % PALETTE.length]
+}
+const backgroundOf = (game, i) => {
+  const second = secondColorOf(game, i)
+  return second ? `linear-gradient(135deg, ${colorOf(game, i)}, ${second})` : colorOf(game, i)
+}
+const setList = (list, i, value, fill) => Array.from({ length: 6 }, (_, m) => (m === i ? value : (list?.[m] ?? fill(m))))
 
 // Formato do app (users/{uid}.data.game) → nomes curtos usados nesta tela.
 // O resto (energia, experiência, imposto, cores) passa direto, sem se perder.
@@ -36,7 +50,24 @@ function Step({ onClick, children, label }) {
   )
 }
 
-function Player({ i, game, update }) {
+/** Como a vida mudou (mais novo em cima). */
+function LifeHistory({ entries, start }) {
+  if (!entries.length) return <p className="px-1 text-white/60">Ainda sem mudanças de vida nesta partida.</p>
+  return (
+    <ul className="space-y-1">
+      {[...entries].reverse().map((e, k) => (
+        <li key={k} className="flex items-center gap-2 rounded-lg bg-black/20 px-2 py-1">
+          <span className={`w-10 font-black ${e.delta < 0 ? 'text-red-300' : 'text-emerald-300'}`}>{e.delta > 0 ? `+${e.delta}` : e.delta}</span>
+          <span className="flex-1 truncate text-white/75">{e.kind === 'cmd' ? 'comandante' : e.delta < 0 ? 'dano' : 'cura'}</span>
+          <span className="font-black tabular-nums">{e.life}</span>
+        </li>
+      ))}
+      <li className="px-2 text-white/50">Começou com {start}</li>
+    </ul>
+  )
+}
+
+function Player({ i, game, update, history }) {
   const [details, setDetails] = useState(false)
   const life = game.lives[i]
   const dead = isDead(game, i)
@@ -47,7 +78,7 @@ function Player({ i, game, update }) {
   return (
     <div
       className="relative flex min-h-0 min-w-0 flex-1 flex-col rounded-2xl p-3 text-white shadow-lg [container-type:size]"
-      style={{ background: colorOf(game, i), opacity: dead ? 0.55 : 1 }}
+      style={{ background: backgroundOf(game, i), opacity: dead ? 0.55 : 1 }}
     >
       <input
         value={game.names[i]}
@@ -78,10 +109,44 @@ function Player({ i, game, update }) {
         </div>
       </div>
       <button type="button" onClick={() => setDetails((d) => !d)} className="w-full truncate rounded-full bg-black/20 px-2 py-1 text-sm font-semibold">
-        ☣ {game.poison[i]} · ⚔ Comandante {details ? '▲' : '▼'}
+        ☣ {game.poison[i]} · ⚔ Comandante · 📈 Histórico {details ? '▲' : '▼'}
       </button>
       {details && (
         <div className="absolute inset-x-3 top-10 bottom-12 z-10 space-y-2 overflow-y-auto rounded-xl bg-black/55 p-2 text-sm backdrop-blur">
+          <p className="px-1 text-xs font-bold uppercase tracking-wide text-white/60">Cor</p>
+          <div className="flex flex-wrap gap-1.5 px-1 pb-1" aria-label="Cor do jogador">
+            {PALETTE.map((c, k) => (
+              <button
+                key={c}
+                type="button"
+                onClick={() => update((g) => ({ ...g, colors: setList(g.colors, i, k, (m) => m) }), { silent: true })}
+                className={`h-6 w-6 rounded-full ${colorOf(game, i) === c ? 'ring-2 ring-white' : ''}`}
+                style={{ background: c }}
+                aria-label={`Cor ${k + 1}`}
+              />
+            ))}
+          </div>
+          <p className="px-1 text-xs font-bold uppercase tracking-wide text-white/60">Cor 2 (degradê)</p>
+          <div className="flex flex-wrap gap-1.5 px-1 pb-1" aria-label="Segunda cor do jogador">
+            <button
+              type="button"
+              onClick={() => update((g) => ({ ...g, colors2: setList(g.colors2, i, -1, () => -1) }), { silent: true })}
+              className={`grid h-6 w-6 place-items-center rounded-full border border-white/40 text-xs ${secondColorOf(game, i) ? '' : 'ring-2 ring-white'}`}
+              aria-label="Sem degradê"
+            >
+              ⦸
+            </button>
+            {PALETTE.map((c, k) => (
+              <button
+                key={c}
+                type="button"
+                onClick={() => update((g) => ({ ...g, colors2: setList(g.colors2, i, k, () => -1) }), { silent: true })}
+                className={`h-6 w-6 rounded-full ${secondColorOf(game, i) === c ? 'ring-2 ring-white' : ''}`}
+                style={{ background: c }}
+                aria-label={`Segunda cor ${k + 1}`}
+              />
+            ))}
+          </div>
           <Row
             label="Veneno"
             value={game.poison[i]}
@@ -106,6 +171,8 @@ function Player({ i, game, update }) {
               }
             />
           ))}
+          <p className="px-1 pt-1 text-xs font-bold uppercase tracking-wide text-white/60">📈 Histórico de vida</p>
+          <LifeHistory entries={history} start={game.lives[i] - history.reduce((a, e) => a + e.delta, 0)} />
         </div>
       )}
     </div>
@@ -156,14 +223,49 @@ export default function LifeCounterPage() {
   const wide = useWide()
   // Cada toque toca o som da mudança (dano, cura, veneno, comandante, morte).
   // Partida nova, nomes e número de jogadores não tocam som (silent).
-  const setGame = (update, { silent = false } = {}) =>
+  // Histórico de vida desta partida (neste navegador): cada mudança, com
+  // toques seguidos juntos (ex.: −7).
+  const [log, setLog] = useState([])
+  const record = (before, after) => {
+    const now = Date.now()
+    const changes = []
+    for (let i = 0; i < after.players; i++) {
+      const delta = after.lives[i] - before.lives[i]
+      if (!delta) continue
+      const cmd = after.commander[i].reduce((a, b) => a + b, 0) > before.commander[i].reduce((a, b) => a + b, 0)
+      changes.push({ i, delta, life: after.lives[i], kind: cmd ? 'cmd' : 'life', at: now })
+    }
+    if (!changes.length) return
+    setLog((old) => {
+      const next = [...old]
+      for (const c of changes) {
+        const last = next.findLast((e) => e.i === c.i)
+        if (last && last.kind === c.kind && now - last.at < 3000 && Math.sign(last.delta) === Math.sign(c.delta)) {
+          next[next.lastIndexOf(last)] = { ...last, delta: last.delta + c.delta, life: c.life, at: now }
+        } else next.push(c)
+      }
+      return next.slice(-300)
+    })
+  }
+  const setGame = (update, { silent = false, reset = false } = {}) =>
     updateSection('game', (g) => {
       const before = view(g)
       const after = update(before)
       const sound = silent ? null : soundFor(before, after)
       if (sound) playSound(sound)
+      if (reset) setLog([])
+      else if (!silent) record(before, after)
       return toApp(after)
     })
+  /** Vida inicial à vontade: 20, 25, 30, 40, 50, 60 ou outra. */
+  const chooseLife = (value) => {
+    let life = Number(value)
+    if (value === 'outro') {
+      life = Number(window.prompt('Vida inicial (1 a 999):', String(game.startingLife)))
+      if (!Number.isInteger(life) || life < 1 || life > 999) return
+    }
+    setGame((g) => newGame(g, life), { silent: true, reset: true })
+  }
   const [sounds, setSounds] = useState(soundsOn)
   const [banner, setBanner] = useState(null)
   const [dice, setDice] = useState(false)
@@ -200,13 +302,22 @@ export default function LifeCounterPage() {
             ))}
           </select>
         </label>
-        <button
-          type="button"
-          onClick={() => setGame((g) => newGame(g, g.startingLife === 40 ? 20 : 40), { silent: true })}
-          className="rounded-full bg-text/10 px-4 py-1.5 text-sm font-bold hover:bg-text/20"
-        >
-          {game.startingLife === 40 ? 'Commander (40)' : 'Normal (20)'}
-        </button>
+        <label className="flex items-center gap-2 text-sm">
+          Vida
+          <select
+            value={LIFE_OPTIONS.includes(game.startingLife) ? game.startingLife : 'atual'}
+            onChange={(e) => chooseLife(e.target.value)}
+            className="rounded-lg border border-line bg-card px-2 py-1"
+          >
+            {LIFE_OPTIONS.map((n) => (
+              <option key={n} value={n}>
+                {n}
+              </option>
+            ))}
+            {!LIFE_OPTIONS.includes(game.startingLife) && <option value="atual">{game.startingLife}</option>}
+            <option value="outro">Outro…</option>
+          </select>
+        </label>
         <button
           type="button"
           onClick={() => {
@@ -227,7 +338,7 @@ export default function LifeCounterPage() {
         </button>
         <button
           type="button"
-          onClick={() => setGame((g) => newGame(g, g.startingLife), { silent: true })}
+          onClick={() => setGame((g) => newGame(g, g.startingLife), { silent: true, reset: true })}
           className="rounded-full bg-red-500 px-4 py-1.5 text-sm font-bold hover:brightness-110"
         >
           Reiniciar
@@ -245,7 +356,7 @@ export default function LifeCounterPage() {
         {rowsFor(game.players, wide).map((row, r) => (
           <div key={r} className="flex min-h-0 flex-1 gap-3">
             {row.map((i) => (
-              <Player key={i} i={i} game={game} update={setGame} />
+              <Player key={i} i={i} game={game} update={setGame} history={log.filter((e) => e.i === i)} />
             ))}
           </div>
         ))}

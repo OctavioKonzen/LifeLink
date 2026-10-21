@@ -16,6 +16,7 @@ class PlayerCardWidget extends StatefulWidget {
   final GameProvider game;
   final VoidCallback onCounters;
   final VoidCallback onSettings;
+  final VoidCallback? onHistory;
 
   const PlayerCardWidget({
     super.key,
@@ -24,6 +25,7 @@ class PlayerCardWidget extends StatefulWidget {
     required this.game,
     required this.onCounters,
     required this.onSettings,
+    this.onHistory,
   });
 
   @override
@@ -126,7 +128,12 @@ class _PlayerCardWidgetState extends State<PlayerCardWidget> {
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: dead ? [Colors.grey.shade800, Colors.grey.shade900] : [Color.lerp(color, Colors.white, 0.08)!, Color.lerp(color, Colors.black, 0.25)!],
+            // Com segunda cor, degradê de uma para a outra (deck de duas cores).
+            colors: dead
+                ? [Colors.grey.shade800, Colors.grey.shade900]
+                : game.secondColorOf(i) != null
+                    ? [Color.lerp(color, Colors.white, 0.05)!, Color.lerp(game.secondColorOf(i)!, Colors.black, 0.1)!]
+                    : [Color.lerp(color, Colors.white, 0.08)!, Color.lerp(color, Colors.black, 0.25)!],
           ),
         ),
         clipBehavior: Clip.antiAlias,
@@ -203,6 +210,9 @@ class _PlayerCardWidgetState extends State<PlayerCardWidget> {
                       ]),
                     ),
                   ),
+                  // Histórico da vida deste jogador.
+                  if (widget.onHistory != null)
+                    GestureDetector(onTap: widget.onHistory, child: _badge(Icons.timeline, '', Colors.white70)),
                   GestureDetector(
                     onTap: widget.onCounters,
                     child: Row(mainAxisSize: MainAxisSize.min, children: [

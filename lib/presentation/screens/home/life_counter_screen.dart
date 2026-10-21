@@ -94,6 +94,7 @@ class _LifeCounterScreenState extends State<LifeCounterScreen> {
         game: game,
         onCounters: () => _showCounters(game, index, turns),
         onSettings: () => _showPlayerSettings(game, index, turns),
+        onHistory: () => _showLifeHistory(game, index, turns),
       ),
     );
   }
@@ -249,8 +250,9 @@ class _LifeCounterScreenState extends State<LifeCounterScreen> {
                   const SizedBox(height: 18),
                   const Text('VIDA INICIAL', style: TextStyle(color: Colors.white54, fontWeight: FontWeight.w800, letterSpacing: 1)),
                   const SizedBox(height: 8),
-                  Row(mainAxisSize: MainAxisSize.min, children: [
-                    for (final life in [20, 30, 40]) _chip('$life', game.startingLife == life, () => _confirmNewGame(game, () => game.setStartingLife(life))),
+                  Wrap(alignment: WrapAlignment.center, children: [
+                    for (final life in _lifeOptions) _chip('$life', game.startingLife == life, () => _confirmNewGame(game, () => game.setStartingLife(life))),
+                    _chip(_lifeOptions.contains(game.startingLife) ? 'Outro' : '${game.startingLife}', !_lifeOptions.contains(game.startingLife), () => _askStartingLife(game)),
                   ]),
                   const SizedBox(height: 26),
                   Wrap(alignment: WrapAlignment.center, spacing: 6, runSpacing: 18, children: [
@@ -278,6 +280,36 @@ class _LifeCounterScreenState extends State<LifeCounterScreen> {
         ),
       ),
     );
+  }
+
+  static const _lifeOptions = [20, 25, 30, 40, 50, 60];
+
+  /// Vida inicial à vontade (ex.: 15, 100).
+  Future<void> _askStartingLife(GameProvider game) async {
+    final ctrl = TextEditingController(text: '${game.startingLife}');
+    final life = await showDialog<int>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1E1E24),
+        title: const Text('Vida inicial', style: TextStyle(color: Colors.white)),
+        content: TextField(
+          controller: ctrl,
+          autofocus: true,
+          keyboardType: TextInputType.number,
+          inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(3)],
+          style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w900),
+          textAlign: TextAlign.center,
+          decoration: const InputDecoration(helperText: 'De 1 a 999', helperStyle: TextStyle(color: Colors.white38)),
+          onSubmitted: (v) => Navigator.pop(ctx, int.tryParse(v)),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar')),
+          ElevatedButton(onPressed: () => Navigator.pop(ctx, int.tryParse(ctrl.text)), child: const Text('OK')),
+        ],
+      ),
+    );
+    if (life == null || life < 1 || life > 999 || !mounted) return;
+    _confirmNewGame(game, () => game.setStartingLife(life));
   }
 
   void _confirmNewGame(GameProvider game, VoidCallback start) {
@@ -381,6 +413,75 @@ class _LifeCounterScreenState extends State<LifeCounterScreen> {
     });
   }
 
+  /// Como a vida do jogador foi mudando: gráfico e a lista (mais novo em cima).
+  void _showLifeHistory(GameProvider game, int index, int turns) {
+    String ago(DateTime at) {
+      final d = DateTime.now().difference(at);
+      if (d.inSeconds < 60) return 'agora';
+      if (d.inMinutes < 60) return 'há ${d.inMinutes} min';
+      return 'há ${d.inHours} h';
+    }
+
+    _playerDialog(turns, (ctx) {
+      return AnimatedBuilder(
+        animation: game,
+        builder: (context, _) {
+          final timeline = game.lifeTimeline(index);
+          final color = game.colorOf(index);
+          final points = [timeline.start, for (final c in timeline.changes) c.life];
+          return ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 420, maxHeight: 560),
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                Text('Vida de ${game.playerNames[index]}', textAlign: TextAlign.center, style: TextStyle(color: color, fontSize: 20, fontWeight: FontWeight.w900)),
+                const SizedBox(height: 12),
+                SizedBox(height: 110, child: CustomPaint(painter: _LifeChartPainter(points, Color.lerp(color, Colors.white, 0.25)!))),
+                const SizedBox(height: 8),
+                if (timeline.changes.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 16),
+                    child: Text('Ainda sem mudanças de vida nesta partida.', textAlign: TextAlign.center, style: TextStyle(color: Colors.white54)),
+                  )
+                else
+                  Flexible(
+                    child: ListView(shrinkWrap: true, children: [
+                      for (final c in timeline.changes.reversed)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 5),
+                          child: Row(children: [
+                            SizedBox(
+                              width: 56,
+                              child: Text(c.delta > 0 ? '+${c.delta}' : '${c.delta}',
+                                  style: TextStyle(color: c.delta < 0 ? const Color(0xFFFF8A80) : const Color(0xFFB9F6CA), fontSize: 18, fontWeight: FontWeight.w900)),
+                            ),
+                            Expanded(
+                              child: Text(
+                                c.kind == 'cmd' ? 'comandante de ${game.playerNames[c.attacker ?? 0]}' : (c.delta < 0 ? 'dano' : 'cura'),
+                                style: const TextStyle(color: Colors.white70),
+                              ),
+                            ),
+                            Text('${c.life}', style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w900)),
+                            const SizedBox(width: 10),
+                            SizedBox(width: 58, child: Text(ago(c.at), textAlign: TextAlign.right, style: const TextStyle(color: Colors.white38, fontSize: 12))),
+                          ]),
+                        ),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 5),
+                        child: Text('Começou com ${timeline.start}', style: const TextStyle(color: Colors.white38)),
+                      ),
+                    ]),
+                  ),
+                const SizedBox(height: 12),
+                ElevatedButton(onPressed: () => Navigator.pop(ctx), child: const Text('Pronto')),
+              ]),
+            ),
+          );
+        },
+      );
+    });
+  }
+
   void _showPlayerSettings(GameProvider game, int index, int turns) {
     final ctrl = TextEditingController(text: game.playerNames[index]);
     _playerDialog(turns, (ctx) {
@@ -404,23 +505,48 @@ class _LifeCounterScreenState extends State<LifeCounterScreen> {
                 },
               ),
               const SizedBox(height: 18),
-              const Text('COR', style: TextStyle(color: Colors.white54, fontSize: 12, fontWeight: FontWeight.w800)),
-              const SizedBox(height: 10),
-              Wrap(spacing: 10, runSpacing: 10, alignment: WrapAlignment.center, children: [
-                for (int c = 0; c < GameProvider.palette.length; c++)
-                  GestureDetector(
-                    onTap: () => game.setPlayerColor(index, c),
+              () {
+              Widget dot({required Color? color, required bool selected, required VoidCallback onTap}) => GestureDetector(
+                    onTap: onTap,
                     child: Container(
-                      width: 42,
-                      height: 42,
+                      width: 38,
+                      height: 38,
                       decoration: BoxDecoration(
-                        color: GameProvider.palette[c],
+                        color: color ?? Colors.transparent,
                         shape: BoxShape.circle,
-                        border: Border.all(color: game.colorIndexOf(index) == c ? Colors.white : Colors.transparent, width: 3),
+                        border: Border.all(color: selected ? Colors.white : (color == null ? Colors.white38 : Colors.transparent), width: 3),
                       ),
+                      child: color == null ? const Icon(Icons.block, color: Colors.white54, size: 20) : null,
                     ),
+                  );
+              final second = game.secondColorOf(index);
+              final first = game.colorOf(index);
+              return Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                // Como vai ficar o quadro (uma cor ou o degradê).
+                Container(
+                  height: 34,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    gradient: LinearGradient(colors: second != null ? [first, second] : [first, Color.lerp(first, Colors.black, 0.25)!]),
                   ),
-              ]),
+                ),
+                const SizedBox(height: 14),
+                const Text('COR', style: TextStyle(color: Colors.white54, fontSize: 12, fontWeight: FontWeight.w800)),
+                const SizedBox(height: 10),
+                Wrap(spacing: 10, runSpacing: 10, alignment: WrapAlignment.center, children: [
+                  for (int c = 0; c < GameProvider.palette.length; c++)
+                    dot(color: GameProvider.palette[c], selected: game.colorIndexOf(index) == c, onTap: () => game.setPlayerColor(index, c)),
+                ]),
+                const SizedBox(height: 16),
+                const Text('COR 2 (DEGRADÊ, COMO DECK DE DUAS CORES)', style: TextStyle(color: Colors.white54, fontSize: 12, fontWeight: FontWeight.w800)),
+                const SizedBox(height: 10),
+                Wrap(spacing: 10, runSpacing: 10, alignment: WrapAlignment.center, children: [
+                  dot(color: null, selected: second == null, onTap: () => game.setSecondColor(index, -1)),
+                  for (int c = 0; c < GameProvider.palette.length; c++)
+                    dot(color: GameProvider.palette[c], selected: game.secondColorIndexOf(index) == c, onTap: () => game.setSecondColor(index, c)),
+                ]),
+              ]);
+            }(),
               const SizedBox(height: 20),
               ElevatedButton(onPressed: () => Navigator.pop(ctx), child: const Text('Pronto')),
             ]),
@@ -861,4 +987,45 @@ class _FirstPlayerOverlayState extends State<_FirstPlayerOverlay> {
       ),
     ]);
   }
+}
+
+/// Gráfico da vida ao longo da partida (linha com a área embaixo).
+class _LifeChartPainter extends CustomPainter {
+  final List<int> points;
+  final Color color;
+  _LifeChartPainter(this.points, this.color);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final grid = Paint()..color = Colors.white10;
+    for (int k = 0; k <= 2; k++) {
+      final y = size.height * k / 2;
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), grid);
+    }
+    if (points.length < 2) return;
+    // A faixa da partida (com folga), para as mudanças aparecerem no gráfico.
+    final hi = points.reduce(max) + 2, lo = max(0, points.reduce(min) - 2);
+    final span = max(1, hi - lo);
+    Offset at(int i) => Offset(size.width * i / (points.length - 1), size.height * (1 - (points[i] - lo) / span));
+    final line = Path()..moveTo(at(0).dx, at(0).dy);
+    for (int i = 1; i < points.length; i++) {
+      line.lineTo(at(i).dx, at(i).dy);
+    }
+    final area = Path.from(line)
+      ..lineTo(size.width, size.height)
+      ..lineTo(0, size.height)
+      ..close();
+    canvas.drawPath(area, Paint()..color = color.withValues(alpha: 0.18));
+    canvas.drawPath(line, Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3
+      ..strokeJoin = StrokeJoin.round);
+    for (int i = 0; i < points.length; i++) {
+      canvas.drawCircle(at(i), 3, Paint()..color = color);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_LifeChartPainter old) => old.points.toString() != points.toString() || old.color != color;
 }

@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:magic/data/providers/game_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -75,5 +76,33 @@ void main() {
     game.updateLife(0, -40); // morre
     game.updateLife(0, -1); // já estava morto: não morre de novo
     expect(heard, ['life:-5', 'life:2', 'poison:9', 'poison:1:morreu', 'cmd:3', 'life:-40:morreu', 'life:-1']);
+  });
+
+  test('histórico de vida de cada jogador', () {
+    game.updateLife(0, -3);
+    game.updateCommanderDamage(0, 1, 5);
+    game.updateLife(1, -2); // outro jogador não entra
+    game.updateLife(0, 4);
+    final t = game.lifeTimeline(0);
+    expect(t.start, 40);
+    expect([for (final c in t.changes) (c.delta, c.life, c.kind)], [(-3, 37, 'life'), (-5, 32, 'cmd'), (4, 36, 'life')]);
+    expect(t.changes[1].attacker, 1);
+  });
+
+  test('mais cores: as 10 antigas na mesma ordem', () {
+    expect(GameProvider.palette.length, 18);
+    expect(GameProvider.palette[1], const Color(0xFF1BA655));
+  });
+
+  test('segunda cor (degradê) vai para a conta', () async {
+    expect(game.secondColorOf(0), isNull);
+    game.setSecondColor(0, 11);
+    expect(game.secondColorOf(0), GameProvider.palette[11]);
+    final other = GameProvider();
+    await other.ready;
+    await other.applySync(game.toSync());
+    expect(other.secondColorIndexOf(0), 11);
+    game.setSecondColor(0, -1);
+    expect(game.secondColorOf(0), isNull);
   });
 }
