@@ -6,12 +6,16 @@ import { incrementMatches } from '../lib/xp'
 // 40 (Commander), veneno até 10 e dano de comandante até 21, que também tira
 // vida. É a mesma partida do app: com a conta, o que muda aqui aparece lá.
 
-const COLORS = ['#ef4444', '#3b82f6', '#22c55e', '#eab308', '#a855f7', '#f97316']
+// As mesmas cores do app (GameProvider.palette); cada jogador escolhe a sua no app.
+const PALETTE = ['#6A3DE8', '#1BA655', '#D32F2F', '#1E6FE0', '#E08A1E', '#00897B', '#C2185B', '#5D4037', '#455A64', '#B8860B']
+const colorOf = (game, i) => PALETTE[(game.colors?.[i] ?? i) % PALETTE.length]
 
 // Formato do app (users/{uid}.data.game) → nomes curtos usados nesta tela.
-const view = (g) => ({ players: g.playerCount, startingLife: g.startingLife, names: g.playerNames, lives: g.lives, poison: g.poison, commander: g.commanderDamage })
-const toApp = (v) => ({ playerCount: v.players, startingLife: v.startingLife, playerNames: v.names, lives: v.lives, poison: v.poison, commanderDamage: v.commander })
-const newGame = (players, startingLife, names) => view(defaultGame(startingLife, players, names))
+// O resto (energia, experiência, imposto, cores) passa direto, sem se perder.
+const view = (g) => ({ ...g, players: g.playerCount, names: g.playerNames, commander: g.commanderDamage })
+const toApp = ({ players, names, commander, ...rest }) => ({ ...rest, playerCount: players, playerNames: names, commanderDamage: commander })
+// Partida nova: zera tudo, mas mantém nomes e cores.
+const newGame = (g, startingLife) => ({ ...g, ...view(defaultGame(startingLife, g.players, g.names)) })
 
 const isDead = (g, i) => g.lives[i] <= 0 || g.poison[i] >= 10 || g.commander[i].some((d) => d >= 21)
 
@@ -41,7 +45,7 @@ function Player({ i, game, update }) {
   return (
     <div
       className="relative flex min-h-0 min-w-0 flex-1 flex-col rounded-2xl p-3 text-white shadow-lg [container-type:size]"
-      style={{ background: COLORS[i], opacity: dead ? 0.55 : 1 }}
+      style={{ background: colorOf(game, i), opacity: dead ? 0.55 : 1 }}
     >
       <input
         value={game.names[i]}
@@ -185,14 +189,14 @@ export default function LifeCounterPage() {
         </label>
         <button
           type="button"
-          onClick={() => setGame((g) => newGame(g.players, g.startingLife === 40 ? 20 : 40, g.names))}
+          onClick={() => setGame((g) => newGame(g, g.startingLife === 40 ? 20 : 40))}
           className="rounded-full bg-text/10 px-4 py-1.5 text-sm font-bold hover:bg-text/20"
         >
           {game.startingLife === 40 ? 'Commander (40)' : 'Normal (20)'}
         </button>
         <button
           type="button"
-          onClick={() => setGame((g) => newGame(g.players, g.startingLife, g.names))}
+          onClick={() => setGame((g) => newGame(g, g.startingLife))}
           className="rounded-full bg-red-500 px-4 py-1.5 text-sm font-bold hover:brightness-110"
         >
           Reiniciar

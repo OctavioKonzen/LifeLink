@@ -50,7 +50,14 @@ As cartas mais caras do momento, de todas as edições e idiomas, com pesquisa p
 
 ### Contador de vida
 
-De **2 a 6 jogadores**, com vida **20** ou **40** (Commander), **veneno** (até 10) e **dano de comandante** (até 21, que também tira vida). A partida fica salva e, com a conta, é a mesma no app e no site. Cada partida terminada vale XP para o perfil.
+Feito para a mesa, como os apps do gênero (Lifetap, MTG Companion): de **2 a 6 jogadores**, cada um virado para o seu lado, com vida **20, 30 ou 40**.
+
+* **Toque** na metade esquerda tira 1 de vida, na direita soma 1; **segurando**, vai de 10 em 10. O quanto mudou (ex.: −7) aparece em cima da vida.
+* **Contadores** de cada jogador: veneno (até 10), energia, experiência, imposto do comandante e **dano de comandante** de cada oponente (até 21, que também tira vida).
+* Cada jogador escolhe **nome e cor**; quem perde fica com a caveira e, quando sobra um, aparece o vencedor.
+* No botão do meio: **desfazer**, histórico da partida, reiniciar, dados (D6, D20, moeda) e **quem começa**. A tela não apaga durante a partida.
+
+A partida fica salva e, com a conta, é a mesma no app e no site. Cada partida terminada vale XP para o perfil.
 
 ### Perfil e missões
 
