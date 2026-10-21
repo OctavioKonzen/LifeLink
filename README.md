@@ -4,7 +4,7 @@
   <img src="https://img.shields.io/badge/Flutter-3.x-blue?logo=flutter&style=for-the-badge" />
   <img src="https://img.shields.io/badge/React-19-61DAFB?logo=react&style=for-the-badge" />
   <img src="https://img.shields.io/badge/Firebase-FFCA28?logo=firebase&style=for-the-badge" />
-  <img src="https://img.shields.io/badge/Android-1.0.17-green?logo=android&style=for-the-badge" />
+  <img src="https://img.shields.io/badge/Android-1.0.18-green?logo=android&style=for-the-badge" />
 </p>
 
 <div align="center">
@@ -90,7 +90,7 @@ No app, o **Início** tem os atalhos para todas as áreas, as notícias de Magic
 
 ### Conta
 
-Entrar ou **criar conta** (com e-mail e senha ou **Google**), sempre com um **nick**: quem entra com Google pela primeira vez escolhe o nick antes de entrar. Sair e excluir a conta. A mesma conta vale no app e no site.
+Entrar ou **criar conta** (com e-mail e senha ou **Google**), sempre com um **nick**: quem entra com Google pela primeira vez escolhe o nick antes de entrar. O nick é único (uma pessoa por nick e um nick por pessoa) e dá para **trocar** no Perfil (app) ou na Conta (site): o antigo fica livre para outros. Sair e excluir a conta. A mesma conta vale no app e no site.
 
 ### Configurações
 

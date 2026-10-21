@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { resetPassword, setNick, signIn, signInWithGoogle, signOut, signUp, useAuth } from '../lib/auth'
+import { changeNick, resetPassword, setNick, signIn, signInWithGoogle, signOut, signUp, useAuth } from '../lib/auth'
 import { deleteAccount, logout } from '../lib/sync'
 
 /** Primeira vez com Google: escolhe o nick antes de entrar. */
@@ -95,6 +95,17 @@ export default function AccountPage({ bare = false }) {
         <div>
           <div className="text-xl font-black">{user.name}</div>
           <div className="text-sm text-muted">{user.email}</div>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => {
+              const next = window.prompt('Novo nick (3 a 20 letras). O antigo fica livre para outras pessoas:', user.name)
+              if (next && next.trim() !== user.name) run(() => changeNick(next), `Agora seu nick é ${next.trim()}.`)
+            }}
+            className="mt-1 text-sm font-bold text-accent hover:underline"
+          >
+            ✏️ Trocar nick
+          </button>
         </div>
         <p className="max-w-md text-sm text-text/70">
           Seus decks, perfil, nível, missões, preferências e a partida do contador ficam na conta. O que você muda aqui aparece no app na hora, e
