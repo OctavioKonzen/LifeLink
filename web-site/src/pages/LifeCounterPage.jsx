@@ -49,6 +49,16 @@ const COUNTERS = [
   ['treasure', 'Tesouro', '💰', 1, 99],
   ['storm', 'Tempestade', '🌩', 1, 99],
 ]
+/** Dano de comandante de attacker em victim (até 21); também tira vida de quem recebe. */
+function commanderHit(g, victim, attacker, d) {
+  const before = g.commander[victim][attacker]
+  const after = clamp(before + d, 0, 21)
+  return {
+    ...g,
+    commander: g.commander.map((row, k) => (k === victim ? row.map((v, m) => (m === attacker ? after : v)) : row)),
+    lives: g.lives.map((v, k) => (k === victim ? v - (after - before) : v)),
+  }
+}
 const setAt = (list, i, value) => Array.from({ length: 6 }, (_, k) => (k === i ? value : (list?.[k] ?? 0)))
 
 /** Deixa a tela acesa enquanto o contador está aberto (onde o navegador deixa). */
@@ -270,24 +280,13 @@ function Player({ i, game, update, history, deckNames }) {
               </button>
             ))}
           </div>
+          <p className="px-1 pt-1 text-xs font-bold uppercase tracking-wide text-white/80">🎯 Meu comandante atacou</p>
           {others.map((j) => (
-            <Row
-              key={j}
-              label={`Comandante de ${game.names[j]}`}
-              value={game.commander[i][j]}
-              onChange={(d) =>
-                update((g) => {
-                  const before = g.commander[i][j]
-                  const after = clamp(before + d, 0, 21)
-                  return {
-                    ...g,
-                    commander: g.commander.map((row, k) => (k === i ? row.map((v, m) => (m === j ? after : v)) : row)),
-                    // O dano de comandante também tira vida.
-                    lives: g.lives.map((v, k) => (k === i ? v - (after - before) : v)),
-                  }
-                })
-              }
-            />
+            <Row key={`deu-${j}`} label={`em ${game.names[j]}`} value={game.commander[j][i]} onChange={(d) => update((g) => commanderHit(g, j, i, d))} />
+          ))}
+          <p className="px-1 pt-1 text-xs font-bold uppercase tracking-wide text-white/60">🛡 Dano de comandante que recebi</p>
+          {others.map((j) => (
+            <Row key={`recebeu-${j}`} label={`de ${game.names[j]}`} value={game.commander[i][j]} onChange={(d) => update((g) => commanderHit(g, i, j, d))} />
           ))}
           <p className="px-1 pt-1 text-xs font-bold uppercase tracking-wide text-white/60">📈 Histórico de vida</p>
           <LifeHistory entries={history} start={game.lives[i] - history.reduce((a, e) => a + e.delta, 0)} />
