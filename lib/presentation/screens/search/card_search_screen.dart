@@ -5,7 +5,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'card_detail_screen.dart';
 import 'card_filters_sheet.dart';
 import '../../../data/providers/theme_provider.dart';
-import '../../../data/providers/xp_provider.dart'; // IMPORT DO XP PROVIDER
+import '../../../data/providers/xp_provider.dart';
 import '../../../data/services/scryfall_service.dart';
 
 class CardSearchScreen extends StatefulWidget {
@@ -436,6 +436,7 @@ class _CardSearchScreenState extends State<CardSearchScreen> {
                           borderRadius: BorderRadius.circular(10),
                           child: CachedNetworkImage(
                             imageUrl: card['imageUrl'], 
+                            memCacheWidth: 320, // miniatura: não decodifica a imagem inteira
                             fit: BoxFit.cover,
                             fadeInDuration: const Duration(milliseconds: 150),
                             placeholder: (c, u) => Container(color: Colors.black12),

@@ -167,7 +167,7 @@ class DeckProvider with ChangeNotifier implements SyncedDecks {
     }
   }
 
-  // NOVA FUNÇÃO: Substitui uma carta por outra diferente (Soluciona o erro do CardDetailScreen)
+  /// Troca uma carta por outra (e avisa a tela na hora).
   void replaceCardInDeck(int deckIndex, int cardIndex, Map<String, dynamic> newCard) {
     if (deckIndex >= 0 && deckIndex < _allDecks.length) {
       if (cardIndex >= 0 && cardIndex < _allDecks[deckIndex].cards.length) {
@@ -177,17 +177,6 @@ class DeckProvider with ChangeNotifier implements SyncedDecks {
         notifyListeners(); // Força a tela a atualizar com a nova carta
       }
     }
-  }
-
-  Map<int, int> getManaCurve(int deckIndex) {
-    Map<int, int> curve = {};
-    if (deckIndex >= 0 && deckIndex < _allDecks.length) {
-      for (var card in _allDecks[deckIndex].cards) {
-        int cmc = (card['cmc'] ?? 0).toInt();
-        curve[cmc] = (curve[cmc] ?? 0) + 1;
-      }
-    }
-    return curve;
   }
 
   Future<void> _saveDecks() async {

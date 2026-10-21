@@ -7,7 +7,7 @@ class ThemeProvider with ChangeNotifier {
   String _playerName = "Jogador 1";
   String _cardLanguage = "pt"; 
 
-  // Mapa com as cores que você pediu
+  // As cores de fundo que dá para escolher
   final Map<String, Color> availableColors = {
     "Rosa Claro": const Color(0xFFF8BBD0),
     "Azul Claro": const Color(0xFFB3E5FC),

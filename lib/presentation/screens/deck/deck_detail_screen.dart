@@ -454,6 +454,7 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
             borderRadius: BorderRadius.circular(8),
             child: CachedNetworkImage(
               imageUrl: card['imageUrl'] ?? '',
+              memCacheWidth: 320, // miniatura: não decodifica a imagem inteira
               fit: BoxFit.cover,
               width: double.infinity,
               height: double.infinity,

@@ -11,12 +11,10 @@ import '../search/card_detail_screen.dart';
 
 class CommunityDeckDetailScreen extends StatefulWidget {
   final Map<String, dynamic> deckData;
-  final String? languageCode; // <-- Recebe a língua selecionada na tela anterior
 
   const CommunityDeckDetailScreen({
     super.key, 
     required this.deckData, 
-    this.languageCode, // <-- Adicionado aqui
   });
 
   @override
@@ -203,8 +201,6 @@ class _CommunityDeckDetailScreenState extends State<CommunityDeckDetailScreen> {
                       onTap: () {
                         final Map<String, dynamic> safeCardData = Map.from(cardData);
                         
-                        // CORREÇÃO: Removemos a dupla codificação kIsWeb daqui.
-                        // Passamos a URL original e a CardDetailScreen se encarrega de usar o proxy com segurança.
                         safeCardData['imageUrl'] = cardUrl; 
                         
                         Navigator.push(context, MaterialPageRoute(builder: (context) => CardDetailScreen(card: safeCardData)));
@@ -218,6 +214,7 @@ class _CommunityDeckDetailScreenState extends State<CommunityDeckDetailScreen> {
                           borderRadius: BorderRadius.circular(8),
                           child: CachedNetworkImage(
                             imageUrl: cardUrl,
+                            memCacheWidth: 320, // miniatura: não decodifica a imagem inteira
                             fit: BoxFit.cover,
                             placeholder: (context, url) => Container(color: Colors.black12),
                             errorWidget: (context, url, error) => const Icon(Icons.broken_image, color: Colors.grey),

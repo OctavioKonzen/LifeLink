@@ -4,7 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../../data/providers/deck_provider.dart';
 import '../../../data/providers/theme_provider.dart';
-import '../../../data/providers/xp_provider.dart'; // IMPORT DO XP PROVIDER
+import '../../../data/providers/xp_provider.dart';
 import 'deck_detail_screen.dart';
 import 'community_decks_screen.dart';
 import 'deck_tools_screens.dart';
@@ -89,7 +89,7 @@ class _MyDecksScreenState extends State<MyDecksScreen> {
                 if (nameController.text.trim().isNotEmpty) {
                   context.read<DeckProvider>().createDeck(nameController.text.trim(), selectedType);
                   
-                  // GATILHO: AUMENTA CONTADOR DE DECKS CRIADOS
+                  // Deck criado conta para as missões.
                   context.read<XpProvider>().incrementDecksCreated();
                   
                   Navigator.pop(ctx);
@@ -313,6 +313,7 @@ class DeckCoverWidget extends StatelessWidget {
         child: url != null 
           ? CachedNetworkImage(
               imageUrl: url, 
+              memCacheWidth: 320, // miniatura: não decodifica a imagem inteira
               fit: BoxFit.cover,
               placeholder: (c, u) => Container(color: Colors.black12),
               errorWidget: (c, u, e) => Container(color: Colors.black12),

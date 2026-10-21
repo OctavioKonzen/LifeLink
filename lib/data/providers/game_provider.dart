@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/material.dart';
@@ -290,8 +291,6 @@ class GameProvider with ChangeNotifier {
     _changed(GameEvent(index, 'life', delta), wasDead);
   }
 
-  void updatePoison(int index, int delta) => updateCounter(Counter.poison, index, delta);
-
   void updateCounter(Counter kind, int index, int delta) {
     final list = _counterList(kind);
     final top = switch (kind) { Counter.poison => 10, Counter.blessing => 1, _ => 99 };
@@ -460,8 +459,6 @@ class GameProvider with ChangeNotifier {
     resetGame();
   }
 
-  void toggleCMDMode() => setStartingLife(_startingLife == 20 ? 40 : 20);
-
   void resetGame() {
     gameId++;
     _lives = List.filled(maxPlayers, _startingLife);
@@ -495,11 +492,18 @@ class GameProvider with ChangeNotifier {
   /// Chamado a cada mudança feita aqui (a mesa online manda para os outros).
   void Function()? onLocalChange;
 
+  // Segurando o + ou o −, a vida muda várias vezes por segundo: grava no
+  // aparelho e avisa a conta uma vez só, logo depois que para.
+  Timer? _saveTimer;
+
   Future<void> _saveAndNotify() async {
     notifyListeners();
     onLocalChange?.call();
-    await _save();
-    UserData.instance.changed('game');
+    _saveTimer?.cancel();
+    _saveTimer = Timer(const Duration(milliseconds: 350), () {
+      _save();
+      UserData.instance.changed('game');
+    });
   }
 
   Future<void> _save() async {

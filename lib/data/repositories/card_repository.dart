@@ -27,16 +27,6 @@ class CardRepository {
     }
   }
 
-  // Pesquisa geral de cartas
-  Future<Map<String, dynamic>> searchCards(String query, {String? nextPageUrl}) async {
-    final page = await _scryfall.search(query, nextPage: nextPageUrl);
-    return {
-      'cards': page.cards.map((j) => CardModel.fromJson(j)).toList(),
-      'hasMore': page.hasMore,
-      'nextPage': page.nextPage,
-    };
-  }
-
   // Busca outras versões/artes da mesma carta
   Future<List<Map<String, dynamic>>> fetchOtherVersions(String cardName, String lang, String? oracleId) async {
     String query = (oracleId != null && oracleId.isNotEmpty)
