@@ -157,6 +157,16 @@ class _CardSearchScreenState extends State<CardSearchScreen> {
 
   String _lastCountedSearch = '';
 
+  // (nome, ordem na Scryfall, direção)
+  static const _orders = [
+    ('Nome (A-Z)', 'name', null),
+    ('Mais caras', 'usd', 'desc'),
+    ('Mais baratas', 'usd', 'asc'),
+    ('Custo de mana', 'cmc', 'asc'),
+    ('Mais novas', 'released', 'desc'),
+  ];
+  (String, String, String?) _order = _orders.first;
+
   Future<void> _performSearch(String queryText) async {
     if (!mounted) return;
     
@@ -183,7 +193,7 @@ class _CardSearchScreenState extends State<CardSearchScreen> {
     }
     
     try {
-      final page = await _scryfall.search(query ?? '', nextPage: nextPage);
+      final page = await _scryfall.search(query ?? '', order: _order.$2, dir: _order.$3, nextPage: nextPage);
       if (!mounted || id != _searchId) return;
 
       _hasMore = page.hasMore;
@@ -297,6 +307,21 @@ class _CardSearchScreenState extends State<CardSearchScreen> {
               },
               onSubmitted: (v) => _submitSearch(v),
             ),
+            actions: [
+              // Ordem dos resultados.
+              PopupMenuButton<int>(
+                icon: Icon(Icons.sort, color: textColor),
+                tooltip: 'Ordenar',
+                onSelected: (i) {
+                  setState(() => _order = _orders[i]);
+                  _performSearch(_searchController.text);
+                },
+                itemBuilder: (_) => [
+                  for (var i = 0; i < _orders.length; i++)
+                    CheckedPopupMenuItem(value: i, checked: _orders[i] == _order, child: Text(_orders[i].$1)),
+                ],
+              ),
+            ],
           ),
           body: Stack(
             children: [

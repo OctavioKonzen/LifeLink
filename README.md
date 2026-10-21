@@ -42,6 +42,8 @@ Seus decks, sincronizados com a conta: crie um deck novo (Commander, Challenger 
 
 * **Importar lista** (app e site): cole a lista exportada do **Moxfield, Archidekt, MTG Arena ou MTGO** (`1 Sol Ring (CMM) 410`, `4x Lightning Bolt`, com seções de comandante, banco e "talvez") para criar um deck novo ou somar a um deck. As cartas vêm da Scryfall de 75 em 75.
 * **Preço e legalidade**: o valor do deck hoje em dólar, **real** e euro, as cartas mais caras e se o deck é legal em Commander, Standard, Pioneer, Modern, Legacy, Vintage e Pauper (tamanho, cópias, banidas e restritas).
+* **Cópias juntas**: cartas iguais aparecem uma vez só com a quantidade (ex.: 4×); segurando a carta dá para pôr mais uma cópia, tirar uma, marcar como **comandante** (vem primeiro) ou trocar. Tirar carta tem "Desfazer". Tocar no nome **renomeia** o deck.
+* **Curva de mana e cores** do deck, junto do preço e da legalidade.
 * **Mão de teste**: compra 7, **mulligan de Londres** (põe uma no fundo por mulligan) e comprar as próximas.
 * No app dá também para **traduzir o deck** para outro idioma e gerar um **PDF para imprimir** as cartas (proxies).
 

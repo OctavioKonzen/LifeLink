@@ -181,10 +181,22 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
     final isLight = theme.backgroundColor.computeLuminance() > 0.5;
     final textColor = isLight ? Colors.black87 : Colors.white;
 
-    final filteredCards = deck.cards.where((card) {
-      final name = card['name']?.toString().toLowerCase() ?? "";
-      return name.contains(_searchQuery.toLowerCase());
-    }).toList();
+    final search = _searchQuery.toLowerCase();
+
+    // Cópias iguais (mesmo nome e mesma arte) viram uma carta com "4×"; o
+    // comandante vem primeiro.
+    final byKey = <String, List<int>>{};
+    for (var i = 0; i < deck.cards.length; i++) {
+      final c = deck.cards[i];
+      if (search.isNotEmpty && !(c['name']?.toString().toLowerCase() ?? '').contains(search)) continue;
+      byKey.putIfAbsent('${c['name']}|${c['imageUrl']}', () => []).add(i);
+    }
+    final groups = byKey.values.toList()
+      ..sort((a, b) {
+        final ca = deck.cards[a.first]['commander'] == true ? 0 : 1;
+        final cb = deck.cards[b.first]['commander'] == true ? 0 : 1;
+        return ca != cb ? ca - cb : a.first - b.first;
+      });
 
     return Stack(
       children: [
@@ -194,12 +206,20 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
             backgroundColor: Colors.transparent,
             elevation: 0,
             iconTheme: IconThemeData(color: textColor),
-            title: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(deck.name, style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 18)),
-                Text("${deck.type} • ${deck.cards.length} cartas", style: const TextStyle(fontSize: 12, color: Colors.grey)),
-              ],
+            // Tocar no nome renomeia o deck.
+            title: GestureDetector(
+              onTap: () => _rename(deck.name),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(mainAxisSize: MainAxisSize.min, children: [
+                    Flexible(child: Text(deck.name, overflow: TextOverflow.ellipsis, style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 18))),
+                    const SizedBox(width: 6),
+                    Icon(Icons.edit, size: 14, color: textColor.withValues(alpha: 0.5)),
+                  ]),
+                  Text("${deck.type} • ${deck.cards.length} cartas", style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                ],
+              ),
             ),
             actions: [
               IconButton(
@@ -209,7 +229,7 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
               ),
               IconButton(
                 icon: const Icon(Icons.price_check, color: Colors.amber),
-                tooltip: "Preço e legalidade",
+                tooltip: "Curva, preço e legalidade",
                 onPressed: deck.cards.isEmpty ? null : () => Navigator.push(context, MaterialPageRoute(builder: (_) => DeckAnalysisScreen(deck: deck))),
               ),
               IconButton(
@@ -276,7 +296,7 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
                   ],
                 ),
               )
-            : filteredCards.isEmpty
+            : groups.isEmpty
               ? _buildEmptyState(textColor)
               : GridView.builder(
                   padding: const EdgeInsets.all(16),
@@ -286,11 +306,10 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
                     crossAxisSpacing: 12,
                     mainAxisSpacing: 20,
                   ),
-                  itemCount: filteredCards.length,
+                  itemCount: groups.length,
                   itemBuilder: (context, index) {
-                    final card = filteredCards[index];
-                    final realIndex = deck.cards.indexOf(card);
-                    return _buildGridCard(card, realIndex, isLight);
+                    final g = groups[index];
+                    return _buildGridCard(deck.cards[g.first], g, isLight);
                   },
                 ),
           floatingActionButton: FloatingActionButton(
@@ -344,8 +363,76 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
     ));
   }
 
-  Widget _buildGridCard(Map<String, dynamic> card, int indexInDeck, bool isLight) {
+  /// Renomear o deck.
+  Future<void> _rename(String current) async {
+    final ctrl = TextEditingController(text: current);
+    final name = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Nome do deck'),
+        content: TextField(controller: ctrl, autofocus: true, textCapitalization: TextCapitalization.sentences, onSubmitted: (v) => Navigator.pop(ctx, v)),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, ctrl.text), child: const Text('Salvar')),
+        ],
+      ),
+    );
+    ctrl.dispose();
+    if (name == null || !mounted) return;
+    context.read<DeckProvider>().renameDeck(_deckIndex, name);
+  }
+
+  /// O que dá para fazer com a carta (segurar em cima dela).
+  void _cardMenu(Map<String, dynamic> card, List<int> copies) {
+    final commander = card['commander'] == true;
+    showModalBottomSheet(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) => SafeArea(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          ListTile(title: Text('${card['name'] ?? ''}', style: const TextStyle(fontWeight: FontWeight.w800)), subtitle: Text('${copies.length} ${copies.length == 1 ? 'cópia' : 'cópias'} no deck')),
+          ListTile(
+            leading: const Icon(Icons.add_circle_outline),
+            title: const Text('Mais uma cópia'),
+            onTap: () {
+              Navigator.pop(ctx);
+              final copy = Map<String, dynamic>.from(card);
+              context.read<DeckProvider>().addCardToDeck(_deckIndex, copy);
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.remove_circle_outline),
+            title: const Text('Tirar uma cópia'),
+            onTap: () {
+              Navigator.pop(ctx);
+              _removeCard(card, copies.last);
+            },
+          ),
+          ListTile(
+            leading: Icon(Icons.workspace_premium, color: commander ? Colors.amber : null),
+            title: Text(commander ? 'Não é mais o comandante' : 'Marcar como comandante'),
+            onTap: () {
+              Navigator.pop(ctx);
+              context.read<DeckProvider>().setCommander(_deckIndex, copies, !commander);
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.swap_horiz),
+            title: const Text('Trocar por outra carta'),
+            onTap: () {
+              Navigator.pop(ctx);
+              Navigator.push(context, MaterialPageRoute(builder: (_) => CardSearchScreen(targetDeckId: widget.deckId, replaceCardIndex: copies.first)));
+            },
+          ),
+        ]),
+      ),
+    );
+  }
+
+  /// Uma carta do deck, com a quantidade de cópias (ex.: 4×).
+  Widget _buildGridCard(Map<String, dynamic> card, List<int> copies, bool isLight) {
     final rarityColor = _getRarityColor(card['rarity']);
+    final indexInDeck = copies.last;
 
     return GestureDetector(
       onTap: () {
@@ -354,19 +441,11 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
           MaterialPageRoute(builder: (context) => CardDetailScreen(
             card: card,
             targetDeckId: widget.deckId,
-            existingCardIndex: indexInDeck, 
+            existingCardIndex: copies.first,
           )),
         );
       },
-      onLongPress: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => CardSearchScreen(
-            targetDeckId: widget.deckId,
-            replaceCardIndex: indexInDeck, 
-          )),
-        );
-      },
+      onLongPress: () => _cardMenu(card, copies),
       child: Stack(
         clipBehavior: Clip.none,
         children: [
@@ -382,6 +461,20 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
               errorWidget: (context, url, error) => const Icon(Icons.broken_image, size: 20),
             ),
           ),
+          // Quantas cópias e se é o comandante.
+          if (copies.length > 1 || card['commander'] == true)
+            Positioned(
+              left: 4,
+              bottom: 4,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.75), borderRadius: BorderRadius.circular(10)),
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  if (card['commander'] == true) const Icon(Icons.workspace_premium, color: Colors.amber, size: 14),
+                  if (copies.length > 1) Text('${copies.length}×', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 13)),
+                ]),
+              ),
+            ),
           Positioned(
             top: -10,
             right: -10,

@@ -47,7 +47,9 @@ function DeckModal({ info, onClose }) {
   const [saved, setSaved] = useState(false)
   // Igual ao "Salvar nos Meus Decks" do app: uma carta por cópia.
   const save = () => {
-    const cards = state.cards.flatMap((c) => Array.from({ length: c.count }, () => fromMtgjson(c.item, imageFor(c.scryfallId) || '')))
+    const cards = state.cards.flatMap((c) =>
+      Array.from({ length: c.count }, () => ({ ...fromMtgjson(c.item, imageFor(c.scryfallId) || ''), ...(c.board === 'commander' ? { commander: true } : {}) })),
+    )
     const raw = (info.type || '').toLowerCase()
     const type = raw.includes('commander') ? 'Commander' : raw.includes('challenger') ? 'Challenger' : 'Normal'
     saveDeck({ id: String(Date.now()), name: info.name || 'Novo Deck', type, cards })

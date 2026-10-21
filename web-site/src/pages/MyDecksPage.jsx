@@ -61,9 +61,34 @@ function DeckView({ deck, onClose }) {
   const total = deck.cards.length
   const price = deck.cards.reduce((sum, c) => sum + (Number.parseFloat(c.usdPrice) || 0), 0)
   const removeCard = (index) => saveDeck({ ...deck, cards: deck.cards.filter((_, i) => i !== index) })
+  // Cópias iguais (mesmo nome e arte) aparecem juntas, com "4×"; o comandante primeiro.
+  const groups = (() => {
+    const map = new Map()
+    deck.cards.forEach((c, i) => {
+      const key = `${c.name}|${c.imageUrl}`
+      if (!map.has(key)) map.set(key, { c, i, copies: [] })
+      map.get(key).copies.push(i)
+    })
+    return [...map.values()]
+      .map((g) => ({ ...g, i: g.copies.at(-1) }))
+      .sort((a, b) => (b.c.commander ? 1 : 0) - (a.c.commander ? 1 : 0) || a.copies[0] - b.copies[0])
+  })()
   return (
     <Modal onClose={onClose} wide>
-      <h2 className="pr-10 text-2xl font-black">{deck.name}</h2>
+      <h2 className="pr-10 text-2xl font-black">
+        {deck.name}{' '}
+        <button
+          type="button"
+          onClick={() => {
+            const name = window.prompt('Nome do deck:', deck.name)
+            if (name?.trim()) saveDeck({ ...deck, name: name.trim() })
+          }}
+          className="align-middle text-base text-muted hover:text-text"
+          title="Renomear o deck"
+        >
+          ✏️
+        </button>
+      </h2>
       <p className="mb-4 text-sm text-muted">
         {deck.type} · {total} cartas{price > 0 ? ` · ~US$ ${price.toFixed(2)}` : ''}
       </p>
@@ -117,10 +142,10 @@ function DeckView({ deck, onClose }) {
         </p>
       ) : (
         <ExpandingGrid
-          items={deck.cards.map((c, i) => ({ c, i }))}
+          items={groups}
           keyOf={({ c, i }) => `${i}-${c.name}`}
           minWidth={130}
-          renderItem={({ c, i }, _, open, selected) => (
+          renderItem={({ c, i, copies }, _, open, selected) => (
             <div className="relative">
               <button
                 type="button"
@@ -129,6 +154,20 @@ function DeckView({ deck, onClose }) {
                 title={c.name}
               >
                 <CardImage src={c.imageUrl} alt={c.name} />
+              </button>
+              {(copies.length > 1 || c.commander) && (
+                <span className="absolute bottom-1.5 left-1.5 rounded-lg bg-black/75 px-2 py-0.5 text-sm font-black text-white">
+                  {c.commander ? '👑' : ''}
+                  {copies.length > 1 ? `${copies.length}×` : ''}
+                </span>
+              )}
+              <button
+                type="button"
+                onClick={() => saveDeck({ ...deck, cards: [...deck.cards, c] })}
+                aria-label={`Mais uma cópia de ${c.name}`}
+                className="absolute -left-1.5 -top-1.5 grid h-7 w-7 place-items-center rounded-full bg-emerald-500 text-sm font-black shadow"
+              >
+                +
               </button>
               <button
                 type="button"

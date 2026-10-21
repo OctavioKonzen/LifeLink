@@ -44,7 +44,7 @@ class _CommunityDeckDetailScreenState extends State<CommunityDeckDetailScreen> {
         final data = jsonDecode(response.body)['data'];
         List<Map<String, dynamic>> tempCards = [];
 
-        void extractCards(List<dynamic>? board) {
+        void extractCards(List<dynamic>? board, {bool commander = false}) {
           if (board == null) return;
           for (var item in board) {
             if (item is! Map) continue; 
@@ -74,7 +74,9 @@ class _CommunityDeckDetailScreenState extends State<CommunityDeckDetailScreen> {
               'setName': item['setCode'] ?? '',
               'collectorNumber': item['number'] ?? '',
               'oracle_id': item['identifiers']?['oracleId'],
-              'usdPrice': '0.00', // <-- Adicionado para evitar erro na aba de preços da CardDetailScreen
+              'cmc': item['manaValue'] ?? 0,
+              'usdPrice': '0.00',
+              if (commander) 'commander': true,
             };
 
             for (int i = 0; i < qty; i++) {
@@ -86,7 +88,7 @@ class _CommunityDeckDetailScreenState extends State<CommunityDeckDetailScreen> {
         // Só o comandante e o deck principal: o arquivo também traz o
         // comandante repetido (displayCommander), o banco, fichas, planos...
         if (data is Map) {
-          extractCards(data['commander'] as List?);
+          extractCards(data['commander'] as List?, commander: true);
           extractCards(data['mainBoard'] as List?);
         }
 

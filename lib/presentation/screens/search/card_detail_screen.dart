@@ -1,6 +1,7 @@
 // ignore_for_file: prefer_const_constructors, prefer_const_literals_to_create_immutables
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import '../../../data/services/deck_tools.dart';
 import 'package:flutter/foundation.dart'; 
 import 'package:provider/provider.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -67,10 +68,27 @@ class _CardDetailScreenState extends State<CardDetailScreen> with SingleTickerPr
     'Accept': '*/*'
   };
 
+  // A carta completa da Scryfall (legalidade, ambientação, artista) e o dólar em reais.
+  Map<String, dynamic>? _full;
+  double? _brl;
+
+  Future<void> _loadFull() async {
+    final id = DeckTools.scryfallIdOf(_currentCard);
+    if (id == null) return;
+    try {
+      final data = await ScryfallService.instance.getJson('https://api.scryfall.com/cards/$id');
+      if (mounted && DeckTools.scryfallIdOf(_currentCard) == id) setState(() => _full = data);
+    } catch (_) {}
+  }
+
   @override
   void initState() {
     super.initState();
-    _currentCard = Map.from(widget.card); 
+    _currentCard = Map.from(widget.card);
+    _loadFull();
+    DeckTools.dollarInReais().then((v) {
+      if (mounted) setState(() => _brl = v);
+    });
     _controller = AnimationController(vsync: this);
     _controller.addListener(() => setState(() => _currentAngle = _animation.value));
   }
@@ -214,7 +232,11 @@ class _CardDetailScreenState extends State<CardDetailScreen> with SingleTickerPr
                             onTap: () {
                               // Ver outra arte vale XP (a mesma carta de novo, não).
                               if (vCard['imageUrl'] != _currentCard['imageUrl']) this.context.read<XpProvider>().incrementArtsViewed();
-                              setState(() => _currentCard = vCard);
+                              setState(() {
+                                _currentCard = vCard;
+                                _full = null;
+                              });
+                              _loadFull();
                               
                               if (_targetDeckIndex != null && widget.existingCardIndex != null) {
                                 final provider = this.context.read<DeckProvider>();
@@ -527,8 +549,36 @@ class _CardDetailScreenState extends State<CardDetailScreen> with SingleTickerPr
           _buildDivider(textColor),
           Text(_currentCard['oracle_text'] ?? '', style: TextStyle(color: textColor, fontSize: 14, height: 1.5)),
           _buildDivider(textColor),
+          if ((_full?['flavor_text'] ?? _full?['card_faces']?[0]?['flavor_text']) != null) ...[
+            Text('${_full?['flavor_text'] ?? _full?['card_faces']?[0]?['flavor_text']}',
+                style: TextStyle(color: textColor.withValues(alpha: 0.65), fontSize: 13, fontStyle: FontStyle.italic, height: 1.4)),
+            _buildDivider(textColor),
+          ],
           _buildInfoRow("Raridade", rarityPt(_currentCard['rarity']?.toString()), rarityColor, isBold: true),
           _buildInfoRow("Coleção", _currentCard['setName']?.toString() ?? '', Colors.purpleAccent),
+          if (_full?['artist'] != null) _buildInfoRow("Artista", '${_full!['artist']}', textColor),
+          if (_full?['legalities'] is Map) ...[
+            _buildDivider(textColor),
+            Text('Legalidade', style: TextStyle(color: Colors.grey[500], fontSize: 13)),
+            const SizedBox(height: 8),
+            Wrap(spacing: 6, runSpacing: 6, children: [
+              for (final f in DeckTools.formats.entries)
+                () {
+                  final status = '${(_full!['legalities'] as Map)[f.key] ?? 'not_legal'}';
+                  final (label, color) = switch (status) {
+                    'legal' => ('Legal', Colors.green),
+                    'restricted' => ('Restrita', Colors.orange),
+                    'banned' => ('Banida', Colors.red),
+                    _ => ('Não', Colors.grey),
+                  };
+                  return Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(color: color.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(12), border: Border.all(color: color.withValues(alpha: 0.5))),
+                    child: Text('${f.value}: $label', style: TextStyle(color: textColor, fontSize: 12, fontWeight: FontWeight.w600)),
+                  );
+                }(),
+            ]),
+          ],
         ],
       ),
     );
@@ -548,6 +598,9 @@ class _CardDetailScreenState extends State<CardDetailScreen> with SingleTickerPr
       ("Europa", price('eurPrice'), '€'),
       ("MTGO", price('tixPrice'), 'tix '),
     ].where((r) => r.$2 != null).toList();
+    // Em real, pelo dólar de hoje.
+    final usd = price('usdPrice') ?? price('usdFoil');
+    if (usd != null && _brl != null) rows.insert(1, ("Em real (aprox.)", usd * _brl!, 'R\$ '));
 
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(24, 8, 24, 12),

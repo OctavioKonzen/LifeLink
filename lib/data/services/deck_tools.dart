@@ -122,7 +122,7 @@ class DeckTools {
     for (var i = 0; i < lines.length; i++) {
       final c = found[i];
       if (c == null) continue;
-      final card = deckCardOf(c);
+      final card = {...deckCardOf(c), if (lines[i].commander) 'commander': true};
       if (lines[i].commander) commanders.add(card);
       for (var q = 0; q < lines[i].qty; q++) {
         out.add(card);

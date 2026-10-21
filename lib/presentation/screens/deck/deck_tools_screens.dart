@@ -92,6 +92,7 @@ class _DeckAnalysisScreenState extends State<DeckAnalysisScreen> {
       }
       final top = priced.entries.toList()..sort((a, b) => (DeckTools.priceOf(b.value.card) * b.value.qty).compareTo(DeckTools.priceOf(a.value.card) * a.value.qty));
       body = ListView(padding: const EdgeInsets.all(16), children: [
+        section('CURVA DE MANA E CORES', [_ManaCurve(cards: _cards, text: text)]),
         section('PREÇO DE HOJE (SCRYFALL)', [
           Text('US\$ ${usd.toStringAsFixed(2)}', style: TextStyle(color: text, fontSize: 30, fontWeight: FontWeight.w900)),
           if (_brl != null) Text('≈ R\$ ${(usd * _brl!).toStringAsFixed(2)}  (dólar a R\$ ${_brl!.toStringAsFixed(2)})', style: TextStyle(color: Colors.green.shade400, fontSize: 18, fontWeight: FontWeight.w800)),
@@ -133,7 +134,7 @@ class _DeckAnalysisScreenState extends State<DeckAnalysisScreen> {
     return Scaffold(
       backgroundColor: theme.backgroundColor,
       appBar: AppBar(
-        title: Text('Preço e legalidade', style: TextStyle(color: text)),
+        title: Text('Análise do deck', style: TextStyle(color: text)),
         backgroundColor: Colors.transparent,
         elevation: 0,
         iconTheme: IconThemeData(color: text),
@@ -336,4 +337,83 @@ Future<({List<DeckLine> lines, String name, String type})?> importListDialog(Bui
   );
   if (ok != true) return null;
   return (lines: DeckTools.parse(listCtrl.text), name: nameCtrl.text.trim().isEmpty ? 'Deck importado' : nameCtrl.text.trim(), type: type);
+}
+
+/// A curva de mana (quantas cartas de cada custo, sem os terrenos) e quanto
+/// de cada cor aparece nos custos.
+class _ManaCurve extends StatelessWidget {
+  final List<Map<String, dynamic>> cards;
+  final Color text;
+  const _ManaCurve({required this.cards, required this.text});
+
+  static const _colors = {
+    'W': ('Branco', Color(0xFFF9FAF4)),
+    'U': ('Azul', Color(0xFF0E68AB)),
+    'B': ('Preto', Color(0xFF6B5E5E)),
+    'R': ('Vermelho', Color(0xFFD3202A)),
+    'G': ('Verde', Color(0xFF00733E)),
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final curve = List.filled(8, 0); // 0, 1, ..., 6, 7+
+    final colors = <String, int>{};
+    var lands = 0;
+    for (final c in cards) {
+      final type = '${c['type_line'] ?? ''}';
+      if (type.contains('Land') || type.contains('Terreno')) {
+        lands++;
+        continue;
+      }
+      final cmc = ((c['cmc'] as num?) ?? 0).round();
+      curve[cmc.clamp(0, 7)]++;
+      final cost = '${c['mana_cost'] ?? ''}';
+      for (final k in _colors.keys) {
+        final n = RegExp('\\{[^}]*$k[^}]*\\}').allMatches(cost).length;
+        if (n > 0) colors[k] = (colors[k] ?? 0) + n;
+      }
+    }
+    final top = curve.reduce(max).clamp(1, 1 << 30);
+    final spells = curve.fold(0, (a, b) => a + b);
+    final avg = spells == 0 ? 0.0 : [for (var i = 0; i < 8; i++) i * curve[i]].fold(0, (a, b) => a + b) / spells;
+    final totalColor = colors.values.fold(0, (a, b) => a + b);
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      SizedBox(
+        height: 110,
+        child: Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
+          for (var i = 0; i < 8; i++)
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 3),
+                child: Column(mainAxisAlignment: MainAxisAlignment.end, children: [
+                  Text('${curve[i]}', style: TextStyle(color: text.withValues(alpha: 0.7), fontSize: 11, fontWeight: FontWeight.w700)),
+                  const SizedBox(height: 2),
+                  Container(height: 70.0 * curve[i] / top, decoration: BoxDecoration(color: Colors.blueAccent, borderRadius: BorderRadius.circular(4))),
+                  const SizedBox(height: 4),
+                  Text(i == 7 ? '7+' : '$i', style: TextStyle(color: text, fontWeight: FontWeight.w800, fontSize: 12)),
+                ]),
+              ),
+            ),
+        ]),
+      ),
+      const SizedBox(height: 8),
+      Text('$spells mágicas · $lands terrenos · custo médio ${avg.toStringAsFixed(2)}', style: TextStyle(color: text.withValues(alpha: 0.6), fontSize: 12)),
+      if (totalColor > 0) ...[
+        const SizedBox(height: 12),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(6),
+          child: Row(children: [
+            for (final e in _colors.entries)
+              if ((colors[e.key] ?? 0) > 0) Expanded(flex: colors[e.key]!, child: Container(height: 14, color: e.value.$2)),
+          ]),
+        ),
+        const SizedBox(height: 6),
+        Wrap(spacing: 10, children: [
+          for (final e in _colors.entries)
+            if ((colors[e.key] ?? 0) > 0)
+              Text('${e.value.$1} ${(100 * colors[e.key]! / totalColor).round()}%', style: TextStyle(color: text.withValues(alpha: 0.7), fontSize: 12)),
+        ]),
+      ],
+    ]);
+  }
 }

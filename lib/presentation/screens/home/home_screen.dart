@@ -5,6 +5,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../data/providers/theme_provider.dart';
 import '../../../data/providers/xp_provider.dart';
+import '../../../data/providers/game_provider.dart';
 import '../../../data/services/scryfall_service.dart';
 import 'life_counter_screen.dart';
 import 'settings_screen.dart'; 
@@ -224,7 +225,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 _buildSearchBar(context, cardColor, textColor, isPt),
                 const SizedBox(height: 14),
                 Expanded(flex: 5, child: _buildMenuGrid(context, isPt, cardColor)),
-                const SizedBox(height: 14),
+                const SizedBox(height: 10),
+                _buildShortcuts(context, cardColor, textColor),
+                const SizedBox(height: 10),
                 _buildNewsCarousel(newsList, newsHeight),
               ],
             ),
@@ -232,6 +235,37 @@ class _HomeScreenState extends State<HomeScreen> {
         }),
       ),
     );
+  }
+
+  /// Atalhos pequenos: amigos, partidas e mesa online.
+  Widget _buildShortcuts(BuildContext context, Color cardColor, Color textColor) {
+    Widget chip(IconData icon, String label, Color color, VoidCallback onTap) => Expanded(
+          child: GestureDetector(
+            onTap: onTap,
+            child: Container(
+              height: 42,
+              margin: const EdgeInsets.symmetric(horizontal: 4),
+              decoration: BoxDecoration(
+                color: cardColor,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: color.withValues(alpha: 0.45)),
+              ),
+              child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                Icon(icon, color: color, size: 18),
+                const SizedBox(width: 6),
+                Flexible(child: Text(label, overflow: TextOverflow.ellipsis, style: TextStyle(color: textColor, fontWeight: FontWeight.w700, fontSize: 13))),
+              ]),
+            ),
+          ),
+        );
+    void go(Widget screen) => Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
+    return Row(children: [
+      chip(Icons.group, 'Amigos', const Color(0xFF64FFDA), () => go(const FriendsScreen())),
+      chip(Icons.history, 'Partidas', const Color(0xFFB388FF), () => go(const MatchHistoryScreen())),
+      chip(Icons.wifi_tethering, 'Mesa online', const Color(0xFF40C4FF), () {
+        showDialog(context: context, builder: (_) => OnlineTableDialog(game: context.read<GameProvider>()));
+      }),
+    ]);
   }
 
   /// O topo: o jogador (avatar, nick, nível e XP), que abre o menu, e as

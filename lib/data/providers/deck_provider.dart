@@ -110,6 +110,32 @@ class DeckProvider with ChangeNotifier implements SyncedDecks {
     }
   }
 
+  void renameDeck(int deckIndex, String name) {
+    if (deckIndex >= 0 && deckIndex < _allDecks.length && name.trim().isNotEmpty) {
+      _allDecks[deckIndex].name = name.trim();
+      _changed(deckIndex);
+      _saveDecks();
+    }
+  }
+
+  /// Marca (ou tira) as cópias das posições [indices] como comandante.
+  void setCommander(int deckIndex, List<int> indices, bool commander) {
+    if (deckIndex < 0 || deckIndex >= _allDecks.length) return;
+    final cards = _allDecks[deckIndex].cards;
+    for (final i in indices) {
+      if (i < 0 || i >= cards.length) continue;
+      final card = Map<String, dynamic>.from(cards[i]);
+      if (commander) {
+        card['commander'] = true;
+      } else {
+        card.remove('commander');
+      }
+      cards[i] = card;
+    }
+    _changed(deckIndex);
+    _saveDecks();
+  }
+
   /// Põe a carta de volta na mesma posição (o "desfazer" ao tirar uma carta).
   void insertCardInDeck(int deckIndex, int cardIndex, Map<String, dynamic> card) {
     if (deckIndex >= 0 && deckIndex < _allDecks.length) {
