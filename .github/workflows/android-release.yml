@@ -93,6 +93,14 @@ jobs:
           cp build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk LifeLink_32bits.apk
           ls -lh LifeLink*.apk
 
+      # Não publica um APK que fecharia ao abrir (código renomeado pelo R8).
+      - name: Conferir o APK
+        if: steps.check.outputs.skip == 'false'
+        run: |
+          pip install --quiet androguard
+          python3 tool/check_apk.py LifeLink.apk
+          python3 tool/check_apk.py LifeLink_32bits.apk
+
       - name: Publicar versão
         if: steps.check.outputs.skip == 'false' && steps.check.outputs.publish == 'true'
         env:

@@ -6,9 +6,9 @@ name: App
 on:
   push:
     branches: [main]
-    paths: ['lib/**', 'test/**', 'android/**', 'pubspec.yaml', 'pubspec.lock', '.github/workflows/app.yml']
+    paths: ['lib/**', 'test/**', 'android/**', 'pubspec.yaml', 'pubspec.lock', '.github/workflows/app.yml', 'tool/check_apk.py']
   pull_request:
-    paths: ['lib/**', 'test/**', 'android/**', 'pubspec.yaml', 'pubspec.lock', '.github/workflows/app.yml']
+    paths: ['lib/**', 'test/**', 'android/**', 'pubspec.yaml', 'pubspec.lock', '.github/workflows/app.yml', 'tool/check_apk.py']
 
 permissions:
   contents: read
@@ -35,3 +35,7 @@ jobs:
       - run: flutter test
       - name: APK de teste (sem assinatura nem Firebase)
         run: flutter build apk --release --split-per-abi --target-platform android-arm64
+      - name: Conferir o APK (não pode fechar ao abrir)
+        run: |
+          pip install --quiet androguard
+          python3 tool/check_apk.py build/app/outputs/flutter-apk/app-arm64-v8a-release.apk

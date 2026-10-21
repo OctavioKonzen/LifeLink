@@ -116,33 +116,55 @@ class _StartupAppState extends State<StartupApp> {
       debugShowCheckedModeBanner: false,
       home: Scaffold(
         backgroundColor: const Color(0xFF1E1E24),
-        body: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Image.asset('assets/logo/lifelink.png', width: 110, height: 110),
-                const SizedBox(height: 24),
-                if (_error == null) ...[
-                  const CircularProgressIndicator(),
-                  const SizedBox(height: 16),
-                  Text(_step, style: const TextStyle(color: Colors.white70)),
-                ] else ...[
-                  const Text(
-                    'Não foi possível abrir o app.',
-                    style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    _error!,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(color: Colors.redAccent),
-                  ),
-                  const SizedBox(height: 20),
-                  ElevatedButton(onPressed: _start, child: const Text('Tentar de novo')),
+        body: SafeArea(
+          child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Image.asset('assets/logo/lifelink.png', width: 110, height: 110),
+                  const SizedBox(height: 24),
+                  if (_error == null) ...[
+                    const CircularProgressIndicator(),
+                    const SizedBox(height: 16),
+                    Text(_step, style: const TextStyle(color: Colors.white70)),
+                  ] else ...[
+                    const Text(
+                      'Não foi possível abrir o app.',
+                      style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 12),
+                    const Text(
+                      'Se uma versão nova já resolveu isso, atualize por aqui.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Colors.white70),
+                    ),
+                    const SizedBox(height: 20),
+                    // Mesmo sem abrir, dá para atualizar o app (o erro pode já
+                    // estar corrigido na versão nova).
+                    if (UpdateService.supported)
+                      Builder(
+                        builder: (context) => ElevatedButton.icon(
+                          onPressed: () => UpdateService.checkNow(context),
+                          icon: const Icon(Icons.system_update),
+                          label: const Text('Procurar atualização'),
+                        ),
+                      ),
+                    const SizedBox(height: 8),
+                    TextButton(onPressed: _start, child: const Text('Tentar de novo')),
+                    const SizedBox(height: 16),
+                    // Os detalhes do erro, menores (para mandar se precisar).
+                    Text(
+                      _error!,
+                      maxLines: 8,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(color: Colors.redAccent, fontSize: 12),
+                    ),
+                  ],
                 ],
-              ],
+              ),
             ),
           ),
         ),

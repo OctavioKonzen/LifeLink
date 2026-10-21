@@ -1,7 +1,7 @@
 name: magic
 description: "LifeLink: contador de vida, busca de cartas, decks e preços de Magic: The Gathering."
 publish_to: 'none'
-version: 1.0.2+3
+version: 1.0.3+4
 
 environment:
   sdk: ^3.13.5
@@ -20,6 +20,7 @@ dependencies:
   http: ^1.6.0
   ota_update: ^7.1.0
   package_info_plus: ^10.2.1
+  path_provider: ^2.1.6
   pdf: ^3.13.1
   printing: ^5.15.1
   provider: ^6.1.5
