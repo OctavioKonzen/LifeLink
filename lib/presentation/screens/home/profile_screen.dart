@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:provider/provider.dart';
 import '../../../data/providers/theme_provider.dart';
 import '../../../data/providers/xp_provider.dart';
+import '../../../data/account/auth_service.dart';
+import '../../widgets/player.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -23,30 +25,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  // Auxiliar para construir o avatar com borda mística
-  Widget _buildDynamicAvatar(XpProvider xpProvider, double size) {
-    final borderData = XpProvider.allBorders.firstWhere(
-        (b) => b['id'] == xpProvider.selectedBorderId,
-        orElse: () => XpProvider.allBorders[0]);
-    return Container(
-      width: size,
-      height: size,
-      padding: const EdgeInsets.all(3),
-      decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          gradient: SweepGradient(colors: borderData['colors'])),
-      child: CircleAvatar(
-        backgroundColor: const Color(0xFF2A2A35),
-        backgroundImage: xpProvider.selectedAvatar.isNotEmpty
-            ? CachedNetworkImageProvider(xpProvider.selectedAvatar)
-            : null,
-        child: xpProvider.selectedAvatar.isEmpty
-            ? Icon(Icons.person, color: Colors.white, size: size * 0.5)
-            : null,
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final themeProvider = context.watch<ThemeProvider>();
@@ -54,6 +32,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final bgColor = themeProvider.backgroundColor;
     final bool isLight = bgColor.computeLuminance() > 0.5;
     final Color textColor = isLight ? Colors.black87 : Colors.white;
+    // Com conta, o nome é o nick (único e fixo); sem conta, dá para editar.
+    final signedIn = context.watch<AuthService>().status == AuthStatus.signedIn;
+    final name = playerNameOf(context);
 
     // Busca os dados do Banner selecionado
     final activeBanner = XpProvider.allBanners.firstWhere(
@@ -70,6 +51,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             title: Text("Meu perfil",
                 style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
             actions: [
+              if (!signedIn)
               TextButton(
                 onPressed: () {
                   themeProvider.setPlayerName(_nameController.text);
@@ -110,14 +92,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       padding: const EdgeInsets.all(20),
                       child: Row(
                         children: [
-                          _buildDynamicAvatar(xpProvider, 80),
+                          const PlayerAvatar(size: 80),
                           const SizedBox(width: 20),
                           Expanded(
                               child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(themeProvider.playerName,
+                              Text(name,
                                   style: const TextStyle(
                                       color: Colors.white,
                                       fontSize: 24,
@@ -130,9 +112,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                         fontSize: 14,
                                         fontWeight: FontWeight.bold,
                                         fontStyle: FontStyle.italic)),
-                              Text("Nível ${xpProvider.level}",
+                              Text("Nível ${xpProvider.level} · ${xpProvider.xp}/${xpProvider.xpForNextLevel} XP",
                                   style: const TextStyle(
                                       color: Colors.white70, fontSize: 12)),
+                              const SizedBox(height: 6),
+                              const LevelBar(),
                             ],
                           )),
                         ],
@@ -143,16 +127,32 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                 const SizedBox(height: 30),
 
-                // NOME DO JOGADOR (CAMPO DE EDIÇÃO)
+                // NOME: o nick da conta (fixo) ou, sem conta, editável.
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: Text("EDITAR NOME",
+                  child: Text(signedIn ? "NICK" : "EDITAR NOME",
                       style: TextStyle(
                           color: textColor.withValues(alpha: 0.5),
                           fontSize: 12,
                           fontWeight: FontWeight.bold)),
                 ),
                 const SizedBox(height: 10),
+                if (signedIn)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      decoration: BoxDecoration(
+                        color: isLight ? Colors.black.withValues(alpha: 0.05) : Colors.white10,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(children: [
+                        Expanded(child: Text(name, style: TextStyle(color: textColor, fontWeight: FontWeight.bold))),
+                        Icon(Icons.lock_outline, size: 18, color: textColor.withValues(alpha: 0.5)),
+                      ]),
+                    ),
+                  )
+                else
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: TextField(
@@ -170,6 +170,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                 ),
 
+                if (signedIn)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 6, 20, 0),
+                    child: Text("O nick é da sua conta e não pode ser trocado.",
+                        style: TextStyle(color: textColor.withValues(alpha: 0.5), fontSize: 12)),
+                  ),
                 const SizedBox(height: 30),
 
                 // --- SELEÇÃO DE BANNERS (HORIZONTAL) ---

@@ -127,7 +127,16 @@ class _MyDecksScreenState extends State<MyDecksScreen> {
               ),
             ],
           ),
-          body: GridView.builder(
+          body: deckProvider.allDecks.isEmpty
+              // Sem decks: convite para criar o primeiro ou pegar um oficial.
+              ? StatusMessage(
+                  icon: Icons.style,
+                  title: "Você ainda não tem decks",
+                  message: "Crie o seu primeiro deck ou salve um dos decks oficiais da Wizards.",
+                  actionLabel: "+ Criar deck",
+                  onAction: _showCreateDeckDialog,
+                )
+              : GridView.builder(
             padding: const EdgeInsets.all(16),
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 2, 

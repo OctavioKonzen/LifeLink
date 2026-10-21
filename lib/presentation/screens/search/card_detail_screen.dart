@@ -157,7 +157,6 @@ class _CardDetailScreenState extends State<CardDetailScreen> with SingleTickerPr
           child: Column(
             children: [
               const SizedBox(height: 12),
-              Container(width: 40, height: 5, decoration: BoxDecoration(color: Colors.grey[600], borderRadius: BorderRadius.circular(10))),
               Padding(
                 padding: const EdgeInsets.fromLTRB(24, 16, 16, 8),
                 child: Row(

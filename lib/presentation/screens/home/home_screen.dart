@@ -17,6 +17,8 @@ import 'arena_missions_screen.dart';
 import 'profile_screen.dart'; 
 import 'account_screen.dart';
 import '../../../data/account/auth_service.dart';
+import '../../widgets/neon.dart';
+import '../../widgets/player.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -148,25 +150,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildDynamicAvatar(XpProvider xpProvider, double size) {
-    final borderData = XpProvider.allBorders.firstWhere((b) => b['id'] == xpProvider.selectedBorderId, orElse: () => XpProvider.allBorders[0]);
-    
-    return Container(
-      width: size, height: size,
-      padding: const EdgeInsets.all(3), 
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        gradient: SweepGradient(colors: borderData['colors']),
-        boxShadow: xpProvider.selectedBorderId != "0" ? [BoxShadow(color: borderData['colors'][0].withValues(alpha: 0.5), blurRadius: 10)] : [],
-      ),
-      child: CircleAvatar(
-        backgroundColor: const Color(0xFF2A2A35),
-        backgroundImage: xpProvider.selectedAvatar.isNotEmpty ? CachedNetworkImageProvider(xpProvider.selectedAvatar) : null,
-        child: xpProvider.selectedAvatar.isEmpty ? Icon(Icons.person, color: Colors.white, size: size * 0.5) : null,
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
@@ -219,29 +202,56 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  /// O topo: o jogador (avatar, nick, nível e XP), que abre o menu, e as
+  /// configurações.
   Widget _buildTopBar(BuildContext context, Color cardColor, Color textColor, bool isPt, XpProvider xp) {
     return Row(
       children: [
-        GestureDetector(
-          onTap: () => _scaffoldKey.currentState?.openDrawer(),
-          child: _buildDynamicAvatar(xp, 44),
-        ),
-        const SizedBox(width: 12),
-        Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(isPt ? "Nív. ${xp.level}" : "Lvl. ${xp.level}", style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
-          if (xp.selectedTitle.isNotEmpty)
-             Text(xp.selectedTitle, style: const TextStyle(color: Colors.amberAccent, fontSize: 10, fontWeight: FontWeight.bold, fontStyle: FontStyle.italic))
-          else
-             const Row(children: [Icon(Icons.shield, color: Colors.blue, size: 14), SizedBox(width: 4), Icon(Icons.flash_on, color: Colors.red, size: 14)]),
-        ]),
-        const Spacer(),
-        GestureDetector(
-          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const SettingsScreen())),
-          child: Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(color: cardColor, shape: BoxShape.circle),
-            child: Icon(Icons.settings, color: textColor.withValues(alpha: 0.6), size: 20),
+        Expanded(
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(20),
+              onTap: () => _scaffoldKey.currentState?.openDrawer(),
+              child: Ink(
+                padding: const EdgeInsets.fromLTRB(8, 8, 14, 8),
+                decoration: neonDecoration(AreaColors.profile, cardColor, radius: 20, glow: 0.12),
+                child: Row(children: [
+                  const PlayerAvatar(size: 48),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+                      Text(playerNameOf(context),
+                          maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: textColor, fontWeight: FontWeight.w800, fontSize: 16)),
+                      const SizedBox(height: 2),
+                      Row(children: [
+                        Text(isPt ? "Nív. ${xp.level}" : "Lvl. ${xp.level}",
+                            style: const TextStyle(color: AreaColors.profile, fontWeight: FontWeight.bold, fontSize: 12)),
+                        if (xp.selectedTitle.isNotEmpty) ...[
+                          const SizedBox(width: 6),
+                          Flexible(
+                            child: Text(xp.selectedTitle,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(color: Colors.amberAccent, fontSize: 11, fontWeight: FontWeight.bold, fontStyle: FontStyle.italic)),
+                          ),
+                        ],
+                      ]),
+                      const SizedBox(height: 6),
+                      const LevelBar(color: AreaColors.profile, height: 5),
+                    ]),
+                  ),
+                ]),
+              ),
+            ),
           ),
+        ),
+        const SizedBox(width: 10),
+        IconButton.filledTonal(
+          tooltip: isPt ? "Configurações" : "Settings",
+          onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const SettingsScreen())),
+          icon: Icon(Icons.settings, color: textColor.withValues(alpha: 0.7)),
+          style: IconButton.styleFrom(backgroundColor: cardColor, fixedSize: const Size(48, 48)),
         ),
       ],
     );
@@ -308,7 +318,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 end: Alignment.bottomRight,
               ),
             ),
-            accountName: Text(themeProvider.playerName, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 20)),
+            accountName: Text(playerNameOf(context), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 20)),
             accountEmail: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
@@ -323,7 +333,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 Navigator.pop(context);
                 Navigator.push(context, MaterialPageRoute(builder: (context) => const ProfileScreen()));
               },
-              child: _buildDynamicAvatar(xp, 72),
+              child: const PlayerAvatar(size: 72),
             ),
           ),
           ListTile(
