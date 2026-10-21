@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../data/providers/theme_provider.dart';
 import '../../../data/providers/xp_provider.dart';
 import '../../../data/services/scryfall_service.dart';
@@ -12,7 +13,6 @@ import '../deck/my_decks_screen.dart';
 import '../deck/community_decks_screen.dart';
 import '../search/card_search_screen.dart'; 
 import '../search/today_prices_screen.dart'; 
-import 'news_web_screen.dart';
 import 'arena_missions_screen.dart';
 import 'profile_screen.dart'; 
 import 'account_screen.dart';
@@ -60,21 +60,24 @@ class _HomeScreenState extends State<HomeScreen> {
 
   /// A logo "LIFE LINK" em neon (a original do app).
   Widget _buildLogo(Color textColor) {
-    return SizedBox(
-      height: 160, width: double.infinity,
+    // Desenhada em 360x160 e encolhida para o espaço que sobrar na tela.
+    return FittedBox(
+      child: SizedBox(
+      height: 160, width: 360,
       child: Stack(
         alignment: Alignment.center,
         children: [
           Transform.rotate(angle: 0.7, child: Icon(Icons.colorize_rounded, size: 100, color: Colors.grey[400], shadows: [Shadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 10)])),
           Positioned(
-            top: 15, left: MediaQuery.of(context).size.width * 0.22,
+            top: 15, left: 80,
             child: Transform.rotate(angle: -0.15, child: Text('LIFE', style: TextStyle(fontSize: 52, fontWeight: FontWeight.w900, fontStyle: FontStyle.italic, color: textColor, letterSpacing: -2, shadows: [Shadow(color: Colors.blueAccent.withValues(alpha: 0.6), blurRadius: 15)]))),
           ),
           Positioned(
-            bottom: 15, right: MediaQuery.of(context).size.width * 0.18,
+            bottom: 15, right: 65,
             child: Transform.rotate(angle: 0.1, child: Text('LINK', style: TextStyle(fontSize: 60, fontWeight: FontWeight.w900, fontStyle: FontStyle.italic, color: Colors.redAccent, letterSpacing: -4, shadows: [Shadow(color: Colors.redAccent.withValues(alpha: 0.7), blurRadius: 20), const Shadow(color: Colors.orangeAccent, blurRadius: 5)]))),
           ),
         ],
+      ),
       ),
     );
   }
@@ -87,7 +90,7 @@ class _HomeScreenState extends State<HomeScreen> {
         borderRadius: BorderRadius.circular(22),
         onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const CardSearchScreen())),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
           child: Row(children: [
             Icon(Icons.search, color: textColor.withValues(alpha: 0.6), size: 28),
             const SizedBox(width: 16),
@@ -109,14 +112,17 @@ class _HomeScreenState extends State<HomeScreen> {
       (isPt ? "Missões" : "Missions", Icons.auto_awesome, const Color(0xFF26A69A), () => go(const ArenaMissionsScreen())),
       (isPt ? "Perfil" : "Profile", Icons.emoji_events, const Color(0xFF00B0FF), () => go(const ProfileScreen())),
     ];
+    // As 3 linhas dividem a altura que sobra na tela (sem rolar).
     final rows = <Widget>[];
     for (var i = 0; i < tiles.length; i += 2) {
-      if (i > 0) rows.add(const SizedBox(height: 14));
-      rows.add(Row(children: [
-        Expanded(child: _buildMenuTile(tiles[i].$1, tiles[i].$2, tiles[i].$3, tiles[i].$4, cardColor)),
-        const SizedBox(width: 14),
-        Expanded(child: _buildMenuTile(tiles[i + 1].$1, tiles[i + 1].$2, tiles[i + 1].$3, tiles[i + 1].$4, cardColor)),
-      ]));
+      if (i > 0) rows.add(const SizedBox(height: 12));
+      rows.add(Expanded(
+        child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          Expanded(child: _buildMenuTile(tiles[i].$1, tiles[i].$2, tiles[i].$3, tiles[i].$4, cardColor)),
+          const SizedBox(width: 12),
+          Expanded(child: _buildMenuTile(tiles[i + 1].$1, tiles[i + 1].$2, tiles[i + 1].$3, tiles[i + 1].$4, cardColor)),
+        ]),
+      ));
     }
     return Column(children: rows);
   }
@@ -127,7 +133,6 @@ class _HomeScreenState extends State<HomeScreen> {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        height: 104,
         decoration: BoxDecoration(
           color: cardColor,
           borderRadius: BorderRadius.circular(20),
@@ -162,9 +167,9 @@ class _HomeScreenState extends State<HomeScreen> {
     final bool isPt = themeProvider.cardLanguage == 'pt';
 
     final List<Map<String, dynamic>> newsList = [
-      {"image": CardImages.artCropByName("Nadu, Winged Wisdom"), "tag": isPt ? "DESTAQUE" : "FEATURED", "title": isPt ? "Anúncio de Banidas\ne Restritas" : "Banned and Restricted\nAnnouncement", "tagColor": const Color(0xFF3B82F6), "url": "https://magic.wizards.com/en/news/announcements/banned-and-restricted-announcement-2024"},
-      {"image": CardImages.artCropByName("Ulamog, the Defiler"), "tag": "SPOILERS", "title": isPt ? "Prévias de Cartas\nModern Horizons 3" : "Modern Horizons 3\nCard Previews", "tagColor": const Color(0xFF8B5CF6), "url": "https://magic.wizards.com/en/news/card-image-gallery/modern-horizons-3"},
-      {"image": CardImages.artCropByName("Sheoldred, the Apocalypse"), "tag": isPt ? "EVENTOS" : "EVENTS", "title": isPt ? "Arena Open:\nGanhe \$2,000" : "Arena Open:\nWin \$2,000", "tagColor": const Color(0xFF10B981), "url": "https://magic.wizards.com/en/mtgarena"},
+      {"image": CardImages.artCropByName("Nadu, Winged Wisdom"), "tag": isPt ? "NOTÍCIAS" : "NEWS", "title": isPt ? "Novidades de Magic\nna Wizards" : "Latest Magic\nNews", "tagColor": const Color(0xFF3B82F6), "url": "https://magic.wizards.com/en/news"},
+      {"image": CardImages.artCropByName("Ulamog, the Defiler"), "tag": isPt ? "BANIDAS" : "BANNED", "title": isPt ? "Lista de Banidas\ne Restritas" : "Banned and\nRestricted List", "tagColor": const Color(0xFF8B5CF6), "url": "https://magic.wizards.com/en/banned-restricted-list"},
+      {"image": CardImages.artCropByName("Sheoldred, the Apocalypse"), "tag": "ARENA", "title": isPt ? "Jogue Magic\nno MTG Arena" : "Play Magic\non MTG Arena", "tagColor": const Color(0xFF10B981), "url": "https://magic.wizards.com/en/mtgarena"},
     ];
 
     return Scaffold(
@@ -173,31 +178,33 @@ class _HomeScreenState extends State<HomeScreen> {
       drawer: _buildDrawer(context, bgColor, textColor, isLight, isPt, themeProvider, xpProvider),
       // Organização do Pocketdex (busca e botões das áreas em duas colunas)
       // com as cores do LifeLink: fundo escuro, botões com brilho neon.
-      body: Stack(
-        children: [
-          SafeArea(
-            child: SingleChildScrollView(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _buildTopBar(context, cardColor, textColor, isPt, xpProvider),
-                    const SizedBox(height: 8),
-                    _buildLogo(textColor),
-                    const SizedBox(height: 24),
-                    _buildSearchBar(context, cardColor, textColor, isPt),
-                    const SizedBox(height: 16),
-                    _buildMenuGrid(context, isPt, cardColor),
-                    const SizedBox(height: 28),
-                    _buildNewsCarousel(newsList),
-                    const SizedBox(height: 24),
-                  ],
+      // Tudo cabe na tela, sem rolar: o logo e os botões se ajustam à altura
+      // e os anúncios ficam no rodapé.
+      body: SafeArea(
+        child: LayoutBuilder(builder: (context, box) {
+          final newsHeight = (box.maxHeight * 0.17).clamp(96.0, 160.0);
+          return Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 10),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _buildTopBar(context, cardColor, textColor, isPt, xpProvider),
+                Flexible(
+                  flex: 2,
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxHeight: 150),
+                    child: Padding(padding: const EdgeInsets.symmetric(vertical: 6), child: Center(child: _buildLogo(textColor))),
+                  ),
                 ),
-              ),
+                _buildSearchBar(context, cardColor, textColor, isPt),
+                const SizedBox(height: 14),
+                Expanded(flex: 5, child: _buildMenuGrid(context, isPt, cardColor)),
+                const SizedBox(height: 14),
+                _buildNewsCarousel(newsList, newsHeight),
+              ],
             ),
-          ),
-        ],
+          );
+        }),
       ),
     );
   }
@@ -257,18 +264,26 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildNewsCarousel(List<Map<String, dynamic>> newsList) {
+  /// Abre o anúncio direto no navegador do celular.
+  Future<void> _openNews(String url) async {
+    final ok = await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication).catchError((_) => false);
+    if (!ok && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Não foi possível abrir o link.')));
+    }
+  }
+
+  Widget _buildNewsCarousel(List<Map<String, dynamic>> newsList, double height) {
     return Column(
       children: [
         SizedBox(
-          height: 180,
+          height: height,
           child: PageView.builder(
             controller: _pageController,
             onPageChanged: (index) => setState(() => _currentIndex = index % newsList.length),
             itemBuilder: (context, index) {
               final item = newsList[index % newsList.length];
               return GestureDetector(
-                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => NewsWebScreen(url: item["url"], title: item["tag"]))),
+                onTap: () => _openNews(item["url"]),
                 child: Container(
                   margin: const EdgeInsets.symmetric(horizontal: 8),
                   decoration: BoxDecoration(
@@ -276,7 +291,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     image: DecorationImage(image: CachedNetworkImageProvider(item["image"]), fit: BoxFit.cover, colorFilter: ColorFilter.mode(Colors.black.withValues(alpha: 0.5), BlendMode.darken)),
                   ),
                   child: Padding(
-                    padding: const EdgeInsets.all(16.0),
+                    padding: const EdgeInsets.all(14.0),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisAlignment: MainAxisAlignment.end, 
@@ -292,10 +307,10 @@ class _HomeScreenState extends State<HomeScreen> {
             },
           ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 8),
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
-          children: List.generate(newsList.length, (index) => Container(width: 8, height: 8, margin: const EdgeInsets.symmetric(horizontal: 4), decoration: BoxDecoration(shape: BoxShape.circle, color: _currentIndex == index ? Colors.blue : Colors.grey.withValues(alpha: 0.5)))),
+          children: List.generate(newsList.length, (index) => Container(width: 7, height: 7, margin: const EdgeInsets.symmetric(horizontal: 4), decoration: BoxDecoration(shape: BoxShape.circle, color: _currentIndex == index ? Colors.blue : Colors.grey.withValues(alpha: 0.5)))),
         ),
       ],
     );
