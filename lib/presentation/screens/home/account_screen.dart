@@ -311,7 +311,7 @@ class _NickScreenState extends State<NickScreen> {
               ElevatedButton(
                 style: ElevatedButton.styleFrom(backgroundColor: Colors.blueAccent, foregroundColor: Colors.white, minimumSize: const Size(0, 50)),
                 onPressed: _busy ? null : _save,
-                child: const Text("CONTINUAR", style: TextStyle(fontWeight: FontWeight.bold)),
+                child: const Text("Continuar", style: TextStyle(fontWeight: FontWeight.bold)),
               ),
               TextButton(
                 onPressed: _busy ? null : () => AuthService.instance.signOut(),

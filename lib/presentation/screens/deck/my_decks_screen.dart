@@ -27,12 +27,12 @@ class _MyDecksScreenState extends State<MyDecksScreen> {
       builder: (ctx) => AlertDialog(
         backgroundColor: const Color(0xFF1E1E24),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text("Apagar Deck", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        title: const Text("Apagar deck", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         content: Text("Deseja realmente apagar o deck '$deckName'?", style: const TextStyle(color: Colors.white70)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text("CANCELAR", style: TextStyle(color: Colors.white54)),
+            child: const Text("Cancelar", style: TextStyle(color: Colors.white54)),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
@@ -42,7 +42,7 @@ class _MyDecksScreenState extends State<MyDecksScreen> {
               if (index >= 0) provider.deleteDeck(index);
               Navigator.pop(ctx);
             },
-            child: const Text("APAGAR"),
+            child: const Text("Apagar"),
           ),
         ],
       ),
@@ -59,7 +59,7 @@ class _MyDecksScreenState extends State<MyDecksScreen> {
         builder: (context, setDialogState) => AlertDialog(
           backgroundColor: const Color(0xFF1E1E24),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: const Text("Novo Deck", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          title: const Text("Novo deck", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -68,7 +68,7 @@ class _MyDecksScreenState extends State<MyDecksScreen> {
                 autofocus: true,
                 style: const TextStyle(color: Colors.white),
                 decoration: const InputDecoration(
-                  hintText: "Nome do Deck",
+                  hintText: "Nome do deck",
                   hintStyle: TextStyle(color: Colors.white54),
                 ),
               ),
@@ -83,7 +83,7 @@ class _MyDecksScreenState extends State<MyDecksScreen> {
             ],
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("CANCELAR")),
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancelar")),
             ElevatedButton(
               onPressed: () {
                 if (nameController.text.trim().isNotEmpty) {
@@ -95,7 +95,7 @@ class _MyDecksScreenState extends State<MyDecksScreen> {
                   Navigator.pop(ctx);
                 }
               },
-              child: const Text("CRIAR"),
+              child: const Text("Criar"),
             )
           ],
         ),
@@ -218,7 +218,7 @@ class _MyDecksScreenState extends State<MyDecksScreen> {
         child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
           Icon(Icons.add, size: 44, color: AreaColors.decks, shadows: [Shadow(color: AreaColors.decks.withValues(alpha: 0.8), blurRadius: 12)]),
           const SizedBox(height: 6),
-          Text("NOVO DECK", style: TextStyle(color: color, fontWeight: FontWeight.w800, letterSpacing: 0.5)),
+          Text("Novo deck", style: TextStyle(color: color, fontWeight: FontWeight.w800, letterSpacing: 0.5)),
         ]),
       ),
     );

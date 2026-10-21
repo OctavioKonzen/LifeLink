@@ -24,7 +24,7 @@ void main() {
     expect(game.winner, 0);
     final m = MatchRecord.fromGame(game);
     expect(m.winner, 0);
-    expect(m.winnerName, 'Player 1');
+    expect(m.winnerName, 'Jogador 1');
     expect(m.deckOf(0), 'Atraxa');
     expect(m.timelines[1], [40, 30, 9]);
     final back = MatchRecord.fromMap(m.toMap());

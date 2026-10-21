@@ -195,6 +195,9 @@ function NavButton({ onClick, label, children }) {
  * A ficha da carta, aberta dentro da grade (embaixo da linha da carta).
  * Aceita a carta da API ou só o id dela (cartas dos decks).
  */
+// Raridade em português (a Scryfall manda em inglês).
+const RARITY_PT = { common: 'Comum', uncommon: 'Incomum', rare: 'Rara', mythic: 'Mítica', special: 'Especial', bonus: 'Bônus' }
+
 export default function CardDetails({ card: initial, id, onClose, onPrevious, onNext }) {
   const [card, setCard] = useState(initial || null)
   const [error, setError] = useState(null)
@@ -266,7 +269,7 @@ export default function CardDetails({ card: initial, id, onClose, onPrevious, on
             <p className="mt-3 text-sm text-muted">
               {card.set_name} · #{card.collector_number} ·{' '}
               <span className="font-bold capitalize" style={{ color: RARITY_COLORS[card.rarity] }}>
-                {card.rarity}
+                {RARITY_PT[card.rarity] || card.rarity}
               </span>
               {card.artist && <> · Arte: {card.artist}</>}
             </p>

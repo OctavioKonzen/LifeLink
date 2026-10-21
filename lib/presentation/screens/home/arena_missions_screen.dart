@@ -89,7 +89,7 @@ class _ArenaMissionsScreenState extends State<ArenaMissionsScreen> {
                 xpProvider.advanceTier();
                 Navigator.pop(ctx);
               },
-              child: const Text("PRÓXIMO RANK"),
+              child: const Text("Próximo rank"),
             )
           ],
         ),
@@ -199,7 +199,7 @@ class _ArenaMissionsScreenState extends State<ArenaMissionsScreen> {
                       ElevatedButton(
                         style: ElevatedButton.styleFrom(backgroundColor: Colors.amberAccent, foregroundColor: Colors.black87, minimumSize: const Size(double.infinity, 50)),
                         onPressed: () => _claimSectionReward(xpProvider, xpProvider.currentTier),
-                        child: const Text("RESGATAR RECOMPENSA MÍTICA!", style: TextStyle(fontWeight: FontWeight.bold)),
+                        child: const Text("Resgatar recompensa mítica!", style: TextStyle(fontWeight: FontWeight.bold)),
                       )
                   ],
                 ),
@@ -238,11 +238,11 @@ class _ArenaMissionsScreenState extends State<ArenaMissionsScreen> {
                                     padding: const EdgeInsets.only(top: 8.0),
                                     child: ElevatedButton(
                                       onPressed: () => _claimMissionXp(xpProvider, index, ach['xp']),
-                                      child: Text("RESGATAR ${ach['xp']} XP"),
+                                      child: Text("Resgatar ${ach['xp']} XP"),
                                     ),
                                   )
                                 else if (isClaimed)
-                                  const Text("CONCLUÍDO", style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 10)),
+                                  const Text("Concluído", style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 10)),
                               ],
                             ),
                           ),

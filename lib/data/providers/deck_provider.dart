@@ -110,6 +110,16 @@ class DeckProvider with ChangeNotifier implements SyncedDecks {
     }
   }
 
+  /// Põe a carta de volta na mesma posição (o "desfazer" ao tirar uma carta).
+  void insertCardInDeck(int deckIndex, int cardIndex, Map<String, dynamic> card) {
+    if (deckIndex >= 0 && deckIndex < _allDecks.length) {
+      final cards = _allDecks[deckIndex].cards;
+      cards.insert(cardIndex.clamp(0, cards.length), card);
+      _changed(deckIndex);
+      _saveDecks();
+    }
+  }
+
   void removeCardFromDeck(int deckIndex, int cardIndex) {
     if (deckIndex >= 0 && deckIndex < _allDecks.length) {
       if (cardIndex >= 0 && cardIndex < _allDecks[deckIndex].cards.length) {

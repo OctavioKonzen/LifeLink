@@ -56,10 +56,10 @@ export const defaultGame = (startingLife = 40, playerCount = 2, playerNames) => 
   plane: null,
   scheme: null,
   commanderDamage: Array.from({ length: 6 }, () => Array(6).fill(0)),
-  playerNames: playerNames || Array.from({ length: 6 }, (_, i) => `Player ${i + 1}`),
+  playerNames: playerNames || Array.from({ length: 6 }, (_, i) => `Jogador ${i + 1}`),
 })
 
-export const defaultSettings = () => ({ bgColor: 0xff1e1e24, playerName: 'Player 1', cardLanguage: 'pt' })
+export const defaultSettings = () => ({ bgColor: 0xff1e1e24, playerName: 'Jogador 1', cardLanguage: 'pt' })
 
 const defaults = () => ({ settings: defaultSettings(), profile: defaultProfile(), game: defaultGame(), matches: { list: [] }, decks: {} })
 

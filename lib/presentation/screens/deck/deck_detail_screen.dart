@@ -111,7 +111,7 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
             updatedCard['name'] = validPrint['printed_name'] ?? validPrint['name'] ?? card['name'];
             updatedCard['type_line'] = validPrint['printed_type_line'] ?? validPrint['type_line'] ?? card['type_line'];
             updatedCard['oracle_text'] = validPrint['printed_text'] ?? validPrint['oracle_text'] ?? card['oracle_text'];
-            updatedCard['setName'] = (validPrint['set'] ?? card['setName']).toString().toUpperCase();
+            updatedCard['setName'] = validPrint['set_name'] ?? card['setName'];
 
             provider.updateCardInDeck(_deckIndex, i, updatedCard);
             translatedCount++;
@@ -174,7 +174,7 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
     final deckProvider = context.watch<DeckProvider>();
 
     if (_deckIndex < 0) {
-      return const Scaffold(body: Center(child: Text("Deck não encontrado")));
+      return Scaffold(appBar: AppBar(), body: const Center(child: Text("Esse deck não existe mais (foi apagado em outro aparelho?).")));
     }
 
     final deck = deckProvider.allDecks[_deckIndex];
@@ -323,6 +323,27 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
     );
   }
 
+  /// Tira a carta, com "Desfazer" para quem tocou sem querer.
+  void _removeCard(Map<String, dynamic> card, int indexInDeck) {
+    final provider = context.read<DeckProvider>();
+    final deckIndex = _deckIndex;
+    if (deckIndex < 0) return;
+    provider.removeCardFromDeck(deckIndex, indexInDeck);
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(SnackBar(
+      content: Text('${card['name'] ?? 'Carta'} saiu do deck.'),
+      duration: const Duration(seconds: 4),
+      action: SnackBarAction(
+        label: 'Desfazer',
+        onPressed: () {
+          final i = provider.indexOfId(widget.deckId);
+          if (i >= 0) provider.insertCardInDeck(i, indexInDeck, card);
+        },
+      ),
+    ));
+  }
+
   Widget _buildGridCard(Map<String, dynamic> card, int indexInDeck, bool isLight) {
     final rarityColor = _getRarityColor(card['rarity']);
 
@@ -362,16 +383,19 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
             ),
           ),
           Positioned(
-            top: -6,
-            right: -6,
+            top: -10,
+            right: -10,
             child: GestureDetector(
-              onTap: () {
-                context.read<DeckProvider>().removeCardFromDeck(_deckIndex, indexInDeck);
-              },
-              child: Container(
-                padding: const EdgeInsets.all(4),
-                decoration: const BoxDecoration(color: Colors.redAccent, shape: BoxShape.circle),
-                child: const Icon(Icons.close, color: Colors.white, size: 14),
+              behavior: HitTestBehavior.opaque,
+              onTap: () => _removeCard(card, indexInDeck),
+              // Área de toque maior que o círculo (fácil de acertar no celular).
+              child: Padding(
+                padding: const EdgeInsets.all(6),
+                child: Container(
+                  padding: const EdgeInsets.all(5),
+                  decoration: const BoxDecoration(color: Colors.redAccent, shape: BoxShape.circle, boxShadow: [BoxShadow(color: Colors.black38, blurRadius: 4)]),
+                  child: const Icon(Icons.close, color: Colors.white, size: 16),
+                ),
               ),
             ),
           ),

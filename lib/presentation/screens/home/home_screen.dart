@@ -100,7 +100,7 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Row(children: [
             Icon(Icons.search, color: textColor.withValues(alpha: 0.6), size: 28),
             const SizedBox(width: 16),
-            Text(isPt ? "Procurar carta" : "Search card", style: TextStyle(color: textColor.withValues(alpha: 0.6), fontSize: 18)),
+            Text("Procurar carta", style: TextStyle(color: textColor.withValues(alpha: 0.6), fontSize: 18)),
           ]),
         ),
       ),
@@ -111,12 +111,12 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildMenuGrid(BuildContext context, bool isPt, Color cardColor) {
     void go(Widget screen) => Navigator.push(context, MaterialPageRoute(builder: (context) => screen));
     final tiles = [
-      (isPt ? "Meus decks" : "My decks", Icons.layers, const Color(0xFF448AFF), () => go(const MyDecksScreen())),
-      (isPt ? "Decks oficiais" : "Official decks", Icons.style, const Color(0xFFB388FF), () => go(const CommunityDecksScreen())),
-      (isPt ? "Contador" : "Life", Icons.favorite, const Color(0xFFFF5252), () => go(const LifeCounterScreen())),
-      (isPt ? "Preços" : "Prices", Icons.monetization_on, const Color(0xFFFFA000), () => go(const TodayPricesScreen())),
-      (isPt ? "Missões" : "Missions", Icons.auto_awesome, const Color(0xFF26A69A), () => go(const ArenaMissionsScreen())),
-      (isPt ? "Perfil" : "Profile", Icons.emoji_events, const Color(0xFF00B0FF), () => go(const ProfileScreen())),
+      ("Meus decks", Icons.layers, const Color(0xFF448AFF), () => go(const MyDecksScreen())),
+      ("Decks oficiais", Icons.style, const Color(0xFFB388FF), () => go(const CommunityDecksScreen())),
+      ("Contador", Icons.favorite, const Color(0xFFFF5252), () => go(const LifeCounterScreen())),
+      ("Preços", Icons.monetization_on, const Color(0xFFFFA000), () => go(const TodayPricesScreen())),
+      ("Missões", Icons.auto_awesome, const Color(0xFF26A69A), () => go(const ArenaMissionsScreen())),
+      ("Perfil", Icons.emoji_events, const Color(0xFF00B0FF), () => go(const ProfileScreen())),
     ];
     // As 3 linhas dividem a altura que sobra na tela (sem rolar).
     final rows = <Widget>[];
@@ -186,15 +186,15 @@ class _HomeScreenState extends State<HomeScreen> {
           final when = "${two(date.day)}/${two(date.month)}/${date.year}";
           return {
             "image": CardImages.artCropOfSet(set['code'] as String),
-            "tag": upcoming ? (isPt ? "EM BREVE" : "COMING SOON") : recent ? (isPt ? "NOVA COLEÇÃO" : "NEW SET") : (isPt ? "COLEÇÃO" : "SET"),
+            "tag": upcoming ? "EM BREVE" : recent ? "NOVA COLEÇÃO" : "COLEÇÃO",
             "title": set['name'],
-            "subtitle": upcoming ? (isPt ? "Chega em $when · veja as cartas" : "Out $when · see the cards") : (isPt ? "Veja todas as cartas" : "See all the cards"),
+            "subtitle": upcoming ? "Chega em $when · veja as cartas" : "Veja todas as cartas",
             "tagColor": upcoming ? const Color(0xFFF59E0B) : const Color(0xFF8B5CF6),
             "url": set['scryfall_uri'],
           };
         }(),
-      {"image": CardImages.artCropByName("Nadu, Winged Wisdom"), "tag": isPt ? "BANIDAS" : "BANNED", "title": isPt ? "Lista de Banidas\ne Restritas" : "Banned and\nRestricted List", "tagColor": const Color(0xFFEF4444), "url": "https://magic.wizards.com/en/banned-restricted-list"},
-      {"image": CardImages.artCropByName("Sheoldred, the Apocalypse"), "tag": "ARENA", "title": isPt ? "Jogue Magic\nno MTG Arena" : "Play Magic\non MTG Arena", "tagColor": const Color(0xFF10B981), "url": "https://magic.wizards.com/en/mtgarena"},
+      {"image": CardImages.artCropByName("Nadu, Winged Wisdom"), "tag": "BANIDAS", "title": "Lista de Banidas\ne Restritas", "tagColor": const Color(0xFFEF4444), "url": "https://magic.wizards.com/en/banned-restricted-list"},
+      {"image": CardImages.artCropByName("Sheoldred, the Apocalypse"), "tag": "ARENA", "title": "Jogue Magic\nno MTG Arena", "tagColor": const Color(0xFF10B981), "url": "https://magic.wizards.com/en/mtgarena"},
     ];
 
     return Scaffold(
@@ -257,7 +257,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: textColor, fontWeight: FontWeight.w800, fontSize: 16)),
                       const SizedBox(height: 2),
                       Row(children: [
-                        Text(isPt ? "Nív. ${xp.level}" : "Lvl. ${xp.level}",
+                        Text("Nív. ${xp.level}",
                             style: const TextStyle(color: AreaColors.profile, fontWeight: FontWeight.bold, fontSize: 12)),
                         if (xp.selectedTitle.isNotEmpty) ...[
                           const SizedBox(width: 6),
@@ -280,7 +280,7 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         const SizedBox(width: 10),
         IconButton.filledTonal(
-          tooltip: isPt ? "Configurações" : "Settings",
+          tooltip: "Configurações",
           onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const SettingsScreen())),
           icon: Icon(Icons.settings, color: textColor.withValues(alpha: 0.7)),
           style: IconButton.styleFrom(backgroundColor: cardColor, fixedSize: const Size(48, 48)),
@@ -376,7 +376,7 @@ class _HomeScreenState extends State<HomeScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(isPt ? "Nível ${xp.level}" : "Level ${xp.level}", style: const TextStyle(color: Colors.white70)),
+                Text("Nível ${xp.level}", style: const TextStyle(color: Colors.white70)),
                 if (xp.selectedTitle.isNotEmpty)
                   Text("« ${xp.selectedTitle} »", style: const TextStyle(color: Colors.amberAccent, fontWeight: FontWeight.bold, fontSize: 12, fontStyle: FontStyle.italic)),
               ],
@@ -391,9 +391,9 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           ListTile(
             leading: Icon(Icons.account_circle, color: textColor),
-            title: Text(isPt ? "Conta (app e site)" : "Account (app & site)", style: TextStyle(color: textColor)),
+            title: Text("Conta (app e site)", style: TextStyle(color: textColor)),
             subtitle: Text(
-              AuthService.instance.user?.email ?? (isPt ? "Entrar para sincronizar" : "Sign in to sync"),
+              AuthService.instance.user?.email ?? "Entrar para sincronizar",
               style: TextStyle(color: textColor.withValues(alpha: 0.5), fontSize: 12),
             ),
             onTap: () {
@@ -403,7 +403,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           ListTile(
             leading: Icon(Icons.person, color: textColor),
-            title: Text(isPt ? "Meu Perfil / Cosméticos" : "My Profile", style: TextStyle(color: textColor)),
+            title: Text("Meu Perfil / Cosméticos", style: TextStyle(color: textColor)),
             onTap: () {
               Navigator.pop(context);
               Navigator.push(context, MaterialPageRoute(builder: (context) => const ProfileScreen()));
@@ -419,7 +419,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           ListTile(
             leading: Icon(Icons.history, color: textColor),
-            title: Text(isPt ? "Histórico de Partidas" : "Match History", style: TextStyle(color: textColor)),
+            title: Text("Histórico de Partidas", style: TextStyle(color: textColor)),
             onTap: () {
               Navigator.pop(context);
               Navigator.push(context, MaterialPageRoute(builder: (context) => const MatchHistoryScreen()));
@@ -427,7 +427,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           ListTile(
             leading: Icon(Icons.settings, color: textColor),
-            title: Text(isPt ? "Configurações" : "Settings", style: TextStyle(color: textColor)),
+            title: Text("Configurações", style: TextStyle(color: textColor)),
             onTap: () {
               Navigator.pop(context);
               Navigator.push(context, MaterialPageRoute(builder: (context) => const SettingsScreen()));

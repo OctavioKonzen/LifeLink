@@ -1,5 +1,6 @@
 import 'dart:async'; // Necessário para o Timer (Debounce)
 import 'package:flutter/material.dart';
+import '../../../data/services/deck_tools.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../../data/providers/theme_provider.dart';
@@ -22,11 +23,18 @@ class _TodayPricesScreenState extends State<TodayPricesScreen> {
   Timer? _debounce;
   bool _isLoading = true;
   List<CardModel> _cards = [];
+  List<Map<String, dynamic>> _raw = []; // as cartas como vieram da Scryfall (para abrir completas)
+  String? _nextPage;
+  bool _loadingMore = false;
+  double? _brl; // dólar em reais hoje
 
   @override
   void initState() {
     super.initState();
     _loadPrices();
+    DeckTools.dollarInReais().then((v) {
+      if (mounted) setState(() => _brl = v);
+    });
   }
 
   @override
@@ -49,6 +57,8 @@ class _TodayPricesScreenState extends State<TodayPricesScreen> {
       if (mounted && id == _requestId) {
         setState(() {
           _cards = List<CardModel>.from(result['cards']);
+          _raw = [for (final c in result['raw'] as List) Map<String, dynamic>.from(c as Map)];
+          _nextPage = result['nextPage'] as String?;
           _isLoading = false;
         });
       }
@@ -64,6 +74,26 @@ class _TodayPricesScreenState extends State<TodayPricesScreen> {
     }
   }
 
+  /// A próxima página do ranking (mais 175 cartas).
+  Future<void> _loadMore() async {
+    final next = _nextPage;
+    if (next == null || _loadingMore) return;
+    final id = _requestId;
+    setState(() => _loadingMore = true);
+    try {
+      final result = await _repository.fetchTrendingPrices(nextPage: next);
+      if (!mounted || id != _requestId) return;
+      setState(() {
+        _cards.addAll(List<CardModel>.from(result['cards']));
+        _raw.addAll([for (final c in result['raw'] as List) Map<String, dynamic>.from(c as Map)]);
+        _nextPage = result['nextPage'] as String?;
+      });
+    } catch (_) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Não deu para carregar mais agora.')));
+    }
+    if (mounted) setState(() => _loadingMore = false);
+  }
+
   // Lógica de pesquisa inteligente
   void _onSearchChanged(String query) {
     if (_debounce?.isActive ?? false) _debounce!.cancel();
@@ -77,7 +107,6 @@ class _TodayPricesScreenState extends State<TodayPricesScreen> {
     final theme = context.watch<ThemeProvider>();
     final isLight = theme.backgroundColor.computeLuminance() > 0.5;
     final textColor = isLight ? Colors.black87 : Colors.white;
-    final isPt = theme.cardLanguage == 'pt';
 
     return Stack(
       children: [
@@ -97,7 +126,7 @@ class _TodayPricesScreenState extends State<TodayPricesScreen> {
                 onChanged: _onSearchChanged,
                 style: TextStyle(color: textColor, fontSize: 14),
                 decoration: InputDecoration(
-                  hintText: isPt ? "Pesquisar carta por preço..." : "Search card by price...",
+                  hintText: "Pesquisar carta por preço...",
                   hintStyle: TextStyle(color: textColor.withValues(alpha: 0.4)),
                   prefixIcon: Icon(Icons.search, color: textColor.withValues(alpha: 0.4), size: 20),
                   border: InputBorder.none,
@@ -109,11 +138,20 @@ class _TodayPricesScreenState extends State<TodayPricesScreen> {
           body: _isLoading
               ? const Center(child: CircularProgressIndicator(color: Colors.blueAccent))
               : _cards.isEmpty 
-                  ? Center(child: Text(isPt ? "Nenhuma carta encontrada." : "No cards found.", style: TextStyle(color: textColor.withValues(alpha: 0.5))))
+                  ? Center(child: Text("Nenhuma carta encontrada.", style: TextStyle(color: textColor.withValues(alpha: 0.5))))
                   : ListView.builder(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      itemCount: _cards.length,
-                      itemBuilder: (context, index) => _buildCardTile(_cards[index], index, textColor, isLight),
+                      itemCount: _cards.length + (_nextPage != null ? 1 : 0),
+                      itemBuilder: (context, index) => index == _cards.length
+                          ? Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              child: Center(
+                                child: _loadingMore
+                                    ? const CircularProgressIndicator()
+                                    : OutlinedButton.icon(onPressed: _loadMore, icon: const Icon(Icons.expand_more), label: const Text('Carregar mais')),
+                              ),
+                            )
+                          : _buildCardTile(_cards[index], index, textColor, isLight),
                     ),
         ),
       ],
@@ -127,18 +165,30 @@ class _TodayPricesScreenState extends State<TodayPricesScreen> {
       child: ListTile(
         onTap: () {
           Navigator.push(context, MaterialPageRoute(
-            builder: (context) => CardDetailScreen(card: {
-              'id': card.id,
-              'name': card.name,
-              'imageUrl': card.imageUrl,
-              'rarity': card.rarity,
-              'mana_cost': card.manaCost,
-              'type_line': card.typeLine,
-              'oracle_text': card.oracleText,
-              'setName': card.setName,
-              'color_identity': card.colorIdentity,
-              'usdPrice': card.price,
-            })
+            builder: (context) => CardDetailScreen(card: () {
+              final raw = index < _raw.length ? _raw[index] : const <String, dynamic>{};
+              return <String, dynamic>{
+                'id': card.id,
+                'name': raw['printed_name'] ?? card.name,
+                'imageUrl': card.imageUrl,
+                'backImageUrl': raw['card_faces']?[1]?['image_uris']?['normal'],
+                'rarity': card.rarity,
+                'mana_cost': card.manaCost,
+                'type_line': raw['printed_type_line'] ?? card.typeLine,
+                'oracle_text': raw['printed_text'] ?? card.oracleText,
+                'oracle_id': raw['oracle_id'],
+                'setName': card.setName,
+                'collectorNumber': raw['collector_number'],
+                'color_identity': card.colorIdentity,
+                'cmc': raw['cmc'],
+                'power': raw['power']?.toString(),
+                'toughness': raw['toughness']?.toString(),
+                'usdPrice': card.price,
+                'usdFoil': raw['prices']?['usd_foil'],
+                'eurPrice': raw['prices']?['eur'],
+                'tixPrice': raw['prices']?['tix'],
+              };
+            }())
           ));
         },
         leading: ClipRRect(
@@ -152,12 +202,21 @@ class _TodayPricesScreenState extends State<TodayPricesScreen> {
           ),
         ),
         title: Text(card.name, style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 14), maxLines: 1, overflow: TextOverflow.ellipsis),
-        subtitle: Text(card.setName, style: TextStyle(color: textColor.withValues(alpha: 0.6), fontSize: 11)),
+        subtitle: Text(
+          [
+            card.setName,
+            // O idioma da impressão (as mais caras costumam ser japonesas, etc.).
+            if (index < _raw.length && _raw[index]['lang'] != null && _raw[index]['lang'] != 'en') '${_raw[index]['lang']}'.toUpperCase(),
+          ].join(' · '),
+          style: TextStyle(color: textColor.withValues(alpha: 0.6), fontSize: 11),
+        ),
         trailing: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
-            Text("\$ ${card.price}", style: const TextStyle(color: Colors.greenAccent, fontWeight: FontWeight.bold, fontSize: 15)),
+            Text("US\$ ${card.price}", style: TextStyle(color: isLight ? Colors.green.shade800 : Colors.greenAccent, fontWeight: FontWeight.bold, fontSize: 15)),
+            if (_brl != null && double.tryParse('${card.price}') != null)
+              Text("≈ R\$ ${(double.parse('${card.price}') * _brl!).toStringAsFixed(2)}", style: TextStyle(color: textColor.withValues(alpha: 0.6), fontSize: 11)),
             if (_searchController.text.isEmpty) Text("#${index + 1}", style: TextStyle(color: textColor.withValues(alpha: 0.2), fontSize: 10)),
           ],
         ),

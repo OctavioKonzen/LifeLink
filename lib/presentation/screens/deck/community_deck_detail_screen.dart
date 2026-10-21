@@ -118,8 +118,6 @@ class _CommunityDeckDetailScreenState extends State<CommunityDeckDetailScreen> {
     if (_cards.isEmpty || _saved) return;
     
     final deckProvider = context.read<DeckProvider>();
-    final theme = context.read<ThemeProvider>();
-    final isPt = theme.cardLanguage == 'pt';
 
     try {
       final String deckName = widget.deckData['name'] ?? 'Novo Deck';
@@ -134,14 +132,14 @@ class _CommunityDeckDetailScreenState extends State<CommunityDeckDetailScreen> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(isPt ? "Deck '$deckName' adicionado com ${_cards.length} cartas!" : "Deck '$deckName' added with ${_cards.length} cards!"),
+          content: Text("Deck '$deckName' adicionado com ${_cards.length} cartas!"),
           backgroundColor: Colors.green[700],
           behavior: SnackBarBehavior.floating,
         ),
       );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(isPt ? "Erro ao salvar deck." : "Error saving deck.")),
+        SnackBar(content: Text("Erro ao salvar deck.")),
       );
     }
   }

@@ -159,7 +159,7 @@ class DeckTools {
         'power': data['power']?.toString(),
         'toughness': data['toughness']?.toString(),
         'color_identity': (data['color_identity'] as List?)?.join('') ?? '',
-        'setName': (data['set'] ?? '').toString().toUpperCase(),
+        'setName': data['set_name'] ?? '',
         'collectorNumber': data['collector_number'] ?? '',
         'oracle_id': data['oracle_id'],
         'usdPrice': data['prices']?['usd'] ?? data['prices']?['usd_foil'] ?? '0.00',

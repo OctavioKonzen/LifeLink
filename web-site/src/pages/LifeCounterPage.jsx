@@ -36,7 +36,9 @@ const setList = (list, i, value, fill) => Array.from({ length: 6 }, (_, m) => (m
 
 // Formato do app (users/{uid}.data.game) → nomes curtos usados nesta tela.
 // O resto (energia, experiência, imposto, cores) passa direto, sem se perder.
-const view = (g) => ({ ...g, players: g.playerCount, names: g.playerNames, commander: g.commanderDamage })
+// O nome padrão antigo ("Player 2") aparece como "Jogador 2".
+const ptName = (n) => String(n).replace(/^Player (\d)$/, 'Jogador $1')
+const view = (g) => ({ ...g, players: g.playerCount, names: (g.playerNames || []).map(ptName), commander: g.commanderDamage })
 const toApp = ({ players, names, commander, ...rest }) => ({ ...rest, playerCount: players, playerNames: names, commanderDamage: commander })
 // Partida nova: zera tudo, mas mantém nomes e cores.
 const newGame = (g, startingLife) => ({ ...g, ...view(defaultGame(startingLife, g.players, g.names)) })
