@@ -13,7 +13,8 @@ import 'match_history_screen.dart';
 import 'online_screens.dart';
 import '../deck/my_decks_screen.dart';
 import '../deck/community_decks_screen.dart';
-import '../search/card_search_screen.dart'; 
+import '../search/card_search_screen.dart';
+import '../search/card_scan_screen.dart';
 import '../search/today_prices_screen.dart'; 
 import 'arena_missions_screen.dart';
 import 'profile_screen.dart'; 
@@ -101,7 +102,15 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Row(children: [
             Icon(Icons.search, color: textColor.withValues(alpha: 0.6), size: 28),
             const SizedBox(width: 16),
-            Text("Procurar carta", style: TextStyle(color: textColor.withValues(alpha: 0.6), fontSize: 18)),
+            Expanded(child: Text("Procurar carta", style: TextStyle(color: textColor.withValues(alpha: 0.6), fontSize: 18))),
+            // Escanear com a câmera.
+            IconButton(
+              icon: Icon(Icons.document_scanner, color: textColor.withValues(alpha: 0.75), size: 26),
+              tooltip: 'Escanear carta com a câmera',
+              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CardScanScreen())),
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(),
+            ),
           ]),
         ),
       ),

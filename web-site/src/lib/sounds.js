@@ -21,8 +21,31 @@ export function setSoundsOn(on) {
   }
 }
 
+// Segurando o botão: guarda o som e toca uma vez só ao soltar (o mais
+// importante: morte > comandante > veneno > dano > cura).
+const RANK = { cura: 1, dano: 2, veneno: 3, comandante: 4, morte: 5 }
+let holding = false
+let pending = null
+
+export function beginHold() {
+  holding = true
+  pending = null
+}
+
+export function endHold() {
+  if (!holding) return
+  holding = false
+  const name = pending
+  pending = null
+  if (name) playSound(name)
+}
+
 export function playSound(name) {
   if (!soundsOn()) return
+  if (holding) {
+    if (!pending || RANK[name] > RANK[pending]) pending = name
+    return
+  }
   const now = Date.now()
   if (now - (last[name] || 0) < 90) return // vários toques seguidos: um som
   last[name] = now

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'card_detail_screen.dart';
+import 'card_scan_screen.dart';
 import 'card_filters_sheet.dart';
 import '../../../data/providers/theme_provider.dart';
 import '../../../data/providers/xp_provider.dart';
@@ -308,6 +309,11 @@ class _CardSearchScreenState extends State<CardSearchScreen> {
               onSubmitted: (v) => _submitSearch(v),
             ),
             actions: [
+              IconButton(
+                icon: Icon(Icons.document_scanner, color: textColor),
+                tooltip: 'Escanear carta com a câmera',
+                onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => CardScanScreen(targetDeckId: widget.targetDeckId))),
+              ),
               // Ordem dos resultados.
               PopupMenuButton<int>(
                 icon: Icon(Icons.sort, color: textColor),

@@ -34,8 +34,31 @@ class SoundService {
     await (await SharedPreferences.getInstance()).setBool(_key, value);
   }
 
+  // Segurando o botão: guarda o som e toca uma vez só ao soltar (o mais
+  // importante: morte > comandante > veneno > dano > cura).
+  bool _holding = false;
+  GameSound? _pending;
+  static const _rank = {GameSound.cura: 1, GameSound.dano: 2, GameSound.veneno: 3, GameSound.comandante: 4, GameSound.morte: 5};
+
+  void beginHold() {
+    _holding = true;
+    _pending = null;
+  }
+
+  void endHold() {
+    if (!_holding) return;
+    _holding = false;
+    final sound = _pending;
+    _pending = null;
+    if (sound != null) play(sound);
+  }
+
   void play(GameSound sound) {
     if (!enabled) return;
+    if (_holding) {
+      if (_pending == null || _rank[sound]! > _rank[_pending]!) _pending = sound;
+      return;
+    }
     // Segurar o botão muda a vida várias vezes por segundo: no máximo um som
     // do mesmo tipo a cada 90 ms.
     final now = DateTime.now();

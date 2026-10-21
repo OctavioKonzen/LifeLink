@@ -10,6 +10,7 @@ import '../search/card_detail_screen.dart';
 import '../search/card_search_screen.dart';
 import '../../../data/services/deck_tools.dart';
 import 'deck_tools_screens.dart';
+import '../search/card_scan_screen.dart';
 
 class DeckDetailScreen extends StatefulWidget {
   final String deckId;
@@ -222,6 +223,11 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
               ),
             ),
             actions: [
+              IconButton(
+                icon: const Icon(Icons.document_scanner, color: Colors.lightBlueAccent),
+                tooltip: "Escanear carta com a câmera",
+                onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => CardScanScreen(targetDeckId: widget.deckId))),
+              ),
               IconButton(
                 icon: const Icon(Icons.playlist_add, color: Colors.orangeAccent),
                 tooltip: "Importar lista",

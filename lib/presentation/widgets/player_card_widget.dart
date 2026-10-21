@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../data/providers/game_provider.dart';
+import '../../../data/services/sound_service.dart';
 
 /// O quadro de um jogador no contador de vida, como nos apps do gênero:
 ///   • toque na metade esquerda tira 1 de vida, na direita soma 1;
@@ -10,7 +11,10 @@ import '../../../data/providers/game_provider.dart';
 ///   • o quanto mudou (ex.: −7) aparece em cima da vida por 2 segundos;
 ///   • os contadores (veneno, energia, experiência, imposto e dano de
 ///     comandante) ficam embaixo; tocar abre todos eles;
-///   • tocar no nome (embaixo, com os contadores) troca o nome e a cor.
+///   • tocar no nome (embaixo, com os contadores) troca o nome e a cor;
+///   • arrastar o quadro para a direita mostra o veneno e para a esquerda o
+///     dano de comandante recebido, ali mesmo na mesa (arrastar de volta, ou
+///     esperar uns segundos, volta para a vida).
 class PlayerCardWidget extends StatefulWidget {
   final int index;
   final int quarterTurns;
@@ -39,6 +43,37 @@ class _PlayerCardWidgetState extends State<PlayerCardWidget> {
   Timer? _holdTimer;
   Timer? _clock; // atualiza o tempo da vez enquanto é a vez deste jogador
 
+  // A "página" do quadro: 0 = vida, -1 = veneno, 1 = dano de comandante.
+  int _page = 0;
+  Timer? _pageTimer;
+
+  /// Arrastou para o lado: direita vai para o veneno, esquerda para o
+  /// comandante (e o contrário volta para a vida).
+  void _onSwipe(DragEndDetails d) {
+    final v = d.primaryVelocity ?? 0;
+    if (v.abs() < 250) return;
+    final next = (_page + (v > 0 ? -1 : 1)).clamp(-1, 1);
+    if (next == _page) return;
+    HapticFeedback.selectionClick();
+    setState(() => _page = next);
+    _touchPage();
+  }
+
+  /// Sem mexer por uns segundos, o quadro volta para a vida.
+  void _touchPage() {
+    _pageTimer?.cancel();
+    if (_page == 0) return;
+    _pageTimer = Timer(const Duration(seconds: 12), () {
+      if (mounted) setState(() => _page = 0);
+    });
+  }
+
+  void _changePoison(int amount) {
+    widget.game.updateCounter(Counter.poison, widget.index, amount);
+    HapticFeedback.selectionClick();
+    _touchPage();
+  }
+
   @override
   void initState() {
     super.initState();
@@ -66,12 +101,13 @@ class _PlayerCardWidgetState extends State<PlayerCardWidget> {
 
   // Segurar: de 1 em 1 enquanto segura, começando devagar e acelerando
   // (dá para parar no número certo).
-  void _startHold(int sign) {
+  void _startHold(int sign, [void Function(int)? action]) {
     HapticFeedback.mediumImpact();
+    SoundService.instance.beginHold(); // o som toca uma vez, ao soltar
     _holdTimer?.cancel();
     var steps = 0;
     void tick() {
-      _change(sign);
+      (action ?? _change)(sign);
       steps++;
       final wait = max(45, 260 - steps * 18);
       _holdTimer = Timer(Duration(milliseconds: wait), tick);
@@ -83,6 +119,7 @@ class _PlayerCardWidgetState extends State<PlayerCardWidget> {
   void _stopHold() {
     _holdTimer?.cancel();
     _holdTimer = null;
+    SoundService.instance.endHold();
   }
 
   @override
@@ -90,15 +127,16 @@ class _PlayerCardWidgetState extends State<PlayerCardWidget> {
     _deltaTimer?.cancel();
     _holdTimer?.cancel();
     _clock?.cancel();
+    _pageTimer?.cancel();
     super.dispose();
   }
 
-  Widget _zone(int sign) {
+  Widget _zone(int sign, [void Function(int)? action]) {
     return Expanded(
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
-        onTap: () => _change(sign),
-        onLongPressStart: (_) => _startHold(sign),
+        onTap: () => (action ?? _change)(sign),
+        onLongPressStart: (_) => _startHold(sign, action),
         onLongPressEnd: (_) => _stopHold(),
         onLongPressCancel: _stopHold,
         child: Align(
@@ -119,6 +157,111 @@ class _PlayerCardWidgetState extends State<PlayerCardWidget> {
         const SizedBox(width: 4),
         Text(text, style: TextStyle(color: color, fontWeight: FontWeight.w800, fontSize: 15)),
       ]),
+    );
+  }
+
+  /// A vida: toque na metade esquerda −, na direita +.
+  Widget _lifePage(int life, bool dead) {
+    return Stack(children: [
+      Row(children: [_zone(-1), _zone(1)]),
+      IgnorePointer(
+        child: LayoutBuilder(builder: (context, box) {
+          final size = (box.maxHeight * 0.42).clamp(40.0, 200.0);
+          return Center(
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              AnimatedOpacity(
+                opacity: _lifeDelta == 0 ? 0 : 1,
+                duration: const Duration(milliseconds: 150),
+                child: Text(
+                  _lifeDelta > 0 ? '+$_lifeDelta' : '$_lifeDelta',
+                  style: TextStyle(
+                    fontSize: size * 0.28,
+                    fontWeight: FontWeight.w900,
+                    color: _lifeDelta >= 0 ? const Color(0xFFB9F6CA) : const Color(0xFFFFCDD2),
+                    shadows: const [Shadow(color: Colors.black54, blurRadius: 6)],
+                  ),
+                ),
+              ),
+              FittedBox(
+                child: Text(
+                  '$life',
+                  style: TextStyle(
+                    color: dead ? Colors.white38 : Colors.white,
+                    fontSize: size,
+                    fontWeight: FontWeight.w900,
+                    height: 1.0,
+                    shadows: [Shadow(color: Colors.black.withValues(alpha: 0.35), blurRadius: 12, offset: const Offset(0, 4))],
+                  ),
+                ),
+              ),
+            ]),
+          );
+        }),
+      ),
+    ]);
+  }
+
+  /// O veneno grande no lugar da vida (10 derrota): − e + como na vida.
+  Widget _poisonPage(GameProvider game, int i) {
+    final poison = game.counter(Counter.poison, i);
+    return Stack(children: [
+      Container(color: const Color(0xFF4A148C).withValues(alpha: 0.35)),
+      Row(children: [_zone(-1, _changePoison), _zone(1, _changePoison)]),
+      IgnorePointer(
+        child: LayoutBuilder(builder: (context, box) {
+          final size = (box.maxHeight * 0.36).clamp(36.0, 170.0);
+          return Center(
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              Row(mainAxisSize: MainAxisSize.min, children: [
+                Icon(Icons.science, color: const Color(0xFFE1BEE7), size: size * 0.22),
+                const SizedBox(width: 6),
+                Text('VENENO', style: TextStyle(color: const Color(0xFFE1BEE7), fontWeight: FontWeight.w900, fontSize: size * 0.17, letterSpacing: 1)),
+              ]),
+              FittedBox(
+                child: Text('$poison', style: TextStyle(color: Colors.white, fontSize: size, fontWeight: FontWeight.w900, height: 1.0)),
+              ),
+              Text('de 10', style: TextStyle(color: Colors.white70, fontWeight: FontWeight.w700, fontSize: size * 0.15)),
+            ]),
+          );
+        }),
+      ),
+    ]);
+  }
+
+  /// O dano de comandante recebido de cada adversário (21 de um derrota).
+  Widget _commanderPage(GameProvider game, int i) {
+    final others = [for (int a = 0; a < game.playerCount; a++) if (a != i) a];
+    Widget step(IconData icon, VoidCallback onTap) => GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () {
+            onTap();
+            HapticFeedback.selectionClick();
+            _touchPage();
+          },
+          child: Padding(padding: const EdgeInsets.all(6), child: Icon(icon, color: Colors.white, size: 30)),
+        );
+    return Container(
+      color: Colors.black.withValues(alpha: 0.25),
+      padding: const EdgeInsets.fromLTRB(10, 38, 10, 48),
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          const Text('DANO DE COMANDANTE RECEBIDO', style: TextStyle(color: Color(0xFFFFE0B2), fontWeight: FontWeight.w900, fontSize: 13, letterSpacing: 0.5)),
+          const SizedBox(height: 6),
+          for (final a in others)
+            Row(mainAxisSize: MainAxisSize.min, children: [
+              Container(width: 12, height: 12, decoration: BoxDecoration(color: game.colorOf(a), shape: BoxShape.circle, border: Border.all(color: Colors.white54))),
+              const SizedBox(width: 8),
+              SizedBox(width: 110, child: Text(game.playerNames[a], overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 16))),
+              step(Icons.remove_circle_outline, () => game.updateCommanderDamage(i, a, -1)),
+              SizedBox(
+                width: 44,
+                child: Text('${game.commanderDamage[i][a]}', textAlign: TextAlign.center, style: TextStyle(color: game.commanderDamage[i][a] >= 21 ? Colors.redAccent : Colors.white, fontSize: 26, fontWeight: FontWeight.w900)),
+              ),
+              step(Icons.add_circle_outline, () => game.updateCommanderDamage(i, a, 1)),
+            ]),
+        ]),
+      ),
     );
   }
 
@@ -170,43 +313,41 @@ class _PlayerCardWidgetState extends State<PlayerCardWidget> {
         ),
         clipBehavior: Clip.antiAlias,
         child: Stack(children: [
-          // Toque: metade esquerda −, metade direita +.
-          Row(children: [_zone(-1), _zone(1)]),
+          // Arrastar para o lado troca a página (vida, veneno, comandante).
+          Positioned.fill(
+            child: GestureDetector(
+              behavior: HitTestBehavior.translucent,
+              onHorizontalDragEnd: _onSwipe,
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 220),
+                transitionBuilder: (child, a) => FadeTransition(opacity: a, child: child),
+                child: KeyedSubtree(
+                  key: ValueKey(_page),
+                  child: _page == -1
+                      ? _poisonPage(game, i)
+                      : _page == 1
+                          ? _commanderPage(game, i)
+                          : _lifePage(life, dead),
+                ),
+              ),
+            ),
+          ),
 
-          // A vida, do tamanho que couber, e o quanto mudou em cima.
+          // Em qual página está (as bolinhas) — vida no meio.
           IgnorePointer(
-            child: LayoutBuilder(builder: (context, box) {
-              final size = (box.maxHeight * 0.42).clamp(40.0, 200.0);
-              return Center(
-                child: Column(mainAxisSize: MainAxisSize.min, children: [
-                  AnimatedOpacity(
-                    opacity: _lifeDelta == 0 ? 0 : 1,
-                    duration: const Duration(milliseconds: 150),
-                    child: Text(
-                      _lifeDelta > 0 ? '+$_lifeDelta' : '$_lifeDelta',
-                      style: TextStyle(
-                        fontSize: size * 0.28,
-                        fontWeight: FontWeight.w900,
-                        color: _lifeDelta >= 0 ? const Color(0xFFB9F6CA) : const Color(0xFFFFCDD2),
-                        shadows: const [Shadow(color: Colors.black54, blurRadius: 6)],
-                      ),
-                    ),
+            child: Align(
+              alignment: const Alignment(0, -0.62),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                for (final p in const [-1, 0, 1])
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    margin: const EdgeInsets.symmetric(horizontal: 3),
+                    width: _page == p ? 16 : 6,
+                    height: 6,
+                    decoration: BoxDecoration(color: Colors.white.withValues(alpha: _page == p ? 0.9 : 0.35), borderRadius: BorderRadius.circular(3)),
                   ),
-                  FittedBox(
-                    child: Text(
-                      '$life',
-                      style: TextStyle(
-                        color: dead ? Colors.white38 : Colors.white,
-                        fontSize: size,
-                        fontWeight: FontWeight.w900,
-                        height: 1.0,
-                        shadows: [Shadow(color: Colors.black.withValues(alpha: 0.35), blurRadius: 12, offset: const Offset(0, 4))],
-                      ),
-                    ),
-                  ),
-                ]),
-              );
-            }),
+              ]),
+            ),
           ),
 
           // Derrotado: caveira por cima (ainda dá para mexer, se foi engano).

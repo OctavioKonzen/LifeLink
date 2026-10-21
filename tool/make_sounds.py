@@ -35,6 +35,11 @@ def lowpass(signal, cutoff):
     return out
 
 
+def highpass(signal, cutoff):
+    """Filtro passa-alta simples (o sinal menos o passa-baixa)."""
+    return signal - lowpass(signal, cutoff)
+
+
 def sweep(x, f0, f1, duration):
     """Tom que vai de f0 a f1 (Hz) ao longo da duração (fase contínua)."""
     f = f0 * (f1 / f0) ** np.clip(x / duration, 0, 1)
@@ -70,17 +75,18 @@ def heal():
 
 
 def poison():
-    """Borbulhas: bolhas curtas subindo de tom em momentos aleatórios."""
-    parts = []
-    for k in range(9):
-        d = rng.uniform(0.04, 0.08)
-        x = t(d)
-        f0 = rng.uniform(260, 420)
-        bubble = sweep(x, f0, f0 * rng.uniform(2.2, 3.2), d) * env(x, d / 2.5, 0.003)
-        parts.append((k * 0.055 + rng.uniform(0, 0.02), bubble * rng.uniform(0.5, 0.9)))
-    out = mix(0.75, *parts)
-    hiss = lowpass(rng.uniform(-1, 1, len(out)), 900) * env(t(0.75), 0.25, 0.03) * 0.25
-    return out + hiss
+    """Cobra: o chocalho (estalos rápidos) e o chiado agudo do bote."""
+    snake = np.random.default_rng(11)  # sorteio próprio: os outros sons não mudam
+    length = 1.0
+    x = t(length)
+    # Chocalho: rajadas curtas de ruído agudo, umas 28 por segundo.
+    rattle_env = (0.5 + 0.5 * np.sign(np.sin(2 * np.pi * 28 * x))) * np.clip(x / 0.03, 0, 1) * np.exp(-x / 0.45)
+    rattle = highpass(snake.uniform(-1, 1, len(x)), 2500) * rattle_env * 0.55
+    # Chiado ("ssss"): ruído bem agudo que cresce e some, depois do chocalho.
+    hiss_x = t(0.75)
+    hiss_env = np.clip(hiss_x / 0.08, 0, 1) * np.exp(-np.maximum(hiss_x - 0.2, 0) / 0.18)
+    hiss = highpass(snake.uniform(-1, 1, len(hiss_x)), 5000) * hiss_env * 0.9
+    return mix(length, (0, rattle), (0.18, hiss))
 
 
 def commander():
