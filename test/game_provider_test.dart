@@ -63,4 +63,17 @@ void main() {
     expect(game.lives[0], 20);
     expect(game.canUndo, isFalse);
   });
+
+  test('avisa cada mudança e quando o jogador acaba de morrer (sons)', () {
+    final heard = <String>[];
+    game.onChange = (e, died) => heard.add('${e.kind}:${e.delta}${died ? ':morreu' : ''}');
+    game.updateLife(0, -5);
+    game.updateLife(0, 2);
+    game.updateCounter(Counter.poison, 1, 9);
+    game.updateCounter(Counter.poison, 1, 1); // 10 de veneno: morre
+    game.updateCommanderDamage(0, 1, 3);
+    game.updateLife(0, -40); // morre
+    game.updateLife(0, -1); // já estava morto: não morre de novo
+    expect(heard, ['life:-5', 'life:2', 'poison:9', 'poison:1:morreu', 'cmd:3', 'life:-40:morreu', 'life:-1']);
+  });
 }

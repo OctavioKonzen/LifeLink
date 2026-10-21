@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { defaultGame, updateSection, useUserData } from '../lib/userData'
 import { incrementMatches } from '../lib/xp'
 import DiceModal from '../components/DiceModal'
+import { playSound, setSoundsOn, soundFor, soundsOn } from '../lib/sounds'
 
 // O mesmo contador do app (game_provider.dart): 2 a 6 jogadores, vida 20 ou
 // 40 (Commander), veneno até 10 e dano de comandante até 21, que também tira
@@ -153,7 +154,17 @@ function useWide() {
 export default function LifeCounterPage() {
   const game = view(useUserData((s) => s.game))
   const wide = useWide()
-  const setGame = (update) => updateSection('game', (g) => toApp(update(view(g))))
+  // Cada toque toca o som da mudança (dano, cura, veneno, comandante, morte).
+  // Partida nova, nomes e número de jogadores não tocam som (silent).
+  const setGame = (update, { silent = false } = {}) =>
+    updateSection('game', (g) => {
+      const before = view(g)
+      const after = update(before)
+      const sound = silent ? null : soundFor(before, after)
+      if (sound) playSound(sound)
+      return toApp(after)
+    })
+  const [sounds, setSounds] = useState(soundsOn)
   const [banner, setBanner] = useState(null)
   const [dice, setDice] = useState(false)
 
@@ -181,7 +192,7 @@ export default function LifeCounterPage() {
           Jogadores
           <select
             value={game.players}
-            onChange={(e) => setGame((g) => ({ ...g, players: Number(e.target.value) }))}
+            onChange={(e) => setGame((g) => ({ ...g, players: Number(e.target.value) }), { silent: true })}
             className="rounded-lg border border-line bg-card px-2 py-1"
           >
             {[2, 3, 4, 5, 6].map((n) => (
@@ -191,10 +202,21 @@ export default function LifeCounterPage() {
         </label>
         <button
           type="button"
-          onClick={() => setGame((g) => newGame(g, g.startingLife === 40 ? 20 : 40))}
+          onClick={() => setGame((g) => newGame(g, g.startingLife === 40 ? 20 : 40), { silent: true })}
           className="rounded-full bg-text/10 px-4 py-1.5 text-sm font-bold hover:bg-text/20"
         >
           {game.startingLife === 40 ? 'Commander (40)' : 'Normal (20)'}
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setSoundsOn(!sounds)
+            setSounds(!sounds)
+          }}
+          title={sounds ? 'Desligar os sons' : 'Ligar os sons'}
+          className="rounded-full bg-text/10 px-3 py-1.5 text-sm font-bold hover:bg-text/20"
+        >
+          {sounds ? '🔊' : '🔇'}
         </button>
         <button
           type="button"
@@ -205,7 +227,7 @@ export default function LifeCounterPage() {
         </button>
         <button
           type="button"
-          onClick={() => setGame((g) => newGame(g, g.startingLife))}
+          onClick={() => setGame((g) => newGame(g, g.startingLife), { silent: true })}
           className="rounded-full bg-red-500 px-4 py-1.5 text-sm font-bold hover:brightness-110"
         >
           Reiniciar

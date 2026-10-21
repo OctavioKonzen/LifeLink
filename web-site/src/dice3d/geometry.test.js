@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest'
 import { dieShape, vec } from './geometry'
 
-const SIDES = { d4: 4, d6: 6, d8: 8, d10: 10, d12: 12, d20: 20, d100: 10 }
+const SIDES = { d4: 4, d6: 6, d8: 8, d10: 10, d12: 12, d20: 20, d100: 100 }
 
 describe.each(Object.keys(SIDES))('%s', (kind) => {
   const die = dieShape(kind)
@@ -21,7 +21,7 @@ describe.each(Object.keys(SIDES))('%s', (kind) => {
     const values = new Set(die.faces.map((f) => f.value))
     expect(values.size).toBe(die.sides)
     if (kind === 'd10') expect([...values].sort((a, b) => a - b)).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
-    if (kind === 'd100') expect([...values].sort((a, b) => a - b)).toEqual([0, 10, 20, 30, 40, 50, 60, 70, 80, 90])
+    if (kind === 'd100') expect([...values].sort((a, b) => a - b)).toEqual(Array.from({ length: 100 }, (_, i) => i + 1))
   })
 
   if (kind !== 'd4') {
@@ -34,4 +34,14 @@ describe.each(Object.keys(SIDES))('%s', (kind) => {
 
 test('D4 com um número em cada ponta', () => {
   expect(dieShape('d4').vertexValues).toEqual([1, 2, 3, 4])
+})
+
+test('D100: faces opostas somam 101 e 6/9 ganham ponto', () => {
+  const die = dieShape('d100')
+  const f1 = die.faces.find((f) => f.value === 1)
+  const opposite = die.faces.find((g) => vec.len(vec.add(g.normal, f1.normal)) < 1e-4)
+  expect(opposite.value).toBe(100)
+  expect(die.faces.find((f) => f.value === 6).label).toBe('6.')
+  expect(die.faces.find((f) => f.value === 69).label).toBe('69') // 69 de cabeça para baixo é 69
+  expect(die.faces.find((f) => f.value === 10).label).toBe('10')
 })

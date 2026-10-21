@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 import '../../../data/providers/game_provider.dart';
 import '../../../data/providers/xp_provider.dart';
+import '../../../data/services/sound_service.dart';
 import '../../widgets/player_card_widget.dart';
 import '../../widgets/dice_table.dart';
 import '../../widgets/continuous_action_button.dart';
@@ -23,7 +24,10 @@ class LifeCounterScreen extends StatefulWidget {
 
 class _LifeCounterScreenState extends State<LifeCounterScreen> {
   bool _menuOpen = false;
+  bool _firstPlayer = false; // "Quem começa" aberto (dados em cima de cada um)
   int? _shownWinner; // a vitória já mostrada nesta partida
+  final Map<int, GlobalKey> _cardKeys = {};
+  final Map<int, int> _turns = {}; // para que lado cada quadro está virado
 
   @override
   void initState() {
@@ -34,14 +38,32 @@ class _LifeCounterScreenState extends State<LifeCounterScreen> {
     final game = context.read<GameProvider>();
     _shownWinner = game.winner;
     game.addListener(_onGameChanged);
+    game.onChange = _playSound;
+    SoundService.instance.load();
   }
 
   @override
   void dispose() {
-    context.read<GameProvider>().removeListener(_onGameChanged);
+    final game = context.read<GameProvider>();
+    game.removeListener(_onGameChanged);
+    game.onChange = null;
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     WakelockPlus.disable().catchError((_) {});
     super.dispose();
+  }
+
+  /// O som de cada mudança: dano, cura, veneno, comandante ou, se o jogador
+  /// acabou de morrer, o da morte.
+  void _playSound(GameEvent change, bool died) {
+    final sound = died
+        ? GameSound.morte
+        : switch (change.kind) {
+            'life' => change.delta < 0 ? GameSound.dano : GameSound.cura,
+            'poison' => change.delta > 0 ? GameSound.veneno : GameSound.cura,
+            'cmd' => change.delta > 0 ? GameSound.comandante : GameSound.cura,
+            _ => null,
+          };
+    if (sound != null) SoundService.instance.play(sound);
   }
 
   // Sobrou um só vivo: a vitória vale XP (uma vez por partida) e aparece na tela.
@@ -63,9 +85,10 @@ class _LifeCounterScreenState extends State<LifeCounterScreen> {
   /// Como cada quadro fica virado: 0 = para baixo (quem segura o celular),
   /// 2 = de cabeça para baixo (do outro lado da mesa), 1 e 3 = de lado.
   Widget _card(GameProvider game, int index, int turns) {
+    _turns[index] = turns;
     return Expanded(
       child: PlayerCardWidget(
-        key: ValueKey(index),
+        key: _cardKeys.putIfAbsent(index, GlobalKey.new),
         index: index,
         quarterTurns: turns,
         game: game,
@@ -141,6 +164,23 @@ class _LifeCounterScreenState extends State<LifeCounterScreen> {
           ),
 
           if (_menuOpen) _menu(game),
+
+          if (_firstPlayer)
+            Positioned.fill(
+              child: _FirstPlayerOverlay(
+                game: game,
+                cardRects: () => {
+                  for (final e in _cardKeys.entries)
+                    if (e.key < game.playerCount && e.value.currentContext?.findRenderObject() is RenderBox)
+                      e.key: () {
+                        final box = e.value.currentContext!.findRenderObject() as RenderBox;
+                        return box.localToGlobal(Offset.zero) & box.size;
+                      }(),
+                },
+                turns: _turns,
+                onClose: () => setState(() => _firstPlayer = false),
+              ),
+            ),
         ]);
       }),
     );
@@ -219,6 +259,15 @@ class _LifeCounterScreenState extends State<LifeCounterScreen> {
                     _menuButton(Icons.casino, 'Dados', const Color(0xFFFFA000), () => _showDice()),
                     _menuButton(Icons.emoji_people, 'Quem começa', const Color(0xFF69F0AE), () => _showFirstPlayer(game)),
                     _menuButton(Icons.history, 'Histórico', const Color(0xFFB388FF), () => _showHistory(game)),
+                    _menuButton(
+                      SoundService.instance.enabled ? Icons.volume_up : Icons.volume_off,
+                      SoundService.instance.enabled ? 'Som ligado' : 'Som desligado',
+                      const Color(0xFF26C6DA),
+                      () async {
+                        await SoundService.instance.setEnabled(!SoundService.instance.enabled);
+                        setState(() {});
+                      },
+                    ),
                     _menuButton(Icons.close, 'Fechar', Colors.white70, close),
                     _menuButton(Icons.logout, 'Sair', Colors.white70, () => Navigator.pop(context)),
                   ]),
@@ -388,7 +437,10 @@ class _LifeCounterScreenState extends State<LifeCounterScreen> {
   }
 
   void _showFirstPlayer(GameProvider game) {
-    showDialog(context: context, builder: (_) => _FirstPlayerDialog(game: game));
+    setState(() {
+      _menuOpen = false;
+      _firstPlayer = true;
+    });
   }
 
   void _showHistory(GameProvider game) {
@@ -645,62 +697,163 @@ class _DiceDialogState extends State<_DiceDialog> {
   }
 }
 
-/// Sorteia quem começa: passa pelos nomes e para em um.
-class _FirstPlayerDialog extends StatefulWidget {
+/// "Quem começa": cada jogador joga um D20 que cai em cima do quadro dele (a
+/// mesa 3D cobre a tela toda). Ganha o maior; se empatar, os empatados jogam
+/// de novo.
+class _FirstPlayerOverlay extends StatefulWidget {
   final GameProvider game;
-  const _FirstPlayerDialog({required this.game});
+  final Map<int, Rect> Function() cardRects; // na tela
+  final Map<int, int> turns;
+  final VoidCallback onClose;
+
+  const _FirstPlayerOverlay({required this.game, required this.cardRects, required this.turns, required this.onClose});
 
   @override
-  State<_FirstPlayerDialog> createState() => _FirstPlayerDialogState();
+  State<_FirstPlayerOverlay> createState() => _FirstPlayerOverlayState();
 }
 
-class _FirstPlayerDialogState extends State<_FirstPlayerDialog> {
-  final _random = Random();
-  int _current = 0;
-  bool _done = false;
+class _FirstPlayerOverlayState extends State<_FirstPlayerOverlay> {
+  final _table = GlobalKey<DiceTableState>();
+  final Map<int, int> _rolls = {};
+  List<int> _round = [];
+  Set<int> _tied = {};
+  int? _winner;
+  String _status = 'Jogando os dados...';
 
-  @override
-  void initState() {
-    super.initState();
-    _spin();
+  /// Para que lado fica o "alto" de cada quadro na tela (ele pode estar virado).
+  static const _towardTop = {0: Offset(0, -1), 1: Offset(1, 0), 2: Offset(0, 1), 3: Offset(-1, 0)};
+
+  String _hex(Color c) => '#${(c.toARGB32() & 0xFFFFFF).toRadixString(16).padLeft(6, '0')}';
+
+  void _throw(List<int> players) {
+    final box = context.findRenderObject() as RenderBox?;
+    if (box == null || !box.hasSize) return;
+    final rects = widget.cardRects();
+    final items = <({double x, double y, String color, String kind})>[];
+    final thrown = <int>[];
+    for (final i in players) {
+      final r = rects[i];
+      if (r == null) continue;
+      // O dado cai um pouco para o "alto" do quadro (o número de cada um fica
+      // perto do jogador, sem cobrir o dado).
+      final dir = _towardTop[widget.turns[i] ?? 0]!;
+      final center = r.center + Offset(dir.dx * r.width * 0.16, dir.dy * r.height * 0.16);
+      final local = box.globalToLocal(center);
+      items.add((x: local.dx / box.size.width, y: local.dy / box.size.height, color: _hex(widget.game.colorOf(i)), kind: 'd20'));
+      thrown.add(i);
+    }
+    setState(() {
+      _round = thrown;
+      for (final i in thrown) {
+        _rolls.remove(i);
+      }
+    });
+    _table.currentState?.rollAt(items);
   }
 
-  Future<void> _spin() async {
-    setState(() => _done = false);
-    final n = widget.game.playerCount;
-    final target = _random.nextInt(n);
-    final steps = n * 3 + ((target - _current) % n + n) % n;
-    for (int k = 0; k < steps; k++) {
-      await Future.delayed(Duration(milliseconds: 60 + (k * 180 ~/ steps)));
-      if (!mounted) return;
-      setState(() => _current = (_current + 1) % n);
-      HapticFeedback.selectionClick();
+  void _onResult(DiceResult r) {
+    for (var k = 0; k < _round.length && k < r.values.length; k++) {
+      _rolls[_round[k]] = r.values[k];
+    }
+    final best = _round.map((i) => _rolls[i] ?? 0).fold(0, max);
+    final tied = _round.where((i) => _rolls[i] == best).toList();
+    if (tied.length > 1) {
+      HapticFeedback.mediumImpact();
+      setState(() {
+        _tied = tied.toSet();
+        _status = 'Empate no $best! Jogando de novo...';
+      });
+      Future.delayed(const Duration(milliseconds: 1500), () {
+        if (mounted) _throw(tied);
+      });
+      return;
     }
     HapticFeedback.heavyImpact();
-    if (mounted) setState(() => _done = true);
+    SoundService.instance.play(GameSound.cura);
+    setState(() {
+      _winner = tied.first;
+      _tied = {};
+      _status = '${widget.game.playerNames[tied.first]} começa!';
+    });
+  }
+
+  Widget _badge(int i) {
+    final value = _rolls[i];
+    if (value == null) return const SizedBox.shrink();
+    final win = _winner == i;
+    final lost = _winner != null && !win;
+    final tied = _tied.contains(i);
+    return AnimatedOpacity(
+      duration: const Duration(milliseconds: 300),
+      opacity: lost ? 0.45 : 1,
+      child: AnimatedScale(
+        duration: const Duration(milliseconds: 350),
+        curve: Curves.elasticOut,
+        scale: win ? 1.25 : 1,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: BoxDecoration(
+            color: win ? const Color(0xFFFFC107) : Colors.black.withValues(alpha: 0.65),
+            borderRadius: BorderRadius.circular(30),
+            border: Border.all(color: tied ? const Color(0xFFFFC107) : Colors.white24, width: tied ? 2.5 : 1),
+            boxShadow: win ? [BoxShadow(color: Colors.amber.withValues(alpha: 0.7), blurRadius: 24)] : null,
+          ),
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            if (win) const Padding(padding: EdgeInsets.only(right: 6), child: Text('👑', style: TextStyle(fontSize: 22))),
+            Text(win ? '$value · Começa!' : '$value',
+                style: TextStyle(color: win ? Colors.black : Colors.white, fontSize: 24, fontWeight: FontWeight.w900)),
+          ]),
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final game = widget.game;
-    return Dialog(
-      backgroundColor: game.colorOf(_current),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-      child: Padding(
-        padding: const EdgeInsets.all(28),
+    final rects = widget.cardRects();
+    final box = context.findRenderObject() as RenderBox?;
+    return Stack(children: [
+      Positioned.fill(child: GestureDetector(onTap: _winner != null ? widget.onClose : null, child: Container(color: Colors.black.withValues(alpha: 0.35)))),
+      Positioned.fill(
+        child: IgnorePointer(
+          child: DiceTable(
+            key: _table,
+            fullScreen: true,
+            onReady: () => _throw([for (int i = 0; i < widget.game.playerCount; i++) i]),
+            onResult: _onResult,
+          ),
+        ),
+      ),
+      // O número de cada jogador, virado para ele, perto da borda dele.
+      if (box != null && box.hasSize)
+        for (final e in rects.entries)
+          Positioned.fromRect(
+            rect: box.globalToLocal(e.value.topLeft) & e.value.size,
+            child: IgnorePointer(
+              child: RotatedBox(
+                quarterTurns: widget.turns[e.key] ?? 0,
+                child: Align(alignment: const Alignment(0, 0.62), child: _badge(e.key)),
+              ),
+            ),
+          ),
+      Center(
         child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Text(_done ? 'Quem começa' : 'Sorteando...', style: const TextStyle(color: Colors.white70, fontWeight: FontWeight.w800)),
-          const SizedBox(height: 14),
-          Text(game.playerNames[_current], textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontSize: 34, fontWeight: FontWeight.w900)),
-          const SizedBox(height: 20),
-          if (_done)
-            Row(mainAxisSize: MainAxisSize.min, children: [
-              TextButton(onPressed: _spin, child: const Text('Sortear de novo', style: TextStyle(color: Colors.white))),
-              const SizedBox(width: 8),
-              ElevatedButton(onPressed: () => Navigator.pop(context), child: const Text('OK')),
-            ]),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+            decoration: BoxDecoration(color: const Color(0xFF1E1E24), borderRadius: BorderRadius.circular(24), border: Border.all(color: Colors.white24)),
+            child: Text(_status, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 16)),
+          ),
+          const SizedBox(height: 10),
+          if (_winner != null)
+            FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: const Color(0xFF69F0AE), foregroundColor: Colors.black),
+              onPressed: widget.onClose,
+              child: const Text('Começar a partida', style: TextStyle(fontWeight: FontWeight.w900)),
+            )
+          else
+            TextButton(onPressed: widget.onClose, child: const Text('Cancelar', style: TextStyle(color: Colors.white70))),
         ]),
       ),
-    );
+    ]);
   }
 }

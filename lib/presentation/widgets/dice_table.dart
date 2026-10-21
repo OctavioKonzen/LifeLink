@@ -20,7 +20,12 @@ class DiceTable extends StatefulWidget {
   final ValueChanged<DiceResult> onResult;
   final VoidCallback? onRolling;
 
-  const DiceTable({super.key, required this.kind, required this.onResult, this.onRolling});
+  /// A mesa cobre a tela toda ("Quem começa"): dados menores, vistos de cima,
+  /// jogados com [DiceTableState.rollAt]. Chamado quando a mesa fica pronta.
+  final bool fullScreen;
+  final VoidCallback? onReady;
+
+  const DiceTable({super.key, this.kind = 'd20', required this.onResult, this.onRolling, this.fullScreen = false, this.onReady});
 
   @override
   State<DiceTable> createState() => DiceTableState();
@@ -48,7 +53,10 @@ class DiceTableState extends State<DiceTable> {
     switch (data['type']) {
       case 'ready':
         setState(() => _ready = true);
-        _controller.runJavaScript('LifeLinkDice.show(${jsonEncode(widget.kind)})');
+        _controller.runJavaScript('LifeLinkDice.init(${widget.fullScreen})').then((_) {
+          if (!widget.fullScreen) _controller.runJavaScript('LifeLinkDice.show(${jsonEncode(widget.kind)})');
+          widget.onReady?.call();
+        });
       case 'rolling':
         widget.onRolling?.call();
       case 'result':
@@ -63,7 +71,7 @@ class DiceTableState extends State<DiceTable> {
   @override
   void didUpdateWidget(DiceTable oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.kind != widget.kind && _ready) {
+    if (oldWidget.kind != widget.kind && _ready && !widget.fullScreen) {
       _controller.runJavaScript('LifeLinkDice.show(${jsonEncode(widget.kind)})');
     }
   }
@@ -73,11 +81,19 @@ class DiceTableState extends State<DiceTable> {
     if (_ready) _controller.runJavaScript('LifeLinkDice.roll(${jsonEncode(widget.kind)})');
   }
 
+  /// Joga um dado em cima de cada ponto da tela (x e y de 0 a 1): o
+  /// resultado vem com os valores na mesma ordem.
+  void rollAt(List<({double x, double y, String color, String kind})> items) {
+    if (!_ready) return;
+    final list = [for (final i in items) {'x': i.x, 'y': i.y, 'color': i.color, 'kind': i.kind}];
+    _controller.runJavaScript('LifeLinkDice.rollAt(${jsonEncode(list)})');
+  }
+
   @override
   Widget build(BuildContext context) {
     return Stack(children: [
       WebViewWidget(controller: _controller),
-      if (!_ready) const Center(child: CircularProgressIndicator()),
+      if (!_ready && !widget.fullScreen) const Center(child: CircularProgressIndicator()),
     ]);
   }
 }

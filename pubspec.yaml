@@ -40,3 +40,5 @@ flutter:
     - assets/logo/lifelink.png
     # Mesa de dados 3D (o mesmo motor do site; gerada com: cd web-site && npm run build:dice)
     - assets/dice/
+    # Sons do contador (gerados com: python3 tool/make_sounds.py)
+    - assets/sounds/

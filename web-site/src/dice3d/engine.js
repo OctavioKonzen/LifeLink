@@ -8,7 +8,6 @@ import * as CANNON from 'cannon-es'
 import { DICE, dieShape, vec } from './geometry'
 import { playClack, unlockSound } from './sound'
 
-const SIZE = 1 // raio dos dados na mesa
 const UP = new THREE.Vector3(0, 1, 0)
 
 function shade(hex, amount) {
@@ -20,9 +19,14 @@ function shade(hex, amount) {
 }
 
 /** A textura de uma face: a cor do dado e o número (no D4, os 3 das pontas). */
-function faceTexture(color, draw) {
+function faceTexture(color, draw, px = 256) {
   const canvas = document.createElement('canvas')
   canvas.width = canvas.height = 256
+  // O D100 tem 100 faces: texturas menores (o desenho continua em 256).
+  if (px !== 256) {
+    canvas.width = canvas.height = px
+    canvas.getContext('2d').scale(px / 256, px / 256)
+  }
   const g = canvas.getContext('2d')
   const grad = g.createRadialGradient(110, 100, 20, 128, 128, 190)
   grad.addColorStop(0, shade(color, 0.08))
@@ -53,7 +57,7 @@ function writeNumber(g, text, x, y, px, angle = 0) {
 }
 
 /** A malha do dado: cada face com a textura do número, no plano da face. */
-function buildMesh(shape, color) {
+function buildMesh(shape, color, SIZE) {
   const positions = []
   const uvs = []
   const geometry = new THREE.BufferGeometry()
@@ -102,7 +106,7 @@ function buildMesh(shape, color) {
         const px = inr * scale * (digits === 1 ? 1.05 : digits === 2 ? 0.8 : 0.66)
         writeNumber(g, f.label, 128, 128, px)
       }
-    })
+    }, shape.sides > 20 ? 128 : 256)
     materials.push(new THREE.MeshStandardMaterial({ map: texture, roughness: 0.42, metalness: 0.05 }))
   })
 
@@ -122,7 +126,9 @@ function buildMesh(shape, color) {
  * Cria a mesa dentro de [container].
  * onResult({ kind, values, total }) é chamado quando os dados param.
  */
-export function createDiceTable(container, { onResult, onRollStart } = {}) {
+export function createDiceTable(container, { onResult, onRollStart, dieSize, topDown = false } = {}) {
+  // Raio dos dados na mesa (dieSize pode ser uma função do tamanho da mesa).
+  let SIZE = 1
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2))
   renderer.shadowMap.enabled = true
@@ -136,8 +142,15 @@ export function createDiceTable(container, { onResult, onRollStart } = {}) {
 
   const scene = new THREE.Scene()
   const camera = new THREE.PerspectiveCamera(34, 1, 0.1, 100)
-  camera.position.set(0, 10.5, 4.6)
-  camera.lookAt(0, 0, 0.25)
+  // De cima e um pouco de frente; na mesa da tela toda, bem de cima (para o
+  // dado cair exatamente em cima de cada jogador).
+  if (topDown) {
+    camera.position.set(0, 12, 0.001)
+    camera.lookAt(0, 0, 0)
+  } else {
+    camera.position.set(0, 10.5, 4.6)
+    camera.lookAt(0, 0, 0.25)
+  }
 
   scene.add(new THREE.HemisphereLight(0xffffff, 0x445566, 0.9))
   const sun = new THREE.DirectionalLight(0xffffff, 1.9)
@@ -168,22 +181,40 @@ export function createDiceTable(container, { onResult, onRollStart } = {}) {
 
   let walls = []
   let half = { w: 3, d: 3 }
+  let bounds = { minX: -3, maxX: 3, minZ: -3, maxZ: 3 }
+  const raycaster = new THREE.Raycaster()
+  const tablePlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0)
   function layout() {
     const w = Math.max(1, container.clientWidth)
     const h = Math.max(1, container.clientHeight)
     renderer.setSize(w, h, false)
     camera.aspect = w / h
     camera.updateProjectionMatrix()
-    // A área da mesa que aparece na tela (para as paredes ficarem na borda).
-    const dist = camera.position.length()
-    const visibleH = 2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * dist
-    half = { w: Math.max(2.4, (visibleH * camera.aspect) / 2 - 0.5), d: Math.max(2.2, visibleH / 2 - 0.6) }
+    // A área da mesa que aparece na tela: os cantos da tela projetados na
+    // mesa (as paredes ficam na borda do que se vê).
+    camera.updateMatrixWorld()
+    const corners = [[-1, -1], [1, -1], [-1, 1], [1, 1]].map(([x, y]) => {
+      raycaster.setFromCamera(new THREE.Vector2(x, y), camera)
+      const hit = new THREE.Vector3()
+      raycaster.ray.intersectPlane(tablePlane, hit)
+      return hit
+    })
+    const margin = 0.15
+    bounds = {
+      minX: Math.max(corners[0].x, corners[2].x) + margin,
+      maxX: Math.min(corners[1].x, corners[3].x) - margin,
+      minZ: Math.max(corners[2].z, corners[3].z) + margin, // longe (alto da tela)
+      maxZ: Math.min(corners[0].z, corners[1].z) - margin, // perto (pé da tela)
+    }
+    half = { w: (bounds.maxX - bounds.minX) / 2, d: (bounds.maxZ - bounds.minZ) / 2 }
+    if (typeof dieSize === 'function') SIZE = dieSize(half)
+    else if (dieSize) SIZE = dieSize
     for (const b of walls) world.removeBody(b)
     walls = [
-      [new CANNON.Vec3(half.w, 0, 0), [0, -Math.PI / 2, 0]],
-      [new CANNON.Vec3(-half.w, 0, 0), [0, Math.PI / 2, 0]],
-      [new CANNON.Vec3(0, 0, half.d), [0, Math.PI, 0]],
-      [new CANNON.Vec3(0, 0, -half.d), [0, 0, 0]],
+      [new CANNON.Vec3(bounds.maxX, 0, 0), [0, -Math.PI / 2, 0]],
+      [new CANNON.Vec3(bounds.minX, 0, 0), [0, Math.PI / 2, 0]],
+      [new CANNON.Vec3(0, 0, bounds.maxZ), [0, Math.PI, 0]],
+      [new CANNON.Vec3(0, 0, bounds.minZ), [0, 0, 0]],
     ].map(([pos, [x, y, z]]) => {
       const b = new CANNON.Body({ mass: 0, material: tableMat, shape: new CANNON.Plane(), position: pos })
       b.quaternion.setFromEuler(x, y, z)
@@ -216,7 +247,7 @@ export function createDiceTable(container, { onResult, onRollStart } = {}) {
 
   function makeDie(dieKind, color) {
     const shape = dieShape(dieKind)
-    const mesh = buildMesh(shape, color)
+    const mesh = buildMesh(shape, color, SIZE)
     scene.add(mesh)
     const body = new CANNON.Body({
       mass: 1,
@@ -225,8 +256,9 @@ export function createDiceTable(container, { onResult, onRollStart } = {}) {
         vertices: shape.vertices.map((p) => new CANNON.Vec3(...vec.mul(p, SIZE))),
         faces: shape.faces.map((f) => f.corners),
       }),
-      linearDamping: 0.08,
-      angularDamping: 0.08,
+      // O D100 é quase uma bola: mais freio para não rolar para sempre.
+      linearDamping: dieKind === 'd100' ? 0.25 : 0.08,
+      angularDamping: dieKind === 'd100' ? 0.45 : 0.08,
       allowSleep: true,
       sleepSpeedLimit: 0.18,
       sleepTimeLimit: 0.35,
@@ -246,7 +278,6 @@ export function createDiceTable(container, { onResult, onRollStart } = {}) {
 
   function diceFor(k) {
     const info = DICE.find((d) => d.kind === k) ?? DICE[5]
-    if (k === 'd100') return [makeDie('d100', info.color), makeDie('d10', '#f4511e')]
     return [makeDie(k, info.color)]
   }
 
@@ -268,7 +299,7 @@ export function createDiceTable(container, { onResult, onRollStart } = {}) {
       q.premultiply(new THREE.Quaternion().setFromAxisAngle(UP, -0.35))
       const rest = vec.dot(top.center, top.normal) * SIZE
       const x = dice.length > 1 ? (i === 0 ? -1.3 : 1.3) : 0
-      d.body.position.set(x, rest + 0.01, 0)
+      d.body.position.set(x, rest + 0.01, (bounds.minZ + bounds.maxZ) / 2)
       d.body.quaternion.set(q.x, q.y, q.z, q.w)
       d.body.velocity.setZero()
       d.body.angularVelocity.setZero()
@@ -281,13 +312,13 @@ export function createDiceTable(container, { onResult, onRollStart } = {}) {
   /** Joga os dados na mesa. */
   function roll(k = kind) {
     unlockSound()
-    if (k !== kind || !dice.length) show(k)
+    if (k !== kind || dice.length !== 1) show(k)
     kind = k
     dice.forEach((d, i) => {
       const b = d.body
       b.wakeUp()
       const spread = dice.length > 1 ? (i === 0 ? -1 : 1) : 0
-      b.position.set(spread * 1.2 + (Math.random() - 0.5) * 1.5, 2.2 + Math.random() * 1.2, half.d - 0.8)
+      b.position.set(spread * 1.2 + (Math.random() - 0.5) * 1.5, 2.2 + Math.random() * 1.2, bounds.maxZ - 0.8)
       const q = new CANNON.Quaternion()
       q.setFromEuler(Math.random() * 6.28, Math.random() * 6.28, Math.random() * 6.28)
       b.quaternion.copy(q)
@@ -299,6 +330,54 @@ export function createDiceTable(container, { onResult, onRollStart } = {}) {
     rollStart = performance.now()
     onRollStart?.()
     start()
+  }
+
+  /** O ponto da mesa embaixo de (x, y) da tela, de 0 a 1. */
+  function tablePoint(x, y) {
+    raycaster.setFromCamera(new THREE.Vector2(x * 2 - 1, -(y * 2 - 1)), camera)
+    const hit = new THREE.Vector3()
+    raycaster.ray.intersectPlane(tablePlane, hit)
+    hit.x = Math.max(bounds.minX + SIZE, Math.min(bounds.maxX - SIZE, hit.x))
+    hit.z = Math.max(bounds.minZ + SIZE, Math.min(bounds.maxZ - SIZE, hit.z))
+    return hit
+  }
+
+  /**
+   * Joga um dado em cima de cada ponto: items = [{ kind, color, x, y }].
+   * O resultado vem em onResult({ kind: 'many', values }) na mesma ordem.
+   */
+  function rollAt(items) {
+    unlockSound()
+    rolling = false
+    clear()
+    kind = 'many'
+    dice = items.map((it) => makeDie(it.kind ?? 'd20', it.color ?? DICE.find((d) => d.kind === (it.kind ?? 'd20')).color))
+    dice.forEach((d, i) => {
+      const target = tablePoint(items[i].x, items[i].y)
+      d.target = target
+      const b = d.body
+      b.wakeUp()
+      // Cai de cima do ponto, girando, e quica um pouco em volta dele.
+      b.position.set(target.x + (Math.random() - 0.5) * SIZE, 2.4 + Math.random() * 1.2, target.z + (Math.random() - 0.5) * SIZE)
+      const q = new CANNON.Quaternion()
+      q.setFromEuler(Math.random() * 6.28, Math.random() * 6.28, Math.random() * 6.28)
+      b.quaternion.copy(q)
+      b.velocity.set((Math.random() - 0.5) * 1.5, -3, (Math.random() - 0.5) * 1.5)
+      b.angularVelocity.set((Math.random() - 0.5) * 36, (Math.random() - 0.5) * 36, (Math.random() - 0.5) * 36)
+    })
+    rolling = true
+    settledFrames = 0
+    rollStart = performance.now()
+    onRollStart?.()
+    start()
+  }
+
+  /** Onde cada dado parou, de 0 a 1 na tela (para mostrar o número em cima). */
+  function screenPositions() {
+    return dice.map((d) => {
+      const p = d.mesh.position.clone().project(camera)
+      return { x: (p.x + 1) / 2, y: (1 - p.y) / 2 }
+    })
   }
 
   function topValue(d) {
@@ -344,8 +423,11 @@ export function createDiceTable(container, { onResult, onRollStart } = {}) {
       return
     }
     const values = results.map((r) => r.value)
-    let total = values.reduce((a, b) => a + b, 0)
-    if (kind === 'd100' && total === 0) total = 100 // 00 + 0
+    if (kind === 'many') {
+      onResult?.({ kind, values, total: values.reduce((a, b) => a + b, 0), positions: screenPositions() })
+      return
+    }
+    const total = values.reduce((a, b) => a + b, 0)
     onResult?.({ kind, values, total })
   }
 
@@ -364,6 +446,13 @@ export function createDiceTable(container, { onResult, onRollStart } = {}) {
     frame = 0
     const dt = Math.min(0.05, (time - (lastTime || time)) / 1000)
     lastTime = time
+    // "Quem começa": cada dado é puxado de leve para o seu jogador (quica e
+    // rola de verdade, mas termina em cima do quadro dele).
+    for (const d of dice) {
+      if (!d.target || d.body.sleepState === CANNON.Body.SLEEPING) continue
+      const b = d.body
+      b.applyForce(new CANNON.Vec3((d.target.x - b.position.x) * 22 - b.velocity.x * 3, 0, (d.target.z - b.position.z) * 22 - b.velocity.z * 3))
+    }
     world.step(1 / 120, dt, 8)
     sync()
     render()
@@ -388,6 +477,12 @@ export function createDiceTable(container, { onResult, onRollStart } = {}) {
   return {
     roll,
     show,
+    rollAt,
+    clear() {
+      rolling = false
+      clear()
+      render()
+    },
     get kind() {
       return kind
     },

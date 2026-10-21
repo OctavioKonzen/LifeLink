@@ -32,8 +32,7 @@ function rawVertices(kind) {
     }
     case 'd20':
       return [-1, 1].flatMap((a) => [-PHI, PHI].flatMap((b) => [[0, a, b], [a, b, 0], [b, 0, a]]))
-    case 'd10':
-    case 'd100': {
+    case 'd10': {
       // Dois polos e dez vértices em zigue-zague; esta altura dos polos deixa
       // cada face (um "pipa") plana: h = z0·(1 + cos36°)/(1 − cos36°).
       const z0 = 0.105
@@ -45,6 +44,47 @@ function rawVertices(kind) {
     default:
       throw new Error(`Dado desconhecido: ${kind}`)
   }
+}
+
+/**
+ * Centros das faces do D100: 50 pontos em espiral numa metade da esfera e os
+ * opostos exatos na outra metade (para as faces opostas somarem 101).
+ */
+function d100Normals() {
+  const half = []
+  const golden = Math.PI * (3 - Math.sqrt(5))
+  for (let i = 0; i < 50; i++) {
+    const z = 1 - (i + 0.5) / 50 // só a metade de cima (z > 0)
+    const r = Math.sqrt(1 - z * z)
+    half.push([Math.cos(i * golden) * r, Math.sin(i * golden) * r, z])
+  }
+  return [...half, ...half.map((p) => mul(p, -1))]
+}
+
+/**
+ * D100 com 100 faces: cada ponto vira uma face (o sólido "dual" do casco dos
+ * pontos). Os vértices são os polos dos triângulos do casco; a face de cada
+ * ponto são os polos dos triângulos em volta dele.
+ */
+function d100Solid() {
+  const points = d100Normals()
+  const tris = hullFaces(points)
+  const vertices = tris.map((t) => {
+    const [a, b, c] = t.map((m) => points[m])
+    const n = unit(cross(sub(b, a), sub(c, a)))
+    return mul(n, 1 / dot(n, a)) // polo do plano do triângulo
+  })
+  const faces = points.map((p, i) => {
+    const around = tris.map((t, k) => (t.includes(i) ? k : -1)).filter((k) => k >= 0)
+    const ref = unit(sub(vertices[around[0]], mul(p, dot(vertices[around[0]], p))))
+    const ref2 = cross(p, ref)
+    const angle = (k) => {
+      const q = vertices[k]
+      return Math.atan2(dot(q, ref2), dot(q, ref))
+    }
+    return around.sort((a, b) => angle(a) - angle(b))
+  })
+  return { vertices, faces }
 }
 
 /** Faces de um sólido convexo, com os cantos em volta do centro (sentido anti-horário visto de fora). */
@@ -86,7 +126,17 @@ function hullFaces(v) {
   return faces
 }
 
-const marked = (value, kind) => (value === 6 || value === 9) && !['d4', 'd6', 'd8'].includes(kind)
+// Números que de cabeça para baixo viram outro número (6/9, 66/99, 16/91...)
+// ganham um ponto, como nos dados de verdade.
+const FLIP = { 0: '0', 1: '1', 6: '9', 8: '8', 9: '6' }
+function marked(value, kind) {
+  if (['d4', 'd6', 'd8'].includes(kind)) return false
+  const digits = String(value)
+  if (![...digits].every((d) => d in FLIP)) return false
+  const flipped = Number([...digits].reverse().map((d) => FLIP[d]).join(''))
+  const max = kind === 'd100' ? 100 : kind === 'd10' ? 9 : Number(kind.slice(1))
+  return flipped !== value && flipped >= (kind === 'd10' ? 0 : 1) && flipped <= max && !digits.endsWith('0')
+}
 
 const cache = new Map()
 
@@ -96,10 +146,11 @@ const cache = new Map()
  */
 export function dieShape(kind) {
   if (cache.has(kind)) return cache.get(kind)
-  const raw = rawVertices(kind)
+  const solid = kind === 'd100' ? d100Solid() : null
+  const raw = solid ? solid.vertices : rawVertices(kind)
   const radius = Math.max(...raw.map(len))
   const vertices = raw.map((p) => mul(p, 1 / radius))
-  const corners = hullFaces(vertices)
+  const corners = solid ? solid.faces : hullFaces(vertices)
 
   const centers = corners.map((c) => centerOf(c.map((m) => vertices[m])))
   const normals = corners.map((c, i) => {
@@ -110,7 +161,7 @@ export function dieShape(kind) {
 
   // Numeração: pares de faces opostas recebem (menor, maior), percorrendo de
   // cima para baixo em espiral para espalhar os números.
-  const first = kind === 'd10' || kind === 'd100' ? 0 : 1
+  const first = kind === 'd10' ? 0 : 1
   const order = corners.map((_, i) => i).sort((a, b) => {
     const dz = normals[b][2] - normals[a][2]
     if (Math.abs(dz) > 1e-6) return dz
@@ -130,18 +181,22 @@ export function dieShape(kind) {
     const center = centers[i]
     const normal = normals[i]
     let toward
-    if (kind === 'd10' || kind === 'd100') {
+    if (kind === 'd10') {
       // No D10 o número aponta para o polo (como no dado real).
       toward = c.map((m) => vertices[m]).find((p) => Math.abs(p[0]) < 1e-9 && Math.abs(p[1]) < 1e-9)
     } else if (kind === 'd6') {
       toward = mul(add(vertices[c[0]], vertices[c[1]]), 0.5)
+    } else if (kind === 'd100') {
+      // No D100 os números ficam de pé em relação ao "norte" do dado.
+      const north = Math.abs(normal[2]) > 0.98 ? [1, 0, 0] : [0, 0, 1]
+      toward = add(center, north)
     } else {
       toward = vertices[c[0]]
     }
     let up = sub(toward, center)
     up = unit(sub(up, mul(normal, dot(up, normal))))
-    const value = kind === 'd100' ? values[i] * 10 : values[i]
-    const label = kind === 'd100' ? `${values[i]}0` : `${values[i]}${marked(values[i], kind) ? '.' : ''}`
+    const value = values[i]
+    const label = `${value}${marked(value, kind) ? '.' : ''}`
     return { corners: c, center, normal, up, value, label }
   })
 
@@ -160,5 +215,5 @@ export const DICE = [
   { kind: 'd10', label: 'D10', color: '#f4511e' },
   { kind: 'd12', label: 'D12', color: '#e53935' },
   { kind: 'd20', label: 'D20', color: '#ffa000' },
-  { kind: 'd100', label: 'D100', color: '#00897b' },
+  { kind: 'd100', label: 'D100', color: '#00897b' }, // um dado só, de 1 a 100
 ]

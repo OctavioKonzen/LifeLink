@@ -90,6 +90,12 @@ class GameProvider with ChangeNotifier {
     return alive.length == 1 ? alive.first : null;
   }
 
+  /// Chamado a cada mudança feita aqui (não nas que vêm da conta), com a
+  /// mudança e se o jogador acabou de morrer: o contador usa para os sons.
+  void Function(GameEvent change, bool died)? onChange;
+
+  void _changed(GameEvent change, bool wasDead) => onChange?.call(change, !wasDead && isDead(change.player));
+
   /// Termina quando a partida salva no aparelho foi carregada.
   late final Future<void> ready;
 
@@ -142,8 +148,10 @@ class GameProvider with ChangeNotifier {
 
   void updateLife(int index, int delta) {
     if (delta == 0) return;
+    final wasDead = isDead(index);
     _lives[index] += delta;
     _record(GameEvent(index, 'life', delta));
+    _changed(GameEvent(index, 'life', delta), wasDead);
   }
 
   void updatePoison(int index, int delta) => updateCounter(Counter.poison, index, delta);
@@ -151,13 +159,18 @@ class GameProvider with ChangeNotifier {
   void updateCounter(Counter kind, int index, int delta) {
     final list = _counterList(kind);
     final max = kind == Counter.poison ? 10 : 99;
+    final wasDead = isDead(index);
     final before = list[index];
     list[index] = (before + delta).clamp(0, max);
     final applied = list[index] - before;
-    if (applied != 0) _record(GameEvent(index, kind.name, applied));
+    if (applied != 0) {
+      _record(GameEvent(index, kind.name, applied));
+      _changed(GameEvent(index, kind.name, applied), wasDead);
+    }
   }
 
   void updateCommanderDamage(int victim, int attacker, int delta) {
+    final wasDead = isDead(victim);
     final before = _commanderDamage[victim][attacker];
     final after = (before + delta).clamp(0, 21);
     final applied = after - before;
@@ -166,6 +179,7 @@ class GameProvider with ChangeNotifier {
     // O dano de comandante também tira vida.
     _lives[victim] -= applied;
     _record(GameEvent(victim, 'cmd', applied, attacker: attacker));
+    _changed(GameEvent(victim, 'cmd', applied, attacker: attacker), wasDead);
   }
 
   /// Desfaz a última mudança da partida.

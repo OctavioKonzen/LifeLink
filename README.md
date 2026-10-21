@@ -55,7 +55,8 @@ Feito para a mesa, como os apps do gênero (Lifetap, MTG Companion): de **2 a 6 
 * **Toque** na metade esquerda tira 1 de vida, na direita soma 1; **segurando**, vai de 10 em 10. O quanto mudou (ex.: −7) aparece em cima da vida.
 * **Contadores** de cada jogador: veneno (até 10), energia, experiência, imposto do comandante e **dano de comandante** de cada oponente (até 21, que também tira vida).
 * Cada jogador escolhe **nome e cor**; quem perde fica com a caveira e, quando sobra um, aparece o vencedor.
-* No botão do meio: **desfazer**, histórico da partida, reiniciar, **dados 3D com física** (D4, D6, D8, D10, D12, D20 e D100: jogados numa mesa, quicam, batem um no outro com som e vale a face que fica para cima), moeda e **quem começa**. A tela não apaga durante a partida.
+* No botão do meio: **desfazer**, histórico da partida, reiniciar, **dados 3D com física** (D4, D6, D8, D10, D12, D20 e o D100 de uma peça só, de 1 a 100: jogados numa mesa, quicam, batem um no outro com som e vale a face que fica para cima), moeda e **quem começa** (cada jogador joga um D20 que cai em cima do quadro dele; empate joga de novo).
+* **Sons** de dano, cura, veneno, dano de comandante e morte (dá para desligar). A tela não apaga durante a partida.
 
 A partida fica salva e, com a conta, é a mesma no app e no site. Cada partida terminada vale XP para o perfil.
 
