@@ -3,7 +3,7 @@ import { defaultGame, updateSection, useUserData } from '../lib/userData'
 import { incrementMatches, undoMatch } from '../lib/xp'
 import DiceModal from '../components/DiceModal'
 import { beginHold, endHold, playSound, setSoundsOn, soundFor, soundsOn } from '../lib/sounds'
-import { clock, isDead, nextTurn, startTurns, stopTurns, turnTotal } from '../lib/turns'
+import { clock, isDead, nextTurn, shuffleSeats, startTurns, stopTurns, toggleDayNight, turnTotal } from '../lib/turns'
 import TableCardsModal from '../components/TableCardsModal'
 import OnlineModal from '../components/OnlineModal'
 import { useOnlineTable } from '../lib/online'
@@ -50,6 +50,7 @@ const COUNTERS = [
   ['tax', 'Imposto do comandante', '🏛', 2, 99],
   ['treasure', 'Tesouro', '💰', 1, 99],
   ['storm', 'Tempestade', '🌩', 1, 99],
+  ['radiation', 'Radiação', '☢', 1, 99],
 ]
 /**
  * Dano de comandante de attacker em victim (até 21); também tira vida de quem
@@ -351,6 +352,14 @@ export function rowsFor(players, wide) {
   return sizes.map((n) => Array.from({ length: n }, () => next++))
 }
 
+/** Com o meu lugar: os outros jogadores em linhas de até 3 (eu fico embaixo, à parte). */
+export function seatRows(players, mySeat) {
+  const others = Array.from({ length: players }, (_, i) => i).filter((i) => i !== mySeat)
+  const rows = []
+  for (let r = 0; r < others.length; r += 3) rows.push(others.slice(r, r + 3))
+  return rows
+}
+
 function useWide() {
   const get = () => window.innerWidth >= window.innerHeight
   const [wide, setWide] = useState(get)
@@ -441,6 +450,13 @@ export default function LifeCounterPage() {
   const [sounds, setSounds] = useState(soundsOn)
   const [banner, setBanner] = useState(null)
   const [dice, setDice] = useState(false)
+  // O meu lugar na mesa online (se escolhi um e ele ainda existe).
+  const mySeat = table.code && table.mySeat >= 0 && table.mySeat < game.players ? table.mySeat : -1
+  // Sortear lugares começa uma partida nova: no meio de uma, pergunta antes (como no app).
+  const sortSeats = () => {
+    if (canUndo && !window.confirm('Nova partida? A vida e os contadores de todos voltam ao começo.')) return
+    setGame((g) => newGame(shuffleSeats(g), g.startingLife), { silent: true, reset: true })
+  }
 
   // Sobrou um só jogador vivo: a partida conta para o perfil (+50 XP), uma
   // vez por partida, como no app.
@@ -538,6 +554,21 @@ export default function LifeCounterPage() {
         >
           🌐 {table.code ? `Mesa ${table.code}` : 'Mesa online'}
         </button>
+        <button
+          type="button"
+          onClick={() => setGame((g) => toggleDayNight(g), { silent: true })}
+          className={`rounded-full px-3 py-1.5 text-sm font-bold ${game.dayNight ? 'bg-amber-300 text-black' : 'bg-text/10 hover:bg-text/20'}`}
+        >
+          {game.dayNight === 2 ? '🌙 Noite (trocar)' : game.dayNight === 1 ? '☀️ Dia (trocar)' : '☀️ Dia e noite'}
+        </button>
+        {game.dayNight > 0 && (
+          <button type="button" onClick={() => setGame((g) => ({ ...g, dayNight: 0 }), { silent: true })} className="rounded-full bg-text/10 px-3 py-1.5 text-sm font-bold hover:bg-text/20">
+            Tirar dia/noite
+          </button>
+        )}
+        <button type="button" onClick={sortSeats} className="rounded-full bg-text/10 px-3 py-1.5 text-sm font-bold hover:bg-text/20">
+          🔀 Sortear lugares
+        </button>
         <button type="button" onClick={() => setCards('planechase')} className="rounded-full bg-text/10 px-3 py-1.5 text-sm font-bold hover:bg-text/20">
           🌍 Planechase
         </button>
@@ -614,15 +645,45 @@ export default function LifeCounterPage() {
         </p>
       )}
       {/* A tela inteira para as vidas, dividida em linhas conforme o número
-          de jogadores e o formato da tela. */}
-      <div className="flex min-h-0 flex-1 flex-col gap-3">
-        {rowsFor(game.players, wide).map((row, r) => (
-          <div key={r} className="flex min-h-0 flex-1 gap-3">
-            {row.map((i) => (
-              <Player key={i} i={i} game={game} update={setGame} history={log.filter((e) => e.i === i)} deckNames={deckNames} />
-            ))}
-          </div>
-        ))}
+          de jogadores e o formato da tela. Com o meu lugar na mesa online:
+          os outros pequenos em cima (até 3 por linha) e eu grande embaixo. */}
+      <div className="relative flex min-h-0 flex-1 flex-col gap-3">
+        {mySeat >= 0 ? (
+          <>
+            <div className="flex min-h-0 flex-col gap-3" style={{ flex: 2 }}>
+              {seatRows(game.players, mySeat).map((row, r) => (
+                <div key={r} className="flex min-h-0 flex-1 gap-3">
+                  {row.map((i) => (
+                    <Player key={i} i={i} game={game} update={setGame} history={log.filter((e) => e.i === i)} deckNames={deckNames} />
+                  ))}
+                </div>
+              ))}
+            </div>
+            <div className="flex min-h-0 gap-3" style={{ flex: 3 }}>
+              <Player i={mySeat} game={game} update={setGame} history={log.filter((e) => e.i === mySeat)} deckNames={deckNames} />
+            </div>
+          </>
+        ) : (
+          rowsFor(game.players, wide).map((row, r) => (
+            <div key={r} className="flex min-h-0 flex-1 gap-3">
+              {row.map((i) => (
+                <Player key={i} i={i} game={game} update={setGame} history={log.filter((e) => e.i === i)} deckNames={deckNames} />
+              ))}
+            </div>
+          ))
+        )}
+        {/* Dia ou noite: o sol ou a lua no encontro dos quadros (clicar troca). */}
+        {game.dayNight > 0 && (
+          <button
+            type="button"
+            onClick={() => setGame((g) => toggleDayNight(g), { silent: true })}
+            title={game.dayNight === 1 ? 'Dia (clique para virar noite)' : 'Noite (clique para virar dia)'}
+            className={`absolute left-1/2 z-20 grid h-11 w-11 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border-2 border-white/60 text-xl shadow-lg ${game.dayNight === 1 ? 'bg-amber-300' : 'bg-indigo-800'}`}
+            style={{ top: mySeat >= 0 ? '40%' : '50%' }}
+          >
+            {game.dayNight === 1 ? '☀️' : '🌙'}
+          </button>
+        )}
       </div>
     </div>
   )

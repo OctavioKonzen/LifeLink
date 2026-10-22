@@ -8,6 +8,7 @@ import '../../../data/providers/deck_provider.dart';
 import '../../../data/providers/theme_provider.dart';
 import '../../../data/services/deck_tools.dart';
 import '../../../data/services/scryfall_service.dart';
+import '../search/card_detail_screen.dart';
 
 /// Preço de hoje (dólar, euro e real) e legalidade do deck em cada formato,
 /// com as cartas atualizadas na Scryfall.
@@ -47,6 +48,47 @@ class _DeckAnalysisScreenState extends State<DeckAnalysisScreen> {
       _error = 'Não deu para buscar as cartas agora. Verifique a internet.';
     }
     if (mounted) setState(() => _loading = false);
+  }
+
+  /// O nível do deck (Bracket do Commander) e o porquê.
+  Widget _bracketSection(Widget Function(String, List<Widget>) section, Color text) {
+    final b = DeckTools.bracket(_cards);
+    Widget list(String title, List<String> names, Color color) => names.isEmpty
+        ? const SizedBox.shrink()
+        : Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Text('$title (${names.length}): ${names.join(', ')}', style: TextStyle(color: color, fontSize: 13)),
+          );
+    return section('NÍVEL DO DECK (BRACKET)', [
+      Row(children: [
+        Container(
+          width: 52,
+          height: 52,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(color: Colors.deepPurple, borderRadius: BorderRadius.circular(14)),
+          child: Text('${b.bracket}', style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w900)),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text('Bracket ${b.bracket}: ${DeckTools.bracketNames[b.bracket]}', style: TextStyle(color: text, fontSize: 18, fontWeight: FontWeight.w900)),
+            Text(
+              switch (b.bracket) {
+                2 => 'Sem Game Changers, turnos extras nem destruição de terrenos. Se for um deck temático bem leve, pode ser o 1.',
+                3 => 'Até 3 Game Changers e nada de destruição de terrenos em massa.',
+                _ => 'Mais de 3 Game Changers, destruição de terrenos em massa ou vários turnos extras. Se for feito para vencer o mais rápido possível, é o 5 (cEDH).',
+              },
+              style: TextStyle(color: text.withValues(alpha: 0.7), fontSize: 13),
+            ),
+          ]),
+        ),
+      ]),
+      list('Game Changers', b.gameChangers, Colors.amber),
+      list('Turnos extras', b.extraTurns, Colors.lightBlueAccent),
+      list('Destruição de terrenos em massa', b.landDestruction, Colors.redAccent),
+      const SizedBox(height: 8),
+      Text('Combos de duas cartas não entram na conta: confira com a mesa.', style: TextStyle(color: text.withValues(alpha: 0.45), fontSize: 11)),
+    ]);
   }
 
   @override
@@ -95,6 +137,7 @@ class _DeckAnalysisScreenState extends State<DeckAnalysisScreen> {
       final top = priced.entries.toList()..sort((a, b) => (DeckTools.priceOf(b.value.card) * b.value.qty).compareTo(DeckTools.priceOf(a.value.card) * a.value.qty));
       body = ListView(padding: const EdgeInsets.all(16), children: [
         section('CURVA DE MANA E CORES', [_ManaCurve(cards: _cards, text: text)]),
+        if (widget.deck.type == 'Commander') _bracketSection(section, text),
         section('PREÇO DE HOJE (SCRYFALL)', [
           Text('US\$ ${usd.toStringAsFixed(2)}', style: TextStyle(color: text, fontSize: 30, fontWeight: FontWeight.w900)),
           if (_brl != null) Text('≈ R\$ ${(usd * _brl!).toStringAsFixed(2)}  (dólar a R\$ ${_brl!.toStringAsFixed(2)})', style: TextStyle(color: Colors.green.shade400, fontSize: 18, fontWeight: FontWeight.w800)),
@@ -160,9 +203,14 @@ class _TestHandScreenState extends State<TestHandScreen> {
   final _rng = Random();
   List<Map<String, dynamic>> _library = [];
   List<Map<String, dynamic>> _hand = [];
+  List<Map<String, dynamic>> _battlefield = []; // as cartas jogadas
+  List<Map<String, dynamic>> _command = []; // o comandante, fora do grimório
   int _mulligans = 0;
   int _toBottom = 0; // quantas ainda precisa pôr no fundo
   int _turn = 1;
+  bool _landPlayed = false;
+
+  static bool _isLand(Map<String, dynamic> c) => '${c['type_line']}'.contains('Land') || '${c['type_line']}'.contains('Terreno');
 
   @override
   void initState() {
@@ -173,11 +221,14 @@ class _TestHandScreenState extends State<TestHandScreen> {
   void _newHand({bool reset = false}) {
     setState(() {
       if (reset) _mulligans = 0;
-      _library = DeckTools.shuffled(widget.deck.cards, _rng);
+      _command = [for (final c in widget.deck.cards) if (c['commander'] == true) c];
+      _library = DeckTools.shuffled([for (final c in widget.deck.cards) if (c['commander'] != true) c], _rng);
       _hand = _library.take(7).toList();
       _library = _library.skip(7).toList();
+      _battlefield = [];
       _toBottom = _mulligans;
       _turn = 1;
+      _landPlayed = false;
     });
   }
 
@@ -186,34 +237,88 @@ class _TestHandScreenState extends State<TestHandScreen> {
     _newHand();
   }
 
+  /// Tocar numa carta da mão: no mulligan vai para o fundo; depois, joga.
   void _tap(int i) {
-    if (_toBottom == 0) return;
+    if (_toBottom > 0) {
+      setState(() {
+        _library.add(_hand.removeAt(i));
+        _toBottom--;
+      });
+      return;
+    }
+    final card = _hand[i];
+    if (_isLand(card) && _landPlayed) {
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Já jogou um terreno neste turno.'), duration: Duration(seconds: 2)));
+      return;
+    }
     setState(() {
-      _library.add(_hand.removeAt(i));
-      _toBottom--;
+      _battlefield.add(_hand.removeAt(i));
+      if (_isLand(card)) _landPlayed = true;
     });
   }
 
   void _draw() {
     if (_library.isEmpty || _toBottom > 0) return;
+    setState(() => _hand.add(_library.removeAt(0)));
+  }
+
+  void _nextTurn() {
+    if (_toBottom > 0) return;
     setState(() {
-      _hand.add(_library.removeAt(0));
       _turn++;
+      _landPlayed = false;
+      if (_library.isNotEmpty) _hand.add(_library.removeAt(0));
     });
   }
+
+  Widget _image(Map<String, dynamic> c, {double radius = 7}) => ClipRRect(
+        borderRadius: BorderRadius.circular(radius),
+        child: CachedNetworkImage(
+          imageUrl: '${c['imageUrl'] ?? ''}',
+          httpHeaders: CardImages.headers,
+          fit: BoxFit.cover,
+          placeholder: (_, _) => Container(color: Colors.black12),
+          errorWidget: (_, _, _) => Container(
+            color: Colors.black26,
+            alignment: Alignment.center,
+            padding: const EdgeInsets.all(6),
+            child: Text('${c['name']}', textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontSize: 11)),
+          ),
+        ),
+      );
+
+  /// Uma fileira de cartas pequenas (em jogo e zona de comando).
+  Widget _strip(String title, List<Map<String, dynamic>> cards, Color text, void Function(int) onTap) => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 6, 16, 4),
+          child: Text(title, style: TextStyle(color: text.withValues(alpha: 0.6), fontSize: 12, fontWeight: FontWeight.w800)),
+        ),
+        SizedBox(
+          height: 84,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            itemCount: cards.length,
+            separatorBuilder: (_, _) => const SizedBox(width: 6),
+            itemBuilder: (context, i) => GestureDetector(onTap: () => onTap(i), child: SizedBox(width: 60, child: _image(cards[i], radius: 4))),
+          ),
+        ),
+      ]);
 
   @override
   Widget build(BuildContext context) {
     final theme = context.watch<ThemeProvider>();
     final light = theme.backgroundColor.computeLuminance() > 0.5;
     final text = light ? Colors.black87 : Colors.white;
-    final lands = _hand.where((c) => '${c['type_line']}'.contains('Land') || '${c['type_line']}'.contains('Terreno')).length;
+    final lands = _hand.where(_isLand).length;
+    final mana = _battlefield.where(_isLand).length;
     final tooSmall = widget.deck.cards.length < 7;
 
     return Scaffold(
       backgroundColor: theme.backgroundColor,
       appBar: AppBar(
-        title: Text('Mão de teste', style: TextStyle(color: text)),
+        title: Text('Mão de teste e simulação', style: TextStyle(color: text)),
         backgroundColor: Colors.transparent,
         elevation: 0,
         iconTheme: IconThemeData(color: text),
@@ -226,11 +331,28 @@ class _TestHandScreenState extends State<TestHandScreen> {
                 child: Text(
                   _toBottom > 0
                       ? 'Mulligan $_mulligans: toque em $_toBottom carta${_toBottom > 1 ? 's' : ''} para pôr no fundo do grimório.'
-                      : '${_hand.length} cartas na mão · $lands terreno${lands == 1 ? '' : 's'} · ${_library.length} no grimório${_turn > 1 ? ' · turno $_turn' : ''}',
+                      : 'Turno $_turn · ${_hand.length} na mão ($lands terreno${lands == 1 ? '' : 's'}) · $mana de mana em jogo · ${_library.length} no grimório\nToque numa carta da mão para jogar (um terreno por turno).',
                   textAlign: TextAlign.center,
-                  style: TextStyle(color: _toBottom > 0 ? Colors.amber : text.withValues(alpha: 0.7), fontWeight: FontWeight.w700),
+                  style: TextStyle(color: _toBottom > 0 ? Colors.amber : text.withValues(alpha: 0.7), fontWeight: FontWeight.w700, fontSize: 13),
                 ),
               ),
+              if (_command.isNotEmpty)
+                _strip('ZONA DE COMANDO (toque para jogar)', _command, text, (i) {
+                  if (_toBottom > 0) return;
+                  setState(() => _battlefield.add(_command.removeAt(i)));
+                }),
+              if (_battlefield.isNotEmpty)
+                _strip('EM JOGO (${_battlefield.length}) · toque para voltar para a mão', _battlefield, text, (i) {
+                  setState(() {
+                    final c = _battlefield.removeAt(i);
+                    if (c['commander'] == true) {
+                      _command.add(c);
+                    } else {
+                      _hand.add(c);
+                      if (_isLand(c) && _landPlayed) _landPlayed = false;
+                    }
+                  });
+                }),
               Expanded(
                 child: GridView.builder(
                   padding: const EdgeInsets.all(12),
@@ -238,30 +360,12 @@ class _TestHandScreenState extends State<TestHandScreen> {
                   itemCount: _hand.length,
                   itemBuilder: (context, i) => GestureDetector(
                     onTap: () => _tap(i),
-                    child: AnimatedOpacity(
-                      duration: const Duration(milliseconds: 200),
-                      opacity: 1,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(8),
-                          border: _toBottom > 0 ? Border.all(color: Colors.amber, width: 2) : null,
-                        ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(7),
-                          child: CachedNetworkImage(
-                            imageUrl: '${_hand[i]['imageUrl'] ?? ''}',
-                            httpHeaders: CardImages.headers,
-                            fit: BoxFit.cover,
-                            placeholder: (_, _) => Container(color: Colors.black12),
-                            errorWidget: (_, _, _) => Container(
-                              color: Colors.black26,
-                              alignment: Alignment.center,
-                              padding: const EdgeInsets.all(6),
-                              child: Text('${_hand[i]['name']}', textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontSize: 12)),
-                            ),
-                          ),
-                        ),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(8),
+                        border: _toBottom > 0 ? Border.all(color: Colors.amber, width: 2) : null,
                       ),
+                      child: _image(_hand[i]),
                     ),
                   ),
                 ),
@@ -270,12 +374,18 @@ class _TestHandScreenState extends State<TestHandScreen> {
                 top: false,
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-                  child: Row(children: [
-                    Expanded(child: OutlinedButton.icon(onPressed: () => _newHand(reset: true), icon: const Icon(Icons.shuffle), label: const Text('Nova mão'))),
-                    const SizedBox(width: 8),
-                    Expanded(child: OutlinedButton.icon(onPressed: _mulligans < 6 ? _mulligan : null, icon: const Icon(Icons.replay), label: const Text('Mulligan'))),
-                    const SizedBox(width: 8),
-                    Expanded(child: FilledButton.icon(onPressed: _toBottom == 0 && _library.isNotEmpty ? _draw : null, icon: const Icon(Icons.add_card), label: const Text('Comprar'))),
+                  child: Column(children: [
+                    Row(children: [
+                      Expanded(child: OutlinedButton.icon(onPressed: () => _newHand(reset: true), icon: const Icon(Icons.shuffle), label: const Text('Nova mão'))),
+                      const SizedBox(width: 8),
+                      Expanded(child: OutlinedButton.icon(onPressed: _mulligans < 6 && _turn == 1 && _battlefield.isEmpty ? _mulligan : null, icon: const Icon(Icons.replay), label: const Text('Mulligan'))),
+                    ]),
+                    const SizedBox(height: 6),
+                    Row(children: [
+                      Expanded(child: OutlinedButton.icon(onPressed: _toBottom == 0 && _library.isNotEmpty ? _draw : null, icon: const Icon(Icons.add_card), label: const Text('Comprar 1'))),
+                      const SizedBox(width: 8),
+                      Expanded(child: FilledButton.icon(onPressed: _toBottom == 0 ? _nextTurn : null, icon: const Icon(Icons.skip_next), label: const Text('Próximo turno'))),
+                    ]),
                   ]),
                 ),
               ),
@@ -478,4 +588,143 @@ Future<void> exportDeckSheet(BuildContext context, DeckModel deck) async {
       },
     ),
   );
+}
+
+/// Sugestões de cartas para o comandante do deck (EDHREC), com o "+" para
+/// pôr no deck e o toque para ver a carta.
+class SuggestionsScreen extends StatefulWidget {
+  final DeckModel deck;
+  const SuggestionsScreen({super.key, required this.deck});
+
+  @override
+  State<SuggestionsScreen> createState() => _SuggestionsScreenState();
+}
+
+class _SuggestionsScreenState extends State<SuggestionsScreen> {
+  bool _loading = true;
+  String? _error;
+  String _source = '';
+  List<Map<String, dynamic>> _cards = [];
+  final Set<String> _added = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final commanders = [for (final c in widget.deck.cards) if (c['commander'] == true) c];
+      if (commanders.isEmpty) {
+        _error = 'Marque o comandante do deck primeiro (segure a carta no deck → "Marcar como comandante").';
+      } else {
+        // Os nomes em inglês (o deck pode estar traduzido).
+        final table = await DeckTools.refresh(widget.deck.cards);
+        final fresh = [for (final c in widget.deck.cards) DeckTools.fresh(table, c) ?? c];
+        final commander = DeckTools.fresh(table, commanders.first) ?? commanders.first;
+        final result = await DeckTools.suggestions(commander, fresh);
+        _cards = result.cards;
+        _source = result.source;
+        if (_cards.isEmpty) _error = 'Não achei sugestões para este comandante.';
+      }
+    } on ScryfallException catch (e) {
+      _error = e.message;
+    } catch (_) {
+      _error = 'Não deu para buscar as sugestões agora. Verifique a internet.';
+    }
+    if (mounted) setState(() => _loading = false);
+  }
+
+  void _add(Map<String, dynamic> data) {
+    final decks = context.read<DeckProvider>();
+    final index = decks.indexOfId(widget.deck.id);
+    if (index < 0) return;
+    decks.addCardsToDeck(index, [DeckTools.deckCardOf(data)]);
+    setState(() => _added.add('${data['id']}'));
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(duration: const Duration(seconds: 2), content: Text('${data['name']} foi para o deck.')));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = context.watch<ThemeProvider>();
+    final text = theme.backgroundColor.computeLuminance() > 0.5 ? Colors.black87 : Colors.white;
+    return Scaffold(
+      backgroundColor: theme.backgroundColor,
+      appBar: AppBar(
+        title: Text('Sugestões para o deck', style: TextStyle(color: text)),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        iconTheme: IconThemeData(color: text),
+      ),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : _error != null
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(mainAxisSize: MainAxisSize.min, children: [
+                      Text(_error!, textAlign: TextAlign.center, style: TextStyle(color: text)),
+                      const SizedBox(height: 12),
+                      FilledButton(onPressed: _load, child: const Text('Tentar de novo')),
+                    ]),
+                  ),
+                )
+              : Column(children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+                    child: Text('As cartas mais usadas com este comandante (fonte: $_source). Toque no + para pôr no deck.',
+                        style: TextStyle(color: text.withValues(alpha: 0.6), fontSize: 12)),
+                  ),
+                  Expanded(
+                    child: GridView.builder(
+                      padding: const EdgeInsets.all(12),
+                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 3, childAspectRatio: 0.6, crossAxisSpacing: 8, mainAxisSpacing: 8),
+                      itemCount: _cards.length,
+                      itemBuilder: (context, i) {
+                        final c = _cards[i];
+                        final added = _added.contains('${c['id']}');
+                        return Column(children: [
+                          Expanded(
+                            child: GestureDetector(
+                              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => CardDetailScreen(card: DeckTools.deckCardOf(c), targetDeckId: widget.deck.id))),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(7),
+                                child: CachedNetworkImage(
+                                  imageUrl: CardImages.normalOf(c) ?? '',
+                                  httpHeaders: CardImages.headers,
+                                  fit: BoxFit.cover,
+                                  placeholder: (_, _) => Container(color: Colors.black12),
+                                  errorWidget: (_, _, _) => Container(
+                                    color: Colors.black26,
+                                    alignment: Alignment.center,
+                                    child: Text('${c['name']}', textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontSize: 11)),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          Row(children: [
+                            Expanded(
+                              child: Text('US\$ ${DeckTools.priceOf(c).toStringAsFixed(2)}', style: TextStyle(color: text.withValues(alpha: 0.7), fontSize: 11, fontWeight: FontWeight.w700)),
+                            ),
+                            IconButton(
+                              visualDensity: VisualDensity.compact,
+                              tooltip: 'Pôr no deck',
+                              onPressed: added ? null : () => _add(c),
+                              icon: Icon(added ? Icons.check_circle : Icons.add_circle, color: added ? Colors.green : Colors.amber),
+                            ),
+                          ]),
+                        ]);
+                      },
+                    ),
+                  ),
+                ]),
+    );
+  }
 }

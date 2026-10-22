@@ -280,6 +280,99 @@ class DeckTools {
     return out;
   }
 
+  // ------------------------------------------------------- nível (bracket)
+
+  static final _extraTurn = RegExp(r'takes? an extra turn', caseSensitive: false);
+  static final _landDestruction = RegExp(
+      r"destroy all (nonbasic )?lands|exile all lands|sacrifices? all lands|each player sacrifices (two|three|four|five|six|seven) lands|lands don't untap|lands do not untap",
+      caseSensitive: false);
+
+  static String _textOf(Map<String, dynamic> c) => [
+        c['oracle_text'] ?? '',
+        for (final f in (c['card_faces'] as List? ?? const [])) (f as Map)['oracle_text'] ?? '',
+      ].join('\n');
+
+  /// O nível do deck no Commander (Brackets da Wizards), pelo que dá para ver
+  /// nas cartas (com os dados da Scryfall): as Game Changers, turnos extras e
+  /// destruição de terrenos em massa. Combos de duas cartas e a intenção do
+  /// deck (nível 1 e 5) ficam para a mesa conversar.
+  static ({int bracket, List<String> gameChangers, List<String> extraTurns, List<String> landDestruction}) bracket(List<Map<String, dynamic>> cards) {
+    final gc = <String>{}, turns = <String>{}, mld = <String>{};
+    for (final c in cards) {
+      final name = '${c['printed_name'] ?? c['name']}';
+      if (c['game_changer'] == true) gc.add(name);
+      final text = _textOf(c);
+      if (_extraTurn.hasMatch(text)) turns.add(name);
+      if (_landDestruction.hasMatch(text)) mld.add(name);
+    }
+    final level = (gc.length > 3 || mld.isNotEmpty || turns.length > 1)
+        ? 4
+        : gc.isNotEmpty || turns.isNotEmpty
+            ? 3
+            : 2;
+    return (bracket: level, gameChangers: gc.toList()..sort(), extraTurns: turns.toList()..sort(), landDestruction: mld.toList()..sort());
+  }
+
+  static const bracketNames = {1: 'Exibição', 2: 'Básico', 3: 'Melhorado', 4: 'Otimizado', 5: 'cEDH'};
+
+  // ------------------------------------------------------------ sugestões
+
+  /// O nome da página do comandante no EDHREC ("Atraxa, Praetors' Voice" →
+  /// "atraxa-praetors-voice"; carta de duas faces: só a da frente).
+  static String edhrecSlug(String name) => name
+      .split(' // ')
+      .first
+      .toLowerCase()
+      .replaceAll(RegExp(r"[^a-z0-9\s-]"), '')
+      .trim()
+      .replaceAll(RegExp(r'[\s-]+'), '-');
+
+  /// Os nomes das cartas que o EDHREC mais recomenda para o comandante, das
+  /// mais usadas para as menos (sem as que já estão no deck).
+  static List<String> edhrecNames(Map<String, dynamic> page, Set<String> skip) {
+    final lists = page['container']?['json_dict']?['cardlists'] as List? ?? const [];
+    final score = <String, double>{};
+    for (final l in lists) {
+      for (final v in ((l as Map)['cardviews'] as List? ?? const [])) {
+        final c = v as Map;
+        final name = '${c['name'] ?? ''}';
+        if (name.isEmpty || skip.contains(name.toLowerCase())) continue;
+        final potential = (c['potential_decks'] as num?)?.toDouble() ?? 0;
+        final used = ((c['inclusion'] ?? c['num_decks']) as num?)?.toDouble() ?? 0;
+        final s = (potential > 0 ? used / potential : 0) + ((c['synergy'] as num?)?.toDouble() ?? 0) * 0.3;
+        score[name] = max(score[name] ?? -1, s);
+      }
+    }
+    return (score.keys.toList()..sort((a, b) => score[b]!.compareTo(score[a]!)));
+  }
+
+  /// Sugestões de cartas para o comandante do deck: do EDHREC e, se não der,
+  /// as mais populares nas cores dele (ordem do EDHREC na Scryfall).
+  static Future<({List<Map<String, dynamic>> cards, String source})> suggestions(Map<String, dynamic> commander, List<Map<String, dynamic>> deck, {int count = 40}) async {
+    final skip = {for (final c in deck) '${c['name']}'.toLowerCase()};
+    var names = <String>[];
+    var source = 'EDHREC';
+    try {
+      final response = await http.get(Uri.parse('https://json.edhrec.com/pages/commanders/${edhrecSlug('${commander['name']}')}.json')).timeout(const Duration(seconds: 15));
+      if (response.statusCode == 200) {
+        names = edhrecNames(jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>, skip).take(count).toList();
+      }
+    } catch (_) {}
+    if (names.isNotEmpty) {
+      final data = await postCollection([for (final n in names.take(75)) {'name': n}]);
+      final byName = {for (final c in (data['data'] as List? ?? const [])) '${(c as Map)['name']}': Map<String, dynamic>.from(c)};
+      return (cards: [for (final n in names) if (byName[n] != null) byName[n]!], source: source);
+    }
+    // Sem EDHREC: as mais jogadas nas cores do comandante.
+    source = 'Scryfall (mais populares nas cores do comandante)';
+    final colors = (commander['color_identity'] is List ? (commander['color_identity'] as List).join() : '${commander['color_identity'] ?? ''}').toLowerCase();
+    final page = await ScryfallService.instance.search('id<=${colors.isEmpty ? 'c' : colors} f:commander -t:basic', order: 'edhrec', multilingual: false);
+    return (
+      cards: [for (final c in page.cards) if (!skip.contains('${(c as Map)['name']}'.toLowerCase())) Map<String, dynamic>.from(c)].take(count).toList(),
+      source: source,
+    );
+  }
+
   // ---------------------------------------------------------------- exportar
 
   /// A lista do deck para colar no Moxfield, Arena, Archidekt...: "1 Sol Ring",

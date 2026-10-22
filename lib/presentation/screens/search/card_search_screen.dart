@@ -8,6 +8,7 @@ import 'card_filters_sheet.dart';
 import '../../../data/providers/theme_provider.dart';
 import '../../../data/providers/xp_provider.dart';
 import '../../../data/services/scryfall_service.dart';
+import '../../../data/services/offline_cards.dart';
 
 class CardSearchScreen extends StatefulWidget {
   final String? targetDeckId; // adicionando cartas a este deck
@@ -29,6 +30,8 @@ class _CardSearchScreenState extends State<CardSearchScreen> {
   bool _hasMore = true;
   String? _nextPageUrl;
   String? _errorMessage; 
+  String _lastText = '';
+  bool _offline = false; // mostrando as cartas salvas no celular
   
   List<Map<String, dynamic>> _searchResults = [];
   List<Map<String, String>> _allSets = []; 
@@ -179,6 +182,8 @@ class _CardSearchScreenState extends State<CardSearchScreen> {
       _errorMessage = null; 
     });
     
+    _lastText = queryText;
+    _offline = false;
     String q = queryText.trim().isEmpty ? "is:commander" : ScryfallService.buildTextQuery(queryText);
     
     if (!_filters.isEmpty) q = "$q ${_filters.toQuery()}";
@@ -239,6 +244,20 @@ class _CardSearchScreenState extends State<CardSearchScreen> {
         _errorMessage = null; 
       });
     } catch (e) {
+      // Sem internet: busca nas cartas salvas no celular (se baixou).
+      final notFound = e is ScryfallException && e.notFound;
+      if (!isNextPage && !notFound && await OfflineCards.instance.available) {
+        final cards = await OfflineCards.instance.search(_lastText);
+        if (mounted && id == _searchId && cards.isNotEmpty) {
+          setState(() {
+            _searchResults = cards;
+            _hasMore = false;
+            _isLoading = false;
+            _offline = true;
+          });
+          return;
+        }
+      }
       // Qualquer erro (não só os da Scryfall) para o carregando.
       final message = e is ScryfallException ? e.message : 'Não deu para buscar agora. Tente de novo.';
       if (mounted && id == _searchId) {
@@ -415,7 +434,15 @@ class _CardSearchScreenState extends State<CardSearchScreen> {
                       style: TextStyle(color: textColor.withValues(alpha: 0.6)),
                     ),
                   ))
-                : GridView.builder(
+                : Column(children: [
+                  if (_offline)
+                    Container(
+                      width: double.infinity,
+                      color: Colors.orange.withValues(alpha: 0.2),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      child: Text('Sem internet: cartas salvas no celular (em inglês).', textAlign: TextAlign.center, style: TextStyle(color: textColor, fontSize: 12)),
+                    ),
+                  Expanded(child: GridView.builder(
                     controller: _scrollController,
                     padding: const EdgeInsets.all(12),
                     gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 3, childAspectRatio: 0.68, crossAxisSpacing: 10, mainAxisSpacing: 10),
@@ -446,11 +473,19 @@ class _CardSearchScreenState extends State<CardSearchScreen> {
                             fit: BoxFit.cover,
                             fadeInDuration: const Duration(milliseconds: 150),
                             placeholder: (c, u) => Container(color: Colors.black12),
-                            errorWidget: (c, u, e) => const Icon(Icons.broken_image, color: Colors.grey),
+                            // Sem internet (ou sem imagem): o nome e o tipo da carta.
+                            errorWidget: (c, u, e) => Container(
+                              color: Colors.black26,
+                              padding: const EdgeInsets.all(6),
+                              alignment: Alignment.center,
+                              child: Text('${card['name']}\n\n${card['type_line'] ?? ''}',
+                                  textAlign: TextAlign.center, style: TextStyle(color: textColor, fontSize: 11, fontWeight: FontWeight.w600)),
+                            ),
                           ),
                         ),
                       );
                     },
-                  );
+                  )),
+                ]);
   }
 }

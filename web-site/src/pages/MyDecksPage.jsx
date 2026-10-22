@@ -8,7 +8,7 @@ import { scryfallIdOf } from '../lib/deckCards'
 import { deckList, deleteDeck, saveDeck, useUserData } from '../lib/userData'
 import { incrementDecksCreated } from '../lib/xp'
 import { useAuth } from '../lib/auth'
-import { DeckAnalysis, ExportDeck, ImportListModal, MissingCards, TestHand } from '../components/DeckTools'
+import { DeckAnalysis, ExportDeck, ImportListModal, MissingCards, Suggestions, TestHand } from '../components/DeckTools'
 import { incrementCardsAdded } from '../lib/xp'
 
 const TYPES = ['Commander', 'Challenger', 'Normal'] // os mesmos do app (my_decks_screen.dart)
@@ -57,7 +57,7 @@ function NewDeck({ onClose }) {
 }
 
 function DeckView({ deck, onClose }) {
-  const [tool, setTool] = useState(null) // 'import' | 'analysis' | 'hand' | 'export' | 'missing'
+  const [tool, setTool] = useState(null) // 'import' | 'analysis' | 'hand' | 'export' | 'missing' | 'suggestions'
   const total = deck.cards.length
   const price = deck.cards.reduce((sum, c) => sum + (Number.parseFloat(c.usdPrice) || 0), 0)
   const removeCard = (index) => saveDeck({ ...deck, cards: deck.cards.filter((_, i) => i !== index) })
@@ -110,7 +110,15 @@ function DeckView({ deck, onClose }) {
           onClick={() => setTool(tool === 'hand' ? null : 'hand')}
           className={`rounded-full px-4 py-1.5 text-sm font-bold disabled:opacity-40 ${tool === 'hand' ? 'bg-accent text-white' : 'bg-text/10 hover:bg-text/20'}`}
         >
-          ✋ Mão de teste
+          ✋ Mão de teste e simulação
+        </button>
+        <button
+          type="button"
+          disabled={total < 1}
+          onClick={() => setTool(tool === 'suggestions' ? null : 'suggestions')}
+          className={`rounded-full px-4 py-1.5 text-sm font-bold disabled:opacity-40 ${tool === 'suggestions' ? 'bg-accent text-white' : 'bg-text/10 hover:bg-text/20'}`}
+        >
+          💡 Sugestões
         </button>
         <button
           type="button"
@@ -129,6 +137,12 @@ function DeckView({ deck, onClose }) {
           📦 O que falta
         </button>
       </div>
+      {tool === 'suggestions' && (
+        <div className="mb-5 rounded-2xl bg-text/5 p-4">
+          <h3 className="mb-2 text-lg font-black">Sugestões para o deck</h3>
+          <Suggestions deck={deck} />
+        </div>
+      )}
       {tool === 'missing' && (
         <div className="mb-5 rounded-2xl bg-text/5 p-4">
           <MissingCards deck={deck} />
@@ -146,6 +160,7 @@ function DeckView({ deck, onClose }) {
       )}
       {tool === 'hand' && (
         <div className="mb-5 rounded-2xl bg-text/5 p-4">
+          <h3 className="mb-2 text-lg font-black">Mão de teste e simulação</h3>
           <TestHand deck={deck} />
         </div>
       )}

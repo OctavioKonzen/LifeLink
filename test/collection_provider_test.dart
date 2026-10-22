@@ -49,4 +49,23 @@ void main() {
     collection.toggleWish(solRing);
     expect(collection.wishes, isEmpty);
   });
+
+  test('pasta, troca e euro vão e voltam; trocas com um amigo', () async {
+    collection.add({...solRing, 'eurPrice': '1.20'});
+    collection.setFolder(solRing['id']!, 'Fichário');
+    collection.setTrade(solRing['id']!, true);
+    final map = collection.cards.first.toMap();
+    expect(map['folder'], 'Fichário');
+    expect(map['trade'], true);
+    expect(map['eur'], 1.2);
+    expect(SavedCard.fromMap(map).trade, isTrue);
+    expect(collection.folders, ['Fichário']);
+    collection.toggleWish({'id': 'x', 'name': 'Rhystic Study', 'usdPrice': '30'});
+    final m = collection.matches(
+      [{'name': 'Rhystic Study', 'usd': 30}, {'name': 'Island'}], // o que o amigo tem para troca
+      [{'name': 'sol ring'}], // o que o amigo quer
+    );
+    expect([for (final c in m.theyHave) c['name']], ['Rhystic Study']);
+    expect([for (final c in m.iHave) c['name']], ['Sol Ring']);
+  });
 }

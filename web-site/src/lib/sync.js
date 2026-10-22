@@ -31,6 +31,9 @@ function stop() {
   ready = decksReady = false
 }
 
+/** Os dados da conta já chegaram (depois de entrar)? */
+export const syncReady = () => uid != null && ready
+
 function scheduleSave() {
   clearTimeout(timer)
   timer = setTimeout(flush, 600)

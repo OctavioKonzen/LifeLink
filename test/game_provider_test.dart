@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:magic/data/providers/game_provider.dart';
@@ -174,5 +175,29 @@ void main() {
     expect(other.hasPartner(3), isTrue);
     expect(other.cmdDamage(0, 3 + p), 15);
     expect(other.commanderDamage[0][1], 20);
+  });
+
+  test('sortear lugares troca nomes e cores juntos e começa de novo', () {
+    game.setPlayerCount(4);
+    final before = {for (int i = 0; i < 4; i++) game.playerNames[i]: game.colorOf(i)};
+    game.updateLife(0, -5);
+    game.shuffleSeats(Random(3));
+    final after = {for (int i = 0; i < 4; i++) game.playerNames[i]: game.colorOf(i)};
+    expect(after, before); // cada nome continua com a sua cor
+    expect(game.lives[0], game.startingLife);
+  });
+
+  test('radiação e dia/noite vão e voltam pela conta', () async {
+    game.updateCounter(Counter.radiation, 1, 3);
+    game.toggleDayNight();
+    game.toggleDayNight();
+    expect(game.dayNight, 2);
+    final other = GameProvider();
+    await other.ready;
+    await other.applySync(game.toSync());
+    expect(other.counter(Counter.radiation, 1), 3);
+    expect(other.dayNight, 2);
+    game.resetGame();
+    expect(game.dayNight, 0);
   });
 }

@@ -69,4 +69,38 @@ Maybeboard
     final back = DeckTools.parse(DeckTools.exportList(cards, english: {id: 'Sol Ring'}));
     expect([for (final l in back) '${l.qty} ${l.name} ${l.commander}'], containsAll(['1 Atraxa true', '2 Sol Ring false', '1 Island false']));
   });
+
+  test('bracket: game changers, turnos extras e destruição de terrenos', () {
+    expect(DeckTools.bracket([{'name': 'Sol Ring', 'oracle_text': '{T}: Add {C}{C}.'}]).bracket, 2);
+    final three = DeckTools.bracket([
+      {'name': 'Rhystic Study', 'game_changer': true},
+      {'name': 'Time Warp', 'oracle_text': 'Target player takes an extra turn after this one.'},
+    ]);
+    expect(three.bracket, 3);
+    expect(three.gameChangers, ['Rhystic Study']);
+    expect(three.extraTurns, ['Time Warp']);
+    expect(DeckTools.bracket([{'name': 'Armageddon', 'oracle_text': 'Destroy all lands.'}]).bracket, 4);
+    expect(DeckTools.bracket([for (var i = 0; i < 4; i++) {'name': 'GC $i', 'game_changer': true}]).bracket, 4);
+  });
+
+  test('EDHREC: nome da página e as cartas mais usadas primeiro', () {
+    expect(DeckTools.edhrecSlug("Atraxa, Praetors' Voice"), 'atraxa-praetors-voice');
+    expect(DeckTools.edhrecSlug('Esika, God of the Tree // The Prismatic Bridge'), 'esika-god-of-the-tree');
+    final page = {
+      'container': {
+        'json_dict': {
+          'cardlists': [
+            {
+              'cardviews': [
+                {'name': 'Sol Ring', 'inclusion': 900, 'potential_decks': 1000, 'synergy': 0},
+                {'name': 'Doubling Season', 'inclusion': 500, 'potential_decks': 1000, 'synergy': 0.6},
+                {'name': 'Já Tenho', 'inclusion': 999, 'potential_decks': 1000},
+              ],
+            },
+          ],
+        },
+      },
+    };
+    expect(DeckTools.edhrecNames(page, {'já tenho'}), ['Sol Ring', 'Doubling Season']);
+  });
 }

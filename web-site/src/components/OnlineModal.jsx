@@ -1,12 +1,15 @@
 import { useEffect, useState } from 'react'
 import { Modal } from './ui'
 import { useAuth } from '../lib/auth'
-import { createTable, dismissInvite, inviteFriend, joinTable, leaveTable, messageOf, useOnlineTable, watchList } from '../lib/online'
+import { useUserData } from '../lib/userData'
+import { createTable, dismissInvite, inviteFriend, joinTable, leaveTable, messageOf, setMySeat, useOnlineTable, watchList } from '../lib/online'
 
 /** Mesa online: criar (com código), entrar com código, convites e convidar amigos. */
 export default function OnlineModal({ onClose }) {
   const { status } = useAuth()
   const table = useOnlineTable()
+  const game = useUserData((s) => s.game)
+  const names = Array.from({ length: game.playerCount }, (_, i) => String(game.playerNames?.[i] ?? `Jogador ${i + 1}`).replace(/^Player (\d)$/, 'Jogador $1'))
   const [code, setCode] = useState('')
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState(null)
@@ -52,6 +55,22 @@ export default function OnlineModal({ onClose }) {
           >
             {table.code}
           </button>
+          <div>
+            <p className="text-xs font-black uppercase text-muted">Meu lugar</p>
+            <p className="mb-1.5 text-xs text-muted">Cada um no seu celular: o seu quadro fica grande e os dos outros pequenos, todos de frente para você.</p>
+            <div className="flex flex-wrap gap-2">
+              {[[-1, 'Mesa inteira'], ...names.map((n, i) => [i, n])].map(([seat, label]) => (
+                <button
+                  key={seat}
+                  type="button"
+                  onClick={() => setMySeat(seat)}
+                  className={`rounded-full px-3 py-1.5 text-sm font-bold ${table.mySeat === seat ? 'bg-accent text-white' : 'bg-text/10 hover:bg-text/20'}`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
           <div>
             <p className="mb-1 text-xs font-black uppercase text-muted">Convidar amigo</p>
             {friends.filter((f) => f.accepted).length === 0 && <p className="text-sm text-muted">Sem amigos ainda (Perfil → Amigos).</p>}

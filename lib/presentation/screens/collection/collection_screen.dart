@@ -25,6 +25,8 @@ class _CollectionScreenState extends State<CollectionScreen> {
   double? _brl;
   bool _refreshing = false;
   String _query = '';
+  String? _folder; // null = todas; '' = sem pasta
+  bool _onlyTrade = false;
 
   @override
   void initState() {
@@ -107,7 +109,15 @@ class _CollectionScreenState extends State<CollectionScreen> {
 
   Widget _collectionTab(CollectionProvider collection, Color text) {
     final q = _query.toLowerCase();
-    final list = [for (final c in collection.cards) if (q.isEmpty || c.name.toLowerCase().contains(q) || c.set.toLowerCase().contains(q)) c];
+    final list = [
+      for (final c in collection.cards)
+        if ((q.isEmpty || c.name.toLowerCase().contains(q) || c.set.toLowerCase().contains(q)) && (_folder == null || c.folder == _folder) && (!_onlyTrade || c.trade)) c,
+    ];
+    final folders = collection.folders;
+    Widget chip(String label, bool on, VoidCallback tap) => Padding(
+          padding: const EdgeInsets.only(right: 6),
+          child: ChoiceChip(label: Text(label), selected: on, onSelected: (_) => setState(tap)),
+        );
     return Column(children: [
       Container(
         width: double.infinity,
@@ -117,7 +127,21 @@ class _CollectionScreenState extends State<CollectionScreen> {
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text('Valor da coleção', style: TextStyle(color: text.withValues(alpha: 0.7), fontSize: 12)),
           Text(_money(collection.totalUsd, _brl), style: TextStyle(color: text, fontSize: 20, fontWeight: FontWeight.w900)),
-          Text('${collection.totalCards} cartas · ${collection.cards.length} diferentes', style: TextStyle(color: text.withValues(alpha: 0.6), fontSize: 12)),
+          if (collection.totalEur > 0) Text('Cardmarket: € ${collection.totalEur.toStringAsFixed(2)}', style: TextStyle(color: text.withValues(alpha: 0.75), fontSize: 13, fontWeight: FontWeight.w700)),
+          Text('${collection.totalCards} cartas · ${collection.cards.length} diferentes · segure uma carta para pasta e troca', style: TextStyle(color: text.withValues(alpha: 0.6), fontSize: 12)),
+        ]),
+      ),
+      // Pastas (fichário, caixa...) e "para troca".
+      SizedBox(
+        height: 44,
+        child: ListView(scrollDirection: Axis.horizontal, padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4), children: [
+          chip('Todas', _folder == null && !_onlyTrade, () {
+            _folder = null;
+            _onlyTrade = false;
+          }),
+          chip('🔁 Para troca', _onlyTrade, () => _onlyTrade = !_onlyTrade),
+          for (final f in folders) chip(f, _folder == f, () => _folder = _folder == f ? null : f),
+          if (folders.isNotEmpty) chip('Sem pasta', _folder == '', () => _folder = _folder == '' ? null : ''),
         ]),
       ),
       Padding(
@@ -139,8 +163,14 @@ class _CollectionScreenState extends State<CollectionScreen> {
                   return ListTile(
                     leading: _thumb(c.img),
                     title: Text(c.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: text, fontWeight: FontWeight.w700)),
-                    subtitle: Text('${c.set} · US\$ ${c.usd.toStringAsFixed(2)}', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: text.withValues(alpha: 0.6), fontSize: 12)),
+                    subtitle: Text(
+                      '${c.trade ? '🔁 ' : ''}${c.folder.isNotEmpty ? '${c.folder} · ' : ''}${c.set} · US\$ ${c.usd.toStringAsFixed(2)}${c.eur > 0 ? ' · € ${c.eur.toStringAsFixed(2)}' : ''}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(color: text.withValues(alpha: 0.6), fontSize: 12),
+                    ),
                     onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => CardDetailScreen(card: c.toCard()))),
+                    onLongPress: () => _cardOptions(collection, c),
                     trailing: Row(mainAxisSize: MainAxisSize.min, children: [
                       IconButton(icon: Icon(Icons.remove_circle_outline, color: text), onPressed: () => collection.setQty(c.id, c.qty - 1)),
                       Text('${c.qty}', style: TextStyle(color: text, fontWeight: FontWeight.w900, fontSize: 16)),
@@ -151,6 +181,71 @@ class _CollectionScreenState extends State<CollectionScreen> {
               ),
       ),
     ]);
+  }
+
+  /// Segurar uma carta da coleção: pasta e "para troca".
+  Future<void> _cardOptions(CollectionProvider collection, SavedCard c) async {
+    await showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF1E1E24),
+      builder: (ctx) => SafeArea(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          ListTile(title: Text(c.name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
+          SwitchListTile(
+            secondary: const Icon(Icons.swap_horiz, color: Colors.amber),
+            title: const Text('Para troca', style: TextStyle(color: Colors.white)),
+            subtitle: const Text('Os amigos veem e o app mostra quem quer esta carta.', style: TextStyle(color: Colors.white54)),
+            value: c.trade,
+            onChanged: (v) {
+              collection.setTrade(c.id, v);
+              Navigator.pop(ctx);
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.folder_outlined, color: Colors.white70),
+            title: Text(c.folder.isEmpty ? 'Pôr numa pasta' : 'Pasta: ${c.folder}', style: const TextStyle(color: Colors.white)),
+            onTap: () async {
+              Navigator.pop(ctx);
+              final folder = await _askFolder(collection.folders, c.folder);
+              if (folder != null) collection.setFolder(c.id, folder);
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.delete_outline, color: Colors.redAccent),
+            title: const Text('Tirar da coleção', style: TextStyle(color: Colors.white)),
+            onTap: () {
+              collection.setQty(c.id, 0);
+              Navigator.pop(ctx);
+            },
+          ),
+        ]),
+      ),
+    );
+  }
+
+  /// Escolher uma pasta (ou criar uma nova). '' = sem pasta; null = cancelou.
+  Future<String?> _askFolder(List<String> folders, String current) {
+    final ctrl = TextEditingController();
+    return showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Pasta'),
+        content: SingleChildScrollView(
+          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            Wrap(spacing: 6, runSpacing: 6, children: [
+              for (final f in folders) ChoiceChip(label: Text(f), selected: f == current, onSelected: (_) => Navigator.pop(ctx, f)),
+              if (current.isNotEmpty) ActionChip(label: const Text('Sem pasta'), onPressed: () => Navigator.pop(ctx, '')),
+            ]),
+            const SizedBox(height: 12),
+            TextField(controller: ctrl, decoration: const InputDecoration(labelText: 'Nova pasta (ex.: Fichário, Caixa)'), onSubmitted: (v) => Navigator.pop(ctx, v.trim())),
+          ]),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, ctrl.text.trim().isEmpty ? null : ctrl.text.trim()), child: const Text('Salvar')),
+        ],
+      ),
+    );
   }
 
   Widget _wishTab(CollectionProvider collection, Color text) {

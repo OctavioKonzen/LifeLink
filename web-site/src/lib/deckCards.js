@@ -21,6 +21,7 @@ export function toDeckCard(c) {
     toughness: c.toughness ?? c.card_faces?.[0]?.toughness ?? null,
     collectorNumber: c.collector_number,
     usdPrice: c.prices?.usd ?? '0.00',
+    eurPrice: c.prices?.eur ?? null,
   }
 }
 

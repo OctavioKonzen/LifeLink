@@ -2,11 +2,61 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import CardImage from '../components/CardImage'
 import { useAuth } from '../lib/auth'
-import { acceptFriend, addFriend, declineFriend, friendDecks, messageOf, removeFriend, watchList } from '../lib/online'
-import { saveDeck } from '../lib/userData'
+import { acceptFriend, addFriend, declineFriend, friendDecks, friendTrade, messageOf, removeFriend, watchList } from '../lib/online'
+import { saveDeck, useUserData } from '../lib/userData'
+import { tradeMatches } from '../lib/collection'
 
 // Amigos pelo nick (o mesmo do app, online_screens.dart): pedir, aceitar,
-// ver os decks deles e copiar para os meus.
+// ver os decks deles e copiar para os meus, e as trocas possíveis.
+
+/**
+ * As trocas possíveis com o amigo (o mesmo do app, _TradeWith): o que ele tem
+ * para troca e está na minha lista de desejos, e o que eu tenho para troca e ele quer.
+ */
+function TradeWith({ friend }) {
+  const collection = useUserData((s) => s.collection)
+  const wishlist = useUserData((s) => s.wishlist)
+  const [data, setData] = useState(null)
+  useEffect(() => {
+    let alive = true
+    friendTrade(friend).then((d) => alive && setData(d), () => {})
+    return () => {
+      alive = false
+    }
+  }, [friend])
+  if (!data) return null
+  const m = tradeMatches(collection, wishlist, data.trade, data.wish)
+  const nick = friend.nick || ''
+  const list = (title, cards, empty) => (
+    <div className="mb-3">
+      <p className="mb-1 text-xs font-black uppercase tracking-wide text-muted">{title}</p>
+      {!cards.length && <p className="text-sm text-muted">{empty}</p>}
+      <ul className="space-y-1">
+        {cards.map((c, k) => (
+          <li key={`${c.id}-${k}`} className="flex items-center gap-2">
+            {c.img ? <img src={c.img} alt="" loading="lazy" className="h-10 w-7 shrink-0 rounded-sm object-cover" /> : <div className="h-10 w-7 shrink-0 rounded-sm bg-text/10" />}
+            <span className="min-w-0">
+              <span className="block truncate text-sm font-bold">{c.name}</span>
+              <span className="block truncate text-xs text-muted">
+                {c.set || ''} · US$ {(Number(c.usd) || 0).toFixed(2)}
+              </span>
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+  return (
+    <div className="mt-3 rounded-xl bg-text/5 p-3">
+      <p className="mb-2 font-black">🔁 Trocas com {nick}</p>
+      {list(`${nick.toUpperCase()} tem para troca e você quer`, m.theyHave, 'Nada da sua lista de desejos.')}
+      {list(`Você tem para troca e ${nick.toUpperCase()} quer`, m.iHave, `Nada da lista de desejos de ${nick}. Marque cartas "para troca" na sua coleção.`)}
+      <p className="text-xs text-muted">
+        {data.trade.length} carta(s) para troca · {data.wish.length} na lista de desejos
+      </p>
+    </div>
+  )
+}
 
 function FriendDecks({ friend }) {
   const [decks, setDecks] = useState(null)
@@ -139,13 +189,18 @@ export default function FriendsPage() {
                   <span className="grid h-9 w-9 place-items-center rounded-full bg-accent font-black text-white">{(f.nick || '?')[0].toUpperCase()}</span>
                   <button type="button" disabled={!f.accepted} onClick={() => setOpen(open === f.uid ? null : f.uid)} className="flex-1 text-left">
                     <span className="block font-bold">{f.nick}</span>
-                    <span className="block text-xs text-muted">{f.accepted ? (open === f.uid ? 'Esconder os decks' : 'Ver os decks') : 'Esperando aceitar o pedido'}</span>
+                    <span className="block text-xs text-muted">{f.accepted ? (open === f.uid ? 'Esconder os decks e as trocas' : 'Ver os decks e as trocas') : 'Esperando aceitar o pedido'}</span>
                   </button>
                   <button type="button" onClick={() => removeFriend(f)} className="text-sm text-muted hover:text-red-400" title="Tirar dos amigos">
                     Remover
                   </button>
                 </div>
-                {open === f.uid && <FriendDecks friend={f} />}
+                {open === f.uid && (
+                  <>
+                    <TradeWith friend={f} />
+                    <FriendDecks friend={f} />
+                  </>
+                )}
               </li>
             ))}
           </ul>

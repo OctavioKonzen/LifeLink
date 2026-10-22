@@ -2,11 +2,29 @@ import { useEffect, useState } from 'react'
 import CardImage from './CardImage'
 import { Modal, Spinner } from './ui'
 import { missingFor } from '../lib/collection'
-import { useUserData } from '../lib/userData'
-import { FORMATS, deckProblems, dollarInReais, englishNames, exportList, fetchDeckList, parseDeckList, priceOf, refreshDeck, shuffled } from '../lib/deckTools'
+import { saveDeck, useUserData } from '../lib/userData'
+import { toDeckCard } from '../lib/deckCards'
+import { imageOf } from '../lib/scryfall'
+import { incrementCardsAdded } from '../lib/xp'
+import {
+  BRACKET_NAMES,
+  FORMATS,
+  bracket,
+  deckProblems,
+  dollarInReais,
+  englishNames,
+  exportList,
+  fetchDeckList,
+  parseDeckList,
+  priceOf,
+  refreshDeck,
+  shuffled,
+  suggestions,
+} from '../lib/deckTools'
 
 // Ferramentas de deck do site (as mesmas do app, deck_tools_screens.dart):
-// importar lista, preço e legalidade, mão de teste, exportar.
+// importar lista, preço, legalidade e nível, mão de teste e simulação,
+// sugestões para o comandante, exportar.
 
 const TYPES = ['Commander', 'Challenger', 'Normal']
 
@@ -143,7 +161,42 @@ export function ManaCurve({ cards }) {
   )
 }
 
-/** Preço de hoje (dólar, real e euro) e legalidade em cada formato. */
+const BRACKET_TEXT = {
+  2: 'Sem Game Changers, turnos extras nem destruição de terrenos. Se for um deck temático bem leve, pode ser o 1.',
+  3: 'Até 3 Game Changers e nada de destruição de terrenos em massa.',
+  4: 'Mais de 3 Game Changers, destruição de terrenos em massa ou vários turnos extras. Se for feito para vencer o mais rápido possível, é o 5 (cEDH).',
+}
+
+/** O nível do deck (Bracket do Commander) e o porquê. cards: atualizadas na Scryfall. */
+function BracketSection({ cards }) {
+  const b = bracket(cards)
+  const list = (title, names, color) =>
+    names.length > 0 && (
+      <p className={`mt-2 text-sm ${color}`}>
+        {title} ({names.length}): {names.join(', ')}
+      </p>
+    )
+  return (
+    <section className="rounded-2xl bg-text/5 p-4 md:col-span-2">
+      <h3 className="mb-2 text-xs font-black uppercase tracking-wide text-muted">Nível do deck (Bracket)</h3>
+      <div className="flex items-center gap-3">
+        <span className="grid h-13 w-13 shrink-0 place-items-center rounded-2xl bg-violet-700 text-3xl font-black text-white">{b.bracket}</span>
+        <div>
+          <p className="text-lg font-black">
+            Bracket {b.bracket}: {BRACKET_NAMES[b.bracket]}
+          </p>
+          <p className="text-sm text-muted">{BRACKET_TEXT[b.bracket]}</p>
+        </div>
+      </div>
+      {list('Game Changers', b.gameChangers, 'text-amber-400')}
+      {list('Turnos extras', b.extraTurns, 'text-sky-400')}
+      {list('Destruição de terrenos em massa', b.landDestruction, 'text-red-400')}
+      <p className="mt-2 text-xs text-muted">Combos de duas cartas não entram na conta: confira com a mesa.</p>
+    </section>
+  )
+}
+
+/** Preço de hoje (dólar, real e euro), legalidade em cada formato e, no Commander, o nível. */
 export function DeckAnalysis({ deck }) {
   const [state, setState] = useState({ loading: true, error: null, cards: [], brl: null })
   useEffect(() => {
@@ -171,6 +224,7 @@ export function DeckAnalysis({ deck }) {
   return (
     <div className="grid gap-4 md:grid-cols-2">
       <ManaCurve cards={deck.cards} />
+      {deck.type === 'Commander' && <BracketSection cards={cards} />}
       <section className="rounded-2xl bg-text/5 p-4">
         <h3 className="mb-2 text-xs font-black uppercase tracking-wide text-muted">Preço de hoje (Scryfall)</h3>
         <p className="text-3xl font-black">US$ {usd.toFixed(2)}</p>
@@ -222,32 +276,90 @@ export function DeckAnalysis({ deck }) {
   )
 }
 
-/** Mão de teste: 7 cartas, mulligan de Londres (põe uma no fundo por mulligan) e comprar mais. */
+const isLand = (c) => /Land|Terreno/.test(c.type_line || '')
+
+/** Uma fileira de cartas pequenas (em jogo e zona de comando). */
+function Strip({ title, cards, onPick }) {
+  return (
+    <div className="mb-3">
+      <p className="mb-1 text-xs font-black uppercase tracking-wide text-muted">{title}</p>
+      <div className="flex gap-2 overflow-x-auto pb-1">
+        {cards.map((c, i) => (
+          <button key={`${i}-${c.name}`} type="button" onClick={() => onPick(i)} className="block w-16 shrink-0 rounded-[4.5%] transition hover:scale-[1.05]" title={c.name}>
+            <CardImage src={c.imageUrl} alt={c.name} eager />
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+/**
+ * Mão de teste e simulação: 7 cartas, mulligan de Londres (põe uma no fundo
+ * por mulligan), jogar cartas (um terreno por turno), o comandante na zona
+ * de comando e os turnos (compra uma a cada turno).
+ */
 export function TestHand({ deck }) {
   const deal = (mulligans) => {
-    const library = shuffled(deck.cards)
-    return { hand: library.slice(0, 7), library: library.slice(7), mulligans, toBottom: mulligans, turn: 1 }
+    const library = shuffled(deck.cards.filter((c) => !c.commander))
+    return {
+      hand: library.slice(0, 7),
+      library: library.slice(7),
+      battlefield: [],
+      command: deck.cards.filter((c) => c.commander),
+      mulligans,
+      toBottom: mulligans,
+      turn: 1,
+      landPlayed: false,
+      msg: '',
+    }
   }
   const [s, setS] = useState(() => deal(0))
   if (deck.cards.length < 7) return <p className="py-6 text-center text-muted">O deck precisa de pelo menos 7 cartas.</p>
-  const lands = s.hand.filter((c) => /Land|Terreno/.test(c.type_line || '')).length
-  const toBottom = (i) =>
-    s.toBottom > 0 && setS({ ...s, hand: s.hand.filter((_, k) => k !== i), library: [...s.library, s.hand[i]], toBottom: s.toBottom - 1 })
-  const draw = () => s.library.length && !s.toBottom && setS({ ...s, hand: [...s.hand, s.library[0]], library: s.library.slice(1), turn: s.turn + 1 })
+  const lands = s.hand.filter(isLand).length
+  const mana = s.battlefield.filter(isLand).length
+  // Clicar numa carta da mão: no mulligan vai para o fundo; depois, joga.
+  const tap = (i) => {
+    const card = s.hand[i]
+    const hand = s.hand.filter((_, k) => k !== i)
+    if (s.toBottom > 0) return setS({ ...s, hand, library: [...s.library, card], toBottom: s.toBottom - 1 })
+    if (isLand(card) && s.landPlayed) return setS({ ...s, msg: 'Já jogou um terreno neste turno.' })
+    setS({ ...s, hand, battlefield: [...s.battlefield, card], landPlayed: s.landPlayed || isLand(card), msg: '' })
+  }
+  // Clicar numa carta em jogo: volta para a mão (o comandante, para a zona de comando).
+  const back = (i) => {
+    const card = s.battlefield[i]
+    const battlefield = s.battlefield.filter((_, k) => k !== i)
+    if (card.commander) return setS({ ...s, battlefield, command: [...s.command, card], msg: '' })
+    setS({ ...s, battlefield, hand: [...s.hand, card], landPlayed: isLand(card) ? false : s.landPlayed, msg: '' })
+  }
+  const cast = (i) => !s.toBottom && setS({ ...s, command: s.command.filter((_, k) => k !== i), battlefield: [...s.battlefield, s.command[i]], msg: '' })
+  const draw = () => s.library.length && !s.toBottom && setS({ ...s, hand: [...s.hand, s.library[0]], library: s.library.slice(1), msg: '' })
+  const nextTurn = () =>
+    !s.toBottom &&
+    setS({ ...s, turn: s.turn + 1, landPlayed: false, hand: s.library.length ? [...s.hand, s.library[0]] : s.hand, library: s.library.slice(1), msg: '' })
   return (
     <div>
       <p className={`mb-3 text-center font-bold ${s.toBottom ? 'text-amber-400' : 'text-muted'}`}>
-        {s.toBottom
-          ? `Mulligan ${s.mulligans}: clique em ${s.toBottom} carta${s.toBottom > 1 ? 's' : ''} para pôr no fundo do grimório.`
-          : `${s.hand.length} cartas na mão · ${lands} terreno${lands === 1 ? '' : 's'} · ${s.library.length} no grimório${s.turn > 1 ? ` · turno ${s.turn}` : ''}`}
+        {s.toBottom ? (
+          `Mulligan ${s.mulligans}: clique em ${s.toBottom} carta${s.toBottom > 1 ? 's' : ''} para pôr no fundo do grimório.`
+        ) : (
+          <>
+            Turno {s.turn} · {s.hand.length} na mão ({lands} terreno{lands === 1 ? '' : 's'}) · {mana} de mana em jogo · {s.library.length} no grimório
+            <span className="block text-xs font-normal">Clique numa carta da mão para jogar (um terreno por turno).</span>
+          </>
+        )}
       </p>
+      {s.msg && <p className="mb-3 text-center text-sm font-bold text-amber-400">{s.msg}</p>}
+      {s.command.length > 0 && <Strip title="Zona de comando (clique para jogar)" cards={s.command} onPick={cast} />}
+      {s.battlefield.length > 0 && <Strip title={`Em jogo (${s.battlefield.length}) · clique para voltar para a mão`} cards={s.battlefield} onPick={back} />}
       <div className="grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-3">
         {s.hand.map((c, i) => (
           <button
             key={`${i}-${c.name}`}
             type="button"
-            onClick={() => toBottom(i)}
-            className={`block rounded-[4.5%] transition ${s.toBottom ? 'ring-2 ring-amber-400 hover:scale-[1.03]' : 'cursor-default'}`}
+            onClick={() => tap(i)}
+            className={`block rounded-[4.5%] transition hover:scale-[1.03] ${s.toBottom ? 'ring-2 ring-amber-400' : ''}`}
             title={c.name}
           >
             <CardImage src={c.imageUrl} alt={c.name} eager />
@@ -260,7 +372,7 @@ export function TestHand({ deck }) {
         </button>
         <button
           type="button"
-          disabled={s.mulligans >= 6}
+          disabled={s.mulligans >= 6 || s.turn > 1 || s.battlefield.length > 0}
           onClick={() => setS(deal(s.mulligans + 1))}
           className="flex-1 rounded-full bg-text/10 py-2.5 font-bold hover:bg-text/20 disabled:opacity-40"
         >
@@ -270,10 +382,98 @@ export function TestHand({ deck }) {
           type="button"
           disabled={!!s.toBottom || !s.library.length}
           onClick={draw}
+          className="flex-1 rounded-full bg-text/10 py-2.5 font-bold hover:bg-text/20 disabled:opacity-40"
+        >
+          + Comprar 1
+        </button>
+        <button
+          type="button"
+          disabled={!!s.toBottom}
+          onClick={nextTurn}
           className="flex-1 rounded-full bg-accent py-2.5 font-bold text-white hover:brightness-110 disabled:opacity-40"
         >
-          + Comprar
+          ⏭ Próximo turno
         </button>
+      </div>
+    </div>
+  )
+}
+
+/**
+ * Sugestões de cartas para o comandante do deck (EDHREC ou, se não der, as
+ * mais populares nas cores dele), com o "+" para pôr no deck.
+ */
+export function Suggestions({ deck }) {
+  const [state, setState] = useState({ loading: true, error: null, cards: [], source: '' })
+  const [added, setAdded] = useState(() => new Set())
+  const [attempt, setAttempt] = useState(0)
+  // O deck muda a cada "+": as sugestões ficam as mesmas até "Tentar de novo".
+  const [cards] = useState(deck.cards)
+  useEffect(() => {
+    let alive = true
+    const load = async () => {
+      const commanders = cards.filter((c) => c.commander)
+      if (!commanders.length) return { error: 'Marque o comandante do deck primeiro (no app: segure a carta no deck → "Marcar como comandante"; ou importe a lista com a seção "Commander").' }
+      // Os nomes em inglês (o deck pode estar traduzido).
+      const fresh = await refreshDeck(cards)
+      const commander = fresh[cards.indexOf(commanders[0])] || commanders[0]
+      const result = await suggestions(commander, fresh)
+      return result.cards.length ? result : { error: 'Não achei sugestões para este comandante.' }
+    }
+    load()
+      .then((r) => alive && setState({ loading: false, error: r.error || null, cards: r.cards || [], source: r.source || '' }))
+      .catch((e) => alive && setState({ loading: false, error: e.message || 'Não deu para buscar as sugestões agora. Verifique a internet.', cards: [], source: '' }))
+    return () => {
+      alive = false
+    }
+  }, [cards, attempt])
+  const add = (card) => {
+    saveDeck({ ...deck, cards: [...deck.cards, toDeckCard(card)] })
+    incrementCardsAdded(1)
+    setAdded(new Set([...added, card.id]))
+  }
+  if (state.loading) return <div className="grid place-items-center py-6"><Spinner /></div>
+  if (state.error)
+    return (
+      <div className="py-4 text-center">
+        <p className="mb-3">{state.error}</p>
+        <button
+          type="button"
+          onClick={() => {
+            setState({ loading: true, error: null, cards: [], source: '' })
+            setAttempt(attempt + 1)
+          }}
+          className="rounded-full bg-accent px-4 py-1.5 text-sm font-bold text-white"
+        >
+          Tentar de novo
+        </button>
+      </div>
+    )
+  return (
+    <div>
+      <p className="mb-3 text-sm text-muted">As cartas mais usadas com este comandante (fonte: {state.source}). Clique no + para pôr no deck.</p>
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-3">
+        {state.cards.map((c) => {
+          const done = added.has(c.id)
+          return (
+            <div key={c.id}>
+              <CardImage src={imageOf(c, 'normal')} alt={c.name} />
+              <div className="mt-1 flex items-center justify-between gap-1">
+                <span className="text-xs font-bold text-muted">US$ {priceOf(c).toFixed(2)}</span>
+                <button
+                  type="button"
+                  disabled={done}
+                  onClick={() => add(c)}
+                  aria-label={`Pôr ${c.name} no deck`}
+                  title="Pôr no deck"
+                  className={`grid h-7 w-7 place-items-center rounded-full text-sm font-black ${done ? 'bg-emerald-500 text-white' : 'bg-amber-400 text-black hover:brightness-110'}`}
+                >
+                  {done ? '✓' : '+'}
+                </button>
+              </div>
+            </div>
+          )
+        })}
       </div>
     </div>
   )

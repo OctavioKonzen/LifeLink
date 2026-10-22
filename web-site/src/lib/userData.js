@@ -2,7 +2,7 @@
 //   settings: { bgColor, playerName, cardLanguage }
 //   profile:  { xp, level, tier, claimedMissions, unlocked*, selected*,
 //               totalMatches, statDecks, statCards, statSearches, statArts }
-//   game:     { playerCount, startingLife, lives, poison, commanderDamage, playerNames }
+//   game:     { playerCount, startingLife, lives, poison, commanderDamage, playerNames, radiation, dayNight... }
 //   matches:  { list: [partidas terminadas] } (matches.js)
 //   collection, wishlist: { list: [cartas] } (collection.js)
 //   decks:    { [id]: { id, name, type, cards } }
@@ -44,7 +44,10 @@ export const defaultGame = (startingLife = 40, playerCount = 2, playerNames) => 
   tax: Array(6).fill(0),
   treasure: Array(6).fill(0),
   storm: Array(6).fill(0),
+  radiation: Array(6).fill(0),
   blessing: Array(6).fill(0),
+  // Dia e noite (cartas de Innistrad): 0 = fora do jogo, 1 = dia, 2 = noite.
+  dayNight: 0,
   monarch: -1,
   initiative: -1,
   // Turnos: de quem é a vez (-1 = sem contar), quem começou, a rodada, quando

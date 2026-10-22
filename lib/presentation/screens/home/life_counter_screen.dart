@@ -132,8 +132,29 @@ class _LifeCounterScreenState extends State<LifeCounterScreen> {
     );
   }
 
+  /// O meu lugar na mesa online, se escolhi um (e ele ainda existe).
+  int _mySeat(GameProvider game) {
+    final seat = OnlineTable.instance.active ? OnlineTable.instance.mySeat : -1;
+    return seat < game.playerCount ? seat : -1;
+  }
+
   Widget _layout(GameProvider game) {
     final n = game.playerCount;
+    // Cada um no seu celular: os outros em cima, pequenos, e eu embaixo.
+    final me = _mySeat(game);
+    if (me >= 0) {
+      final others = [for (int i = 0; i < n; i++) if (i != me) i];
+      return Column(children: [
+        Expanded(
+          flex: 2,
+          child: Column(children: [
+            for (var r = 0; r < others.length; r += 3)
+              Expanded(child: Row(children: [for (final o in others.skip(r).take(3)) _card(game, o, 0)])),
+          ]),
+        ),
+        Expanded(flex: 3, child: Row(children: [_card(game, me, 0)])),
+      ]);
+    }
     if (n == 2) {
       return Column(children: [_card(game, 1, 2), _card(game, 0, 0)]);
     }
@@ -165,7 +186,8 @@ class _LifeCounterScreenState extends State<LifeCounterScreen> {
   }
 
   /// Onde os quadros se encontram (a mesma divisão de [_layout]).
-  static Alignment _menuAlignment(int players) {
+  static Alignment _menuAlignment(int players, {bool mySeat = false}) {
+    if (mySeat) return const Alignment(0, -0.2); // os de cima com flex 2, o meu com 3
     final fromTop = switch (players) {
       3 => 3 / 5, // fileira de cima com flex 3, a de baixo com 2
       5 => 2 / 3, // colunas com flex 2, o de baixo com 1
@@ -179,13 +201,14 @@ class _LifeCounterScreenState extends State<LifeCounterScreen> {
     return Scaffold(
       backgroundColor: Colors.black,
       body: Consumer<GameProvider>(builder: (context, game, _) {
-        return Stack(children: [
+        // A mesa online também redesenha (ex.: escolhi o meu lugar).
+        return AnimatedBuilder(animation: OnlineTable.instance, builder: (context, _) => Stack(children: [
           Positioned.fill(child: Padding(padding: const EdgeInsets.all(3), child: _layout(game))),
 
           // O botão do meio, no encontro dos quadros (com 3 e 5 jogadores a
           // fileira de baixo é menor, então o encontro fica mais para baixo).
           Align(
-            alignment: _menuAlignment(game.playerCount),
+            alignment: _menuAlignment(game.playerCount, mySeat: _mySeat(game) >= 0),
             child: AnimatedScale(
               scale: _menuOpen ? 0 : 1,
               duration: const Duration(milliseconds: 200),
@@ -208,6 +231,32 @@ class _LifeCounterScreenState extends State<LifeCounterScreen> {
               ),
             ),
           ),
+
+          // Dia ou noite: o sol ou a lua ao lado do botão do meio (tocar troca).
+          if (game.dayNight != 0 && !_menuOpen)
+            Align(
+              alignment: _menuAlignment(game.playerCount, mySeat: _mySeat(game) >= 0),
+              child: Transform.translate(
+                offset: const Offset(62, 0),
+                child: GestureDetector(
+                  onTap: () {
+                    HapticFeedback.selectionClick();
+                    game.toggleDayNight();
+                  },
+                  child: Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: game.dayNight == 1 ? const Color(0xFFFFD54F) : const Color(0xFF283593),
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white54, width: 2),
+                      boxShadow: const [BoxShadow(color: Colors.black54, blurRadius: 10)],
+                    ),
+                    child: Icon(game.dayNight == 1 ? Icons.wb_sunny : Icons.nightlight_round, color: game.dayNight == 1 ? Colors.deepOrange : Colors.white, size: 24),
+                  ),
+                ),
+              ),
+            ),
 
           if (_menuOpen) _menu(game),
 
@@ -232,7 +281,7 @@ class _LifeCounterScreenState extends State<LifeCounterScreen> {
                 },
               ),
             ),
-        ]);
+        ]));
       }),
     );
   }
@@ -316,6 +365,14 @@ class _LifeCounterScreenState extends State<LifeCounterScreen> {
                       close();
                       showDialog(context: context, builder: (_) => OnlineTableDialog(game: game));
                     }),
+                    _menuButton(
+                      game.dayNight == 2 ? Icons.nightlight_round : Icons.wb_sunny,
+                      switch (game.dayNight) { 1 => 'Dia (trocar)', 2 => 'Noite (trocar)', _ => 'Dia e noite' },
+                      const Color(0xFFFFD54F),
+                      () => game.toggleDayNight(),
+                    ),
+                    if (game.dayNight != 0) _menuButton(Icons.wb_twilight, 'Tirar dia/noite', const Color(0xFFFFD54F), () => game.clearDayNight()),
+                    _menuButton(Icons.shuffle, 'Sortear lugares', const Color(0xFFFF80AB), () => _confirmNewGame(game, game.shuffleSeats)),
                     _menuButton(Icons.public, 'Planechase', const Color(0xFF90A4AE), () {
                       close();
                       showDialog(context: context, builder: (_) => PlanechaseDialog(game: game));
@@ -461,6 +518,7 @@ class _LifeCounterScreenState extends State<LifeCounterScreen> {
                 row('Imposto do comandante', Icons.account_balance, const Color(0xFF80CBC4), game.counter(Counter.tax, index), (d) => game.updateCounter(Counter.tax, index, d), step: 2),
                 row('Tesouro', Icons.paid, const Color(0xFFFFD54F), game.counter(Counter.treasure, index), (d) => game.updateCounter(Counter.treasure, index, d)),
                 row('Tempestade', Icons.thunderstorm, const Color(0xFF90CAF9), game.counter(Counter.storm, index), (d) => game.updateCounter(Counter.storm, index, d)),
+                row('Radiação', Icons.warning_amber, const Color(0xFFC6FF00), game.counter(Counter.radiation, index), (d) => game.updateCounter(Counter.radiation, index, d)),
                 SwitchListTile(
                   contentPadding: EdgeInsets.zero,
                   secondary: const Icon(Icons.location_city, color: Color(0xFFFFF8E1)),
@@ -775,7 +833,7 @@ class _LifeCounterScreenState extends State<LifeCounterScreen> {
   void _showHistory(GameProvider game) {
     const labels = {
       'life': 'vida', 'poison': 'veneno', 'energy': 'energia', 'experience': 'experiência', 'tax': 'imposto', 'cmd': 'comandante', //
-      'treasure': 'tesouro', 'storm': 'tempestade', 'blessing': 'cidade abençoada',
+      'treasure': 'tesouro', 'storm': 'tempestade', 'blessing': 'cidade abençoada', 'radiation': 'radiação',
     };
     final events = game.history.reversed.toList();
     showDialog(
