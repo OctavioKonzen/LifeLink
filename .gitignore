@@ -46,3 +46,8 @@ app.*.map.json
 
 # Widget Preview related
 .widget_preview/
+
+# Busca de cartas na Cloudflare
+cloud/node_modules/
+cloud/package-lock.json
+d1-*.sql

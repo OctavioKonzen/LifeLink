@@ -1,0 +1,79 @@
+# A busca de cartas na Cloudflare: o banco D1 e o Worker (pasta cloud/).
+# Publica o Worker quando ele muda e, todo dia (depois do banco de cartas do
+# R2, cards-data.yml), manda para o D1 o que mudou (tool/load_d1.py).
+name: Busca de cartas (Cloudflare)
+
+on:
+  push:
+    branches: [main]
+    paths: ['cloud/**', 'tool/load_d1.py', 'tool/cloudflare_setup.py', '.github/workflows/cloud.yml']
+  pull_request:
+    paths: ['cloud/**', 'tool/load_d1.py', 'tool/cloudflare_setup.py', '.github/workflows/cloud.yml']
+  schedule:
+    - cron: '23 17 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: cloud
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Testes da busca
+        working-directory: cloud
+        run: node --test
+      - name: Carga do D1 (só gera o SQL, com cartas de exemplo)
+        run: python3 -c "import ast,sys; [ast.parse(open(f).read()) for f in ['tool/load_d1.py','tool/cloudflare_setup.py']]"
+
+  deploy:
+    needs: test
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+      R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+      R2_BUCKET: lifelink
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install boto3
+      # O segredo R2_ACCOUNT_ID pode ter o endereço inteiro; o wrangler quer só o id.
+      - name: Conta da Cloudflare
+        run: |
+          echo "CLOUDFLARE_ACCOUNT_ID=$(python3 -c "import sys; sys.path.insert(0,'tool'); import build_cards as b, os; print(b.account_id(os.environ['R2_ACCOUNT_ID']))")" >> "$GITHUB_ENV"
+      - name: Endereço e banco
+        id: setup
+        run: python3 tool/cloudflare_setup.py
+      - name: Instalar o wrangler
+        working-directory: cloud
+        run: npm install --no-audit --no-fund
+      - name: Tabelas do banco
+        working-directory: cloud
+        run: npx wrangler d1 execute lifelink --remote --file=schema.sql
+      - name: Publicar o Worker
+        working-directory: cloud
+        run: npx wrangler deploy
+      - name: Mandar as cartas para o banco
+        run: python3 tool/load_d1.py
+      - name: Conferir
+        run: |
+          sleep 5
+          curl -fsS "${{ steps.setup.outputs.url }}/health"; echo
+          curl -fsS "${{ steps.setup.outputs.url }}/search?q=anel%20solar" | head -c 400; echo

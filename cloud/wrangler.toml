@@ -1,0 +1,11 @@
+# O serviço de busca de cartas (Cloudflare Worker + D1). Publicado pela Action
+# cloud.yml; o database_id é preenchido lá (wrangler d1 list).
+name = "lifelink-cards"
+main = "src/index.js"
+compatibility_date = "2025-09-01"
+workers_dev = true
+
+[[d1_databases]]
+binding = "DB"
+database_name = "lifelink"
+database_id = "__D1_ID__"
