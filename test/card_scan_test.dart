@@ -35,4 +35,27 @@ void main() {
   test('sem nada legível', () {
     expect(readCard([line('1/1', 300)]).isEmpty, isTrue);
   });
+
+  test('palavras do texto de regras não viram coleção', () {
+    final r = readCard([
+      line('Mestra do Saber da Academia', 30),
+      line('No início da etapa de compra de cada', 400),
+      line('jogador, aquele jogador pode comprar', 430),
+    ]);
+    expect(r.name, 'Mestra do Saber da Academia');
+    expect(r.set, isNull);
+    expect(r.lang, isNull);
+  });
+
+  test('canto de baixo lido com o separador trocado e sem a raridade', () {
+    final r = readCard([
+      line('Sol Ring', 30),
+      line('Artifact', 400),
+      line('0410', 690),
+      line('CMM « EN Mike Bierek', 712),
+    ]);
+    expect(r.set, 'cmm');
+    expect(r.number, '410');
+    expect(r.lang, 'en');
+  });
 }
