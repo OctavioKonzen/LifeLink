@@ -258,41 +258,86 @@ class _PlayerCardWidgetState extends State<PlayerCardWidget> {
     ]);
   }
 
-  /// O dano de comandante recebido de cada adversário (21 de um derrota).
+  /// O dano de comandante recebido de cada adversário (21 de um derrota), no
+  /// mesmo jeito do veneno: com um adversário, o número grande e as metades −
+  /// e +; com vários, uma linha grande para cada um.
   Widget _commanderPage(GameProvider game, int i) {
     final others = [for (int a = 0; a < game.playerCount; a++) if (a != i) a];
-    Widget step(IconData icon, VoidCallback onTap) => GestureDetector(
+    const tint = Color(0xFFBF360C);
+    Widget header(double size) => Row(mainAxisSize: MainAxisSize.min, children: [
+          Icon(Icons.shield, color: const Color(0xFFFFE0B2), size: size * 0.22),
+          const SizedBox(width: 6),
+          Text('COMANDANTE', style: TextStyle(color: const Color(0xFFFFE0B2), fontWeight: FontWeight.w900, fontSize: size * 0.17, letterSpacing: 1)),
+        ]);
+
+    if (others.length == 1) {
+      final a = others.first;
+      void change(int d) {
+        game.updateCommanderDamage(i, a, d);
+        HapticFeedback.selectionClick();
+        _touchPage();
+      }
+
+      final value = game.commanderDamage[i][a];
+      return Stack(children: [
+        Container(color: tint.withValues(alpha: 0.3)),
+        Row(children: [_zone(-1, change), _zone(1, change)]),
+        IgnorePointer(
+          child: LayoutBuilder(builder: (context, box) {
+            final size = (box.maxHeight * 0.36).clamp(36.0, 170.0);
+            return Center(
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                header(size),
+                FittedBox(
+                  child: Text('$value', style: TextStyle(color: value >= 21 ? Colors.redAccent : Colors.white, fontSize: size, fontWeight: FontWeight.w900, height: 1.0)),
+                ),
+                FittedBox(child: Text('de ${game.playerNames[a]} · de 21', maxLines: 1, style: TextStyle(color: Colors.white70, fontWeight: FontWeight.w700, fontSize: size * 0.15))),
+              ]),
+            );
+          }),
+        ),
+        _backToLife(),
+      ]);
+    }
+
+    Widget step(IconData icon, int a, int d) => GestureDetector(
           behavior: HitTestBehavior.opaque,
           onTap: () {
-            onTap();
+            game.updateCommanderDamage(i, a, d);
             HapticFeedback.selectionClick();
             _touchPage();
           },
-          child: Padding(padding: const EdgeInsets.all(6), child: Icon(icon, color: Colors.white, size: 30)),
+          child: Padding(padding: const EdgeInsets.all(8), child: Icon(icon, color: Colors.white, size: 40)),
         );
     return Stack(children: [
-      Container(
-      color: Colors.black.withValues(alpha: 0.25),
-      padding: const EdgeInsets.fromLTRB(10, 38, 10, 48),
-      child: FittedBox(
-        fit: BoxFit.scaleDown,
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          const Text('DANO DE COMANDANTE RECEBIDO', style: TextStyle(color: Color(0xFFFFE0B2), fontWeight: FontWeight.w900, fontSize: 13, letterSpacing: 0.5)),
-          const SizedBox(height: 6),
-          for (final a in others)
-            Row(mainAxisSize: MainAxisSize.min, children: [
-              Container(width: 12, height: 12, decoration: BoxDecoration(color: game.colorOf(a), shape: BoxShape.circle, border: Border.all(color: Colors.white54))),
-              const SizedBox(width: 8),
-              SizedBox(width: 110, child: Text(game.playerNames[a], overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 16))),
-              step(Icons.remove_circle_outline, () => game.updateCommanderDamage(i, a, -1)),
-              SizedBox(
-                width: 44,
-                child: Text('${game.commanderDamage[i][a]}', textAlign: TextAlign.center, style: TextStyle(color: game.commanderDamage[i][a] >= 21 ? Colors.redAccent : Colors.white, fontSize: 26, fontWeight: FontWeight.w900)),
-              ),
-              step(Icons.add_circle_outline, () => game.updateCommanderDamage(i, a, 1)),
-            ]),
-        ]),
-      ),
+      Positioned.fill(child: Container(color: tint.withValues(alpha: 0.3))),
+      Positioned.fill(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(12, 48, 12, 64),
+          child: Center(
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                header(110),
+                const SizedBox(height: 8),
+                for (final a in others)
+                  Row(mainAxisSize: MainAxisSize.min, children: [
+                    Container(width: 16, height: 16, decoration: BoxDecoration(color: game.colorOf(a), shape: BoxShape.circle, border: Border.all(color: Colors.white70, width: 2))),
+                    const SizedBox(width: 10),
+                    SizedBox(width: 140, child: Text(game.playerNames[a], overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 20))),
+                    step(Icons.remove_circle_outline, a, -1),
+                    SizedBox(
+                      width: 64,
+                      child: Text('${game.commanderDamage[i][a]}',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: game.commanderDamage[i][a] >= 21 ? Colors.redAccent : Colors.white, fontSize: 40, fontWeight: FontWeight.w900)),
+                    ),
+                    step(Icons.add_circle_outline, a, 1),
+                  ]),
+              ]),
+            ),
+          ),
+        ),
       ),
       _backToLife(),
     ]);
@@ -371,7 +416,8 @@ class _PlayerCardWidgetState extends State<PlayerCardWidget> {
           // Em qual página está (as bolinhas) — vida no meio.
           IgnorePointer(
             child: Align(
-              alignment: const Alignment(0, -0.62),
+              // Embaixo (acima do nome), longe dos números de cada página.
+              alignment: const Alignment(0, 0.74),
               child: Row(mainAxisSize: MainAxisSize.min, children: [
                 for (final p in const [-1, 0, 1])
                   AnimatedContainer(
