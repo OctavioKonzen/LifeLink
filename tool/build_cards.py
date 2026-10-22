@@ -311,6 +311,28 @@ def shard_files(cards, sets):
     return {k: json.dumps(v, ensure_ascii=False, separators=(',', ':')).encode() for k, v in files.items()}
 
 
+def top_prices(cards, sets, count=600):
+    """As variações mais caras (inglês e português), para a tela "Preços de
+    hoje" do app e do site: data/top.json."""
+    rows = []
+    for card in cards:
+        for v in card['v']:
+            prices = v.get('$') or {}
+            usd = prices.get('usd') or prices.get('usd_foil') or prices.get('usd_etched')
+            try:
+                value = float(usd) if usd else 0
+            except ValueError:
+                value = 0
+            if value > 0:
+                rows.append((value, card, v))
+    rows.sort(key=lambda r: r[0], reverse=True)
+    return [clean({
+        'id': v['id'], 'o': card['o'], 'n': card['n'], 'pn': v.get('pn') or (card.get('pn') if v.get('l') == 'pt' else None),
+        'l': v.get('l'), 's': v.get('s'), 'sn': sets.get(v.get('s'), ''), 'cn': v.get('cn'), 'r': v.get('r'),
+        'm': card.get('m'), 't': card.get('t'), 'ci': card.get('ci'), 'i': v.get('i'), '$': v.get('$'),
+    }) for _, card, v in rows[:count]]
+
+
 def publish_shards(s3, bucket, files):
     """Envia só os arquivos que mudaram desde a última vez (o resumo de cada
     um fica em data/shards.json.gz)."""
@@ -367,7 +389,10 @@ def main():
     if s3:
         s3.put_object(Bucket=bucket, Key='data/images.txt.gz', Body=gzip.compress('\n'.join(sorted(have)).encode()), ContentType='application/gzip')
         s3.put_object(Bucket=bucket, Key='data/cards.jsonl.gz', Body=data, ContentType='application/gzip', CacheControl='public, max-age=3600')
-        publish_shards(s3, bucket, shard_files([json.loads(l) for l in text.splitlines()[1:]], sets))
+        cards = [json.loads(line) for line in text.splitlines()[1:]]
+        publish_shards(s3, bucket, shard_files(cards, sets))
+        s3.put_object(Bucket=bucket, Key='data/top.json', Body=json.dumps(top_prices(cards, sets), ensure_ascii=False, separators=(',', ':')).encode(),
+                      ContentType='application/json', CacheControl='public, max-age=3600')
         s3.put_object(Bucket=bucket, Key='data/meta.json', Body=json.dumps(meta).encode(), ContentType='application/json', CacheControl='public, max-age=300')
     else:
         with open('cards.jsonl.gz', 'wb') as f:

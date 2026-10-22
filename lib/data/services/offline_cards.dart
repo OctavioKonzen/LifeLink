@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'lifelink_cards.dart';
 import 'scryfall_service.dart';
 
 /// Separa os objetos de uma lista JSON grande ("[{...},{...}]") que chega em
@@ -99,13 +100,24 @@ class OfflineCards {
 
   /// Baixa (ou atualiza) as cartas. [progress] vai de 0 a 1.
   Future<int> download({void Function(double progress)? progress}) async {
+    // Do banco do LifeLink (R2): com os nomes e textos em português.
+    try {
+      return await _download('${LifeLinkCards.r2}/data/cards.jsonl.gz', 0, progress, own: true);
+    } on ScryfallException {
+      rethrow;
+    } catch (_) {
+      // O R2 não respondeu: baixa da Scryfall (só inglês).
+    }
     final meta = await ScryfallService.instance.getJson('https://api.scryfall.com/bulk-data/oracle-cards', useCache: false);
     // Hoje a Scryfall manda um arquivo compactado com uma carta por linha
     // (jsonl.gz); antes era uma lista JSON. O separador serve para os dois.
     final uri = (meta['jsonl_download_uri'] ?? meta['download_uri']) as String?;
     if (uri == null) throw const ScryfallException('A Scryfall não mandou o arquivo das cartas.');
     final total = ((meta['compressed_size'] ?? meta['size']) as num?)?.toInt() ?? 0;
+    return _download(uri, total, progress);
+  }
 
+  Future<int> _download(String uri, int total, void Function(double progress)? progress, {bool own = false}) async {
     final client = http.Client();
     final file = await _file();
     final temp = File('${file.path}.part');
@@ -113,8 +125,10 @@ class OfflineCards {
     var count = 0;
     try {
       final response = await client.send(http.Request('GET', Uri.parse(uri))..headers.addAll(ScryfallService.headers));
-      if (response.statusCode != 200) throw ScryfallException('Erro ${response.statusCode} ao baixar as cartas.');
+      if (response.statusCode != 200) throw http.ClientException('Erro ${response.statusCode} ao baixar as cartas.');
+      total = total > 0 ? total : (response.contentLength ?? 0);
       final splitter = JsonObjectSplitter();
+      Map<String, dynamic> sets = const {};
       var received = 0;
       Stream<List<int>> bytes = response.stream.map((chunk) {
         received += chunk.length;
@@ -124,7 +138,12 @@ class OfflineCards {
       if (uri.endsWith('.gz')) bytes = bytes.transform(gzip.decoder);
       await for (final text in bytes.transform(utf8.decoder)) {
         for (final raw in splitter.add(text)) {
-          final card = slim(jsonDecode(raw) as Map<String, dynamic>);
+          final data = jsonDecode(raw) as Map<String, dynamic>;
+          if (own && data['sets'] is Map) {
+            sets = Map<String, dynamic>.from(data['sets'] as Map); // a primeira linha
+            continue;
+          }
+          final card = own ? ownCard(data, sets) : slim(data);
           if (card == null) continue;
           sink.writeln(jsonEncode(card));
           count++;
@@ -146,6 +165,13 @@ class OfflineCards {
     return count;
   }
 
+  /// Uma carta do banco do LifeLink no formato do app (em português quando
+  /// existe, com o nome em inglês junto para a busca).
+  static Map<String, dynamic>? ownCard(Map<String, dynamic> card, Map<String, dynamic> sets) {
+    if (card['o'] == null || const {'token', 'double_faced_token', 'emblem', 'art_series'}.contains(card['lay'])) return null;
+    return LifeLinkCards.toApp({...card, '_sets': sets}, LifeLinkCards.variationFor(card, lang: 'pt'));
+  }
+
   Future<void> delete() async {
     final file = await _file();
     if (await file.exists()) await file.delete();
@@ -165,7 +191,7 @@ class OfflineCards {
     final words = text.toLowerCase().split(RegExp(r'\s+')).where((w) => w.isNotEmpty).toList();
     if (words.isEmpty) return cards.take(limit).toList();
     bool all(String hay) => words.every(hay.contains);
-    final byName = [for (final c in cards) if (all('${c['name']}'.toLowerCase())) c];
+    final byName = [for (final c in cards) if (all('${c['name']}'.toLowerCase()) || all('${c['enName'] ?? ''}'.toLowerCase())) c];
     if (byName.isNotEmpty) {
       // Quem começa com o que foi digitado vem primeiro.
       byName.sort((a, b) {

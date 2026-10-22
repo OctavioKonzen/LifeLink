@@ -67,9 +67,16 @@ jobs:
       - name: Tabelas do banco
         working-directory: cloud
         run: npx wrangler d1 execute lifelink --remote --file=schema.sql
+      # Na primeira vez a Cloudflare demora uns segundos para "ver" o Worker
+      # novo ao ligar o endereço workers.dev: tenta de novo.
       - name: Publicar o Worker
         working-directory: cloud
-        run: npx wrangler deploy
+        run: |
+          for i in 1 2 3 4; do
+            npx wrangler deploy && exit 0
+            echo "Tentando de novo em 15 s..."; sleep 15
+          done
+          exit 1
       - name: Mandar as cartas para o banco
         run: python3 tool/load_d1.py
       - name: Conferir

@@ -118,7 +118,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     Text(
                       has
                           ? '${info!.count} cartas salvas (${info.at!.day.toString().padLeft(2, '0')}/${info.at!.month.toString().padLeft(2, '0')}/${info.at!.year}). Sem internet, a busca usa essas cartas (em inglês, sem as imagens).'
-                          : 'Baixe todas as cartas (uma versão de cada, em inglês) para buscar sem internet. Use o Wi-Fi: são uns 25 MB para baixar e ficam uns 30 MB no celular.',
+                          : 'Baixe todas as cartas (uma versão de cada, em inglês) para buscar sem internet. Use o Wi-Fi: são uns 18 MB para baixar e ficam uns 30 MB no celular, com os nomes em português.',
                       style: TextStyle(color: textColor.withValues(alpha: 0.8), fontSize: 13),
                     ),
                     const SizedBox(height: 12),
