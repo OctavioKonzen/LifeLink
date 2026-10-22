@@ -95,6 +95,8 @@ Maybeboard
                 {'name': 'Sol Ring', 'inclusion': 900, 'potential_decks': 1000, 'synergy': 0},
                 {'name': 'Doubling Season', 'inclusion': 500, 'potential_decks': 1000, 'synergy': 0.6},
                 {'name': 'Já Tenho', 'inclusion': 999, 'potential_decks': 1000},
+                {'name': 'Forest', 'inclusion': 1000, 'potential_decks': 1000},
+                {'name': 'Snow-Covered Island', 'num_decks': 1000, 'potential_decks': 1000},
               ],
             },
           ],

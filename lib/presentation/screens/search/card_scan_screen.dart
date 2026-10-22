@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:math';
 
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
@@ -37,17 +38,27 @@ const _langCodes = {
 /// Lê as linhas do texto reconhecido (com a posição de cada uma na foto).
 CardReading readCard(List<({String text, double top, double left, double height})> lines) {
   String? set, number, lang;
-  final setRe = RegExp(r'\b([A-Z0-9]{3,5})\s*[•·.*\-]?\s*(EN|PT|ES|FR|DE|IT|JA|JP|KO|RU|CS|CT)\b');
+  // A coleção vem impressa em maiúsculas (sem isso, "etapa de" do texto de
+  // regras virava a coleção "ETAPA" em alemão).
+  // O separador ("•") a leitura às vezes troca por "«", "*" ou "»".
+  final setRe = RegExp(r'\b([A-Z0-9]{3,5})\s*[^\w\s]?\s*(EN|PT|ES|FR|DE|IT|JA|JP|KO|RU|CS|CT)\b');
   final numRe = RegExp(r'\b(\d{1,4})\s*/\s*\d{1,4}\b');
-  final newNumRe = RegExp(r'^\s*(\d{3,4})\s+[CURMSLTP]\b');
+  final newNumRe = RegExp(r'^\s*(\d{3,4})(\s+[CURMSLTP]\b|\s*$)'); // "0123 R" ou só "0123"
+  // Coleção e número ficam no canto de baixo: só as linhas da parte de baixo
+  // do texto lido contam.
+  final tops = [for (final l in lines) l.top];
+  final minTop = tops.isEmpty ? 0.0 : tops.reduce(min);
+  final maxTop = tops.isEmpty ? 0.0 : tops.reduce(max);
+  final bottom = minTop + (maxTop - minTop) * 0.6;
   for (final l in lines) {
-    final t = l.text.toUpperCase();
+    if (l.top < bottom) continue;
+    final t = l.text;
     final s = setRe.firstMatch(t);
     if (s != null && set == null) {
       set = s.group(1)!.toLowerCase();
       lang = _langCodes[s.group(2)];
     }
-    final n = numRe.firstMatch(t) ?? newNumRe.firstMatch(t);
+    final n = numRe.firstMatch(t.toUpperCase()) ?? newNumRe.firstMatch(t.toUpperCase());
     if (n != null && number == null) number = int.parse(n.group(1)!).toString();
   }
 
@@ -59,6 +70,91 @@ CardReading readCard(List<({String text, double top, double left, double height}
   ]..sort((a, b) => a.top.compareTo(b.top));
   final name = candidates.isEmpty ? null : candidates.first.text.trim();
   return CardReading(name: name, set: set, number: number, lang: lang);
+}
+
+/// Acha a mesma versão da carta lida e o texto no idioma [want] (o das
+/// configurações). Volta a carta no formato do app, ou null.
+Future<Map<String, dynamic>?> findCard(CardReading r, String want) async {
+  final scryfall = ScryfallService.instance;
+  Map<String, dynamic>? printing;
+
+  // 1. Coleção e número (cartas novas): a versão exata.
+  if (r.set != null && r.number != null) {
+    try {
+      printing = await scryfall.getJson('https://api.scryfall.com/cards/${r.set}/${r.number}${r.lang != null && r.lang != 'en' ? '/${r.lang}' : ''}');
+    } catch (_) {}
+  }
+  // 2. Pelo nome (inglês, com erro de leitura) ou pelo nome impresso (português...).
+  if (printing == null && r.name != null) {
+    try {
+      printing = await scryfall.getJson('https://api.scryfall.com/cards/named?fuzzy=${Uri.encodeQueryComponent(r.name!)}');
+    } catch (_) {
+      // Nome impresso (português...) e, se a leitura errou o fim do nome
+      // (acentos, letras coladas), só as primeiras palavras.
+      final words = r.name!.replaceAll('"', '').split(RegExp(r'\s+'));
+      for (var k = words.length; k >= 2 && printing == null; k--) {
+        try {
+          final page = await scryfall.search('"${words.take(k).join(' ')}"', multilingual: true);
+          if (page.cards.isNotEmpty) printing = Map<String, dynamic>.from(page.cards.first as Map);
+        } catch (_) {}
+      }
+    }
+    // Achou pelo nome e leu a coleção (ou só o número, nas cartas antigas):
+    // a mesma versão da carta na mão.
+    final sameSet = r.set == null || printing?['set'] == r.set;
+    final sameNumber = r.number == null || printing?['collector_number'] == r.number;
+    if (printing != null && (r.set != null || r.number != null) && !(sameSet && sameNumber)) {
+      final where = [if (r.set != null) 'set:${r.set}', if (r.number != null) 'cn:${r.number}'];
+      for (final q in [where.join(' '), if (where.length > 1) where.first]) {
+        try {
+          final page = await scryfall.search('oracleid:${printing!['oracle_id']} $q', unique: 'prints', multilingual: false);
+          if (page.cards.isNotEmpty) {
+            printing = Map<String, dynamic>.from(page.cards.first as Map);
+            break;
+          }
+        } catch (_) {}
+      }
+    }
+  }
+  if (printing == null) return null;
+
+  // O texto no idioma escolhido (a mesma versão nesse idioma, ou outra versão
+  // só para o texto, mantendo a imagem da carta escaneada).
+  Map<String, dynamic>? translated;
+  if (want != (printing['lang'] ?? 'en')) {
+    try {
+      translated = await scryfall.getJson('https://api.scryfall.com/cards/${printing['set']}/${printing['collector_number']}/$want');
+    } catch (_) {
+      try {
+        final page = await scryfall.search('oracleid:${printing['oracle_id']} lang:$want', unique: 'prints', multilingual: false);
+        if (page.cards.isNotEmpty) translated = Map<String, dynamic>.from(page.cards.first as Map);
+      } catch (_) {}
+    }
+  }
+  final text = translated ?? printing;
+  final sameArt = translated != null && translated['set'] == printing['set'] && translated['collector_number'] == printing['collector_number'];
+  final image = CardImages.normalOf(sameArt ? translated : printing) ?? CardImages.normalOf(printing);
+  return {
+    'id': (sameArt ? translated : printing)['id'],
+    'name': text['printed_name'] ?? text['name'] ?? printing['name'],
+    'imageUrl': image,
+    'backImageUrl': printing['card_faces']?[1]?['image_uris']?['normal'],
+    'rarity': printing['rarity'],
+    'color_identity': (printing['color_identity'] as List?)?.join('') ?? 'C',
+    'mana_cost': printing['mana_cost'] ?? printing['card_faces']?[0]?['mana_cost'] ?? '',
+    'type_line': text['printed_type_line'] ?? text['type_line'] ?? printing['type_line'] ?? '',
+    'oracle_text': text['printed_text'] ?? text['oracle_text'] ?? printing['oracle_text'] ?? printing['card_faces']?[0]?['oracle_text'] ?? '',
+    'oracle_id': printing['oracle_id'],
+    'setName': printing['set_name'],
+    'cmc': printing['cmc'],
+    'power': printing['power']?.toString(),
+    'toughness': printing['toughness']?.toString(),
+    'collectorNumber': printing['collector_number'],
+    'usdPrice': printing['prices']?['usd'] ?? '0.00',
+    'usdFoil': printing['prices']?['usd_foil'],
+    'eurPrice': printing['prices']?['eur'],
+    'tixPrice': printing['prices']?['tix'],
+  };
 }
 
 /// Escanear uma carta com a câmera: aponta para a carta e o app acha a mesma
@@ -192,7 +288,7 @@ class _CardScanScreenState extends State<CardScanScreen> {
       final key = reading.toString();
       if (_failed.contains(key)) return false;
       setState(() => _status = 'Procurando ${reading.name ?? '${reading.set?.toUpperCase()} ${reading.number}'}...');
-      final card = await _find(reading);
+      final card = await findCard(reading, context.read<ThemeProvider>().cardLanguage);
       if (!mounted) return false;
       if (card == null) {
         _failed.add(key);
@@ -224,77 +320,6 @@ class _CardScanScreenState extends State<CardScanScreen> {
       });
       return true;
     }
-  }
-
-  /// Acha a mesma versão da carta e o texto no idioma das configurações.
-  Future<Map<String, dynamic>?> _find(CardReading r) async {
-    final scryfall = ScryfallService.instance;
-    final want = context.read<ThemeProvider>().cardLanguage;
-    Map<String, dynamic>? printing;
-
-    // 1. Coleção e número (cartas novas): a versão exata.
-    if (r.set != null && r.number != null) {
-      try {
-        printing = await scryfall.getJson('https://api.scryfall.com/cards/${r.set}/${r.number}${r.lang != null && r.lang != 'en' ? '/${r.lang}' : ''}');
-      } catch (_) {}
-    }
-    // 2. Pelo nome (inglês, com erro de leitura) ou pelo nome impresso (português...).
-    if (printing == null && r.name != null) {
-      try {
-        printing = await scryfall.getJson('https://api.scryfall.com/cards/named?fuzzy=${Uri.encodeQueryComponent(r.name!)}');
-      } catch (_) {
-        try {
-          final page = await scryfall.search('"${r.name!.replaceAll('"', '')}"', multilingual: true);
-          if (page.cards.isNotEmpty) printing = Map<String, dynamic>.from(page.cards.first as Map);
-        } catch (_) {}
-      }
-      // Achou pelo nome e leu a coleção: a mesma versão da carta na mão.
-      if (printing != null && r.set != null && printing['set'] != r.set) {
-        try {
-          final page = await scryfall.search('oracleid:${printing['oracle_id']} set:${r.set}', unique: 'prints', multilingual: false);
-          if (page.cards.isNotEmpty) printing = Map<String, dynamic>.from(page.cards.first as Map);
-        } catch (_) {}
-      }
-    }
-    if (printing == null) return null;
-
-    // O texto no idioma escolhido (a mesma versão nesse idioma, ou outra versão
-    // só para o texto, mantendo a imagem da carta escaneada).
-    Map<String, dynamic>? translated;
-    if (want != (printing['lang'] ?? 'en')) {
-      try {
-        translated = await scryfall.getJson('https://api.scryfall.com/cards/${printing['set']}/${printing['collector_number']}/$want');
-      } catch (_) {
-        try {
-          final page = await scryfall.search('oracleid:${printing['oracle_id']} lang:$want', unique: 'prints', multilingual: false);
-          if (page.cards.isNotEmpty) translated = Map<String, dynamic>.from(page.cards.first as Map);
-        } catch (_) {}
-      }
-    }
-    final text = translated ?? printing;
-    final sameArt = translated != null && translated['set'] == printing['set'] && translated['collector_number'] == printing['collector_number'];
-    final image = CardImages.normalOf(sameArt ? translated : printing) ?? CardImages.normalOf(printing);
-    return {
-      'id': (sameArt ? translated : printing)['id'],
-      'name': text['printed_name'] ?? text['name'] ?? printing['name'],
-      'imageUrl': image,
-      'backImageUrl': printing['card_faces']?[1]?['image_uris']?['normal'],
-      'rarity': printing['rarity'],
-      'color_identity': (printing['color_identity'] as List?)?.join('') ?? 'C',
-      'mana_cost': printing['mana_cost'] ?? printing['card_faces']?[0]?['mana_cost'] ?? '',
-      'type_line': text['printed_type_line'] ?? text['type_line'] ?? printing['type_line'] ?? '',
-      'oracle_text': text['printed_text'] ?? text['oracle_text'] ?? printing['oracle_text'] ?? printing['card_faces']?[0]?['oracle_text'] ?? '',
-      'oracle_id': printing['oracle_id'],
-      'setName': printing['set_name'],
-      'cmc': printing['cmc'],
-      'power': printing['power']?.toString(),
-      'toughness': printing['toughness']?.toString(),
-      'collectorNumber': printing['collector_number'],
-      'usdPrice': printing['prices']?['usd'] ?? '0.00',
-      'usdFoil': printing['prices']?['usd_foil'],
-      'eurPrice': printing['prices']?['eur'],
-      'tixPrice': printing['prices']?['tix'],
-    };
   }
 
   @override

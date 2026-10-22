@@ -100,9 +100,11 @@ class OfflineCards {
   /// Baixa (ou atualiza) as cartas. [progress] vai de 0 a 1.
   Future<int> download({void Function(double progress)? progress}) async {
     final meta = await ScryfallService.instance.getJson('https://api.scryfall.com/bulk-data/oracle-cards', useCache: false);
-    final uri = meta['download_uri'] as String?;
+    // Hoje a Scryfall manda um arquivo compactado com uma carta por linha
+    // (jsonl.gz); antes era uma lista JSON. O separador serve para os dois.
+    final uri = (meta['jsonl_download_uri'] ?? meta['download_uri']) as String?;
     if (uri == null) throw const ScryfallException('A Scryfall não mandou o arquivo das cartas.');
-    final total = (meta['size'] as num?)?.toInt() ?? 0;
+    final total = ((meta['compressed_size'] ?? meta['size']) as num?)?.toInt() ?? 0;
 
     final client = http.Client();
     final file = await _file();
@@ -114,11 +116,13 @@ class OfflineCards {
       if (response.statusCode != 200) throw ScryfallException('Erro ${response.statusCode} ao baixar as cartas.');
       final splitter = JsonObjectSplitter();
       var received = 0;
-      await for (final text in response.stream.map((bytes) {
-        received += bytes.length;
+      Stream<List<int>> bytes = response.stream.map((chunk) {
+        received += chunk.length;
         if (total > 0) progress?.call((received / total).clamp(0, 1).toDouble());
-        return bytes;
-      }).transform(utf8.decoder)) {
+        return chunk;
+      });
+      if (uri.endsWith('.gz')) bytes = bytes.transform(gzip.decoder);
+      await for (final text in bytes.transform(utf8.decoder)) {
         for (final raw in splitter.add(text)) {
           final card = slim(jsonDecode(raw) as Map<String, dynamic>);
           if (card == null) continue;

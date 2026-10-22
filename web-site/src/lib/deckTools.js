@@ -215,13 +215,16 @@ export const edhrecSlug = (name) =>
  * Os nomes das cartas que o EDHREC mais recomenda para o comandante, das mais
  * usadas para as menos (sem as de skip: nomes em minúsculas já no deck).
  */
+// Terreno básico não é sugestão (todo deck tem).
+const BASIC_LAND = /^(Snow-Covered )?(Plains|Island|Swamp|Mountain|Forest)$|^Wastes$/
+
 export function edhrecNames(page, skip = new Set()) {
   const lists = page?.container?.json_dict?.cardlists || []
   const score = new Map()
   for (const l of lists) {
     for (const c of l?.cardviews || []) {
       const name = String(c?.name ?? '')
-      if (!name || skip.has(name.toLowerCase())) continue
+      if (!name || skip.has(name.toLowerCase()) || BASIC_LAND.test(name)) continue
       const potential = Number(c.potential_decks) || 0
       const used = Number(c.inclusion ?? c.num_decks) || 0
       const s = (potential > 0 ? used / potential : 0) + (Number(c.synergy) || 0) * 0.3
