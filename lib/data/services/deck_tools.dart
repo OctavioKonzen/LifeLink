@@ -279,4 +279,43 @@ class DeckTools {
     }
     return out;
   }
+
+  // ---------------------------------------------------------------- exportar
+
+  /// A lista do deck para colar no Moxfield, Arena, Archidekt...: "1 Sol Ring",
+  /// com o comandante numa seção à parte. [english] troca o nome (que pode
+  /// estar traduzido) pelo nome em inglês, pelo id da Scryfall.
+  static String exportList(List<Map<String, dynamic>> cards, {Map<String, String> english = const {}}) {
+    String nameOf(Map<String, dynamic> c) => english[scryfallIdOf(c) ?? ''] ?? '${c['name'] ?? ''}';
+    Map<String, int> count(bool commander) {
+      final out = <String, int>{};
+      for (final c in cards) {
+        if ((c['commander'] == true) != commander) continue;
+        final n = nameOf(c);
+        if (n.isNotEmpty) out[n] = (out[n] ?? 0) + 1;
+      }
+      return out;
+    }
+
+    String lines(Map<String, int> m) => (m.keys.toList()..sort()).map((n) => '${m[n]} $n').join('\n');
+    final commanders = count(true);
+    final rest = count(false);
+    return [
+      if (commanders.isNotEmpty) 'Commander\n${lines(commanders)}',
+      if (rest.isNotEmpty) 'Deck\n${lines(rest)}',
+    ].join('\n\n');
+  }
+
+  /// Os nomes em inglês das cartas (pelo id da Scryfall); vazio sem internet.
+  static Future<Map<String, String>> englishNames(List<Map<String, dynamic>> cards) async {
+    try {
+      final table = await refresh(cards);
+      return {
+        for (final c in cards)
+          if (scryfallIdOf(c) != null && fresh(table, c)?['name'] != null) scryfallIdOf(c)!: '${fresh(table, c)!['name']}',
+      };
+    } catch (_) {
+      return const {};
+    }
+  }
 }

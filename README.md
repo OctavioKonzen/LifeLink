@@ -4,7 +4,7 @@
   <img src="https://img.shields.io/badge/Flutter-3.x-blue?logo=flutter&style=for-the-badge" />
   <img src="https://img.shields.io/badge/React-19-61DAFB?logo=react&style=for-the-badge" />
   <img src="https://img.shields.io/badge/Firebase-FFCA28?logo=firebase&style=for-the-badge" />
-  <img src="https://img.shields.io/badge/Android-1.0.22-green?logo=android&style=for-the-badge" />
+  <img src="https://img.shields.io/badge/Android-1.0.23-green?logo=android&style=for-the-badge" />
 </p>
 
 <div align="center">
@@ -18,7 +18,7 @@
 ## 📑 Sumário
 
 - [Telas principais](#-telas-principais)
-  - [Cartas](#cartas) · [Carta](#carta) · [Meus decks](#meus-decks) · [Decks oficiais](#decks-oficiais) · [Preços de hoje](#preços-de-hoje) · [Contador de vida](#contador-de-vida) · [Perfil e missões](#perfil-e-missões) · [Início (app)](#início-app) · [Conta](#conta) · [Configurações](#configurações)
+  - [Cartas](#cartas) · [Carta](#carta) · [Minha coleção](#minha-coleção-e-lista-de-desejos) · [Meus decks](#meus-decks) · [Decks oficiais](#decks-oficiais) · [Preços de hoje](#preços-de-hoje) · [Contador de vida](#contador-de-vida) · [Perfil e missões](#perfil-e-missões) · [Início (app)](#início-app) · [Conta](#conta) · [Configurações](#configurações)
 - [Conta e sincronização](#-conta-e-sincronização)
 - [Ferramentas](#️-ferramentas-usadas) · [Como usar](#-como-usar) · [Como rodar o código](#-como-rodar-o-código) · [Créditos](#-créditos)
 
@@ -36,7 +36,13 @@ A busca procura pelo **nome em português ou inglês** ("Raio" encontra "Lightni
 
 ### Carta
 
-A ficha de cada carta: imagem em **alta qualidade** (PNG), frente e verso nas cartas de duas faces, custo de mana, tipo, texto, poder e resistência, edição, raridade e artista. Mostra os **preços** (normal, foil, euro e MTGO), os **formatos** em que é legal ou banida e as **outras versões** em vários idiomas (português, inglês, japonês, espanhol, francês, alemão e italiano), para trocar a arte. Daqui você **adiciona a carta a um deck**.
+A ficha de cada carta: imagem em **alta qualidade** (PNG), frente e verso nas cartas de duas faces, custo de mana, tipo, texto, poder e resistência, edição, raridade e artista. Mostra os **preços** (normal, foil, euro e MTGO), os **formatos** em que é legal ou banida e as **outras versões** em vários idiomas (português, inglês, japonês, espanhol, francês, alemão e italiano), para trocar a arte, e as **regras da carta** (os esclarecimentos oficiais, em inglês). Daqui você **adiciona a carta a um deck**, **guarda na coleção** ou põe na **lista de desejos**.
+
+### Minha coleção e lista de desejos
+
+* **Coleção**: as cartas que você tem, com a quantidade de cada uma e o **valor total** em dólar e real. No app, o **scan** tem o modo "guardar na coleção": é só ir passando as cartas na frente da câmera.
+* **O que falta**: em cada deck, as cartas que ainda não estão na coleção (qualquer versão serve, terrenos básicos não contam) e quanto custam.
+* **Lista de desejos**: as cartas que você quer, com o preço de quando entraram e o de hoje. O app confere os preços uma vez por dia e **avisa quando algum cai**.
 
 ### Meus decks
 
@@ -47,6 +53,7 @@ Seus decks, sincronizados com a conta: crie um deck novo (Commander, Challenger 
 * **Cópias juntas**: cartas iguais aparecem uma vez só com a quantidade (ex.: 4×); segurando a carta dá para pôr mais uma cópia, tirar uma, marcar como **comandante** (vem primeiro) ou trocar. Tirar carta tem "Desfazer". Tocar no nome **renomeia** o deck.
 * **Curva de mana e cores** do deck, junto do preço e da legalidade.
 * **Mão de teste**: compra 7, **mulligan de Londres** (põe uma no fundo por mulligan) e comprar as próximas.
+* **Exportar**: a lista do deck com os nomes em inglês, no formato do Moxfield e do Arena, para **copiar** ou **mandar pelo WhatsApp**.
 * No app dá também para **traduzir o deck** para outro idioma e gerar um **PDF para imprimir** as cartas (proxies).
 
 ### Decks oficiais
@@ -61,7 +68,7 @@ As cartas mais caras do momento, de todas as edições e idiomas, com pesquisa p
 
 Feito para a mesa, como os apps do gênero (Lifetap, MTG Companion): de **2 a 6 jogadores**, cada um virado para o seu lado, com vida inicial **à vontade** (20, 25, 30, 40, 50, 60 ou outra).
 
-* **Arraste o quadro** do jogador para a direita para ver o **veneno** e para a esquerda para o **dano de comandante** recebido, ali na mesa (arrastar de volta, tocar em "Vida" ou esperar volta para a vida).
+* **Arraste o quadro** do jogador para a direita para ver o **veneno** e para a esquerda para o **dano de comandante** recebido, ali na mesa: em cima, um botão para cada comandante (e o 2º, de quem joga com **parceiro**), cada um contando à parte até 21 (arrastar de volta, tocar em "Vida" ou esperar volta para a vida).
 * **Toque** na metade esquerda tira 1 de vida, na direita soma 1; **segurando**, vai de 1 em 1, cada vez mais rápido (no site também). O quanto mudou (ex.: −7) aparece em cima da vida.
 * **Contadores** de cada jogador: veneno (até 10), energia, experiência, imposto do comandante, tesouro, tempestade, cidade abençoada e **dano de comandante** nas duas direções: o que o seu comandante causou em cada oponente e o que você recebeu de cada um (até 21, que também tira vida de quem recebe).
 * **Monarca** e **iniciativa**: a coroa e o castelo aparecem no quadro de quem tem.
@@ -77,7 +84,7 @@ A partida fica salva e, com a conta, é a mesma no app e no site. Cada partida t
 ### Mesa online e amigos
 
 * **Mesa online**: no contador, "Mesa online" cria uma mesa com um **código de 6 letras**; cada um entra com o código no próprio celular (app) ou no site e a vida, os contadores e a vez de todos aparecem **em tempo real** em todos. Cada jogador fica num pedaço separado da mesa, então dois celulares mexendo ao mesmo tempo não se atrapalham. O dono fecha a mesa para todos.
-* **Amigos pelo nick**: peça amizade pelo nick, aceite os pedidos, veja os **decks dos amigos** (e copie para os seus) e **convide amigos** para a sua mesa online. No app fica no menu do início → Amigos; no site, no Perfil.
+* **Amigos pelo nick**: peça amizade pelo nick (se o amigo trocar de nick, a lista mostra o novo), aceite os pedidos, veja os **decks dos amigos** (e copie para os seus) e **convide amigos** para a sua mesa online. No app fica no menu do início → Amigos; no site, no Perfil.
 
 ### Partidas e estatísticas
 

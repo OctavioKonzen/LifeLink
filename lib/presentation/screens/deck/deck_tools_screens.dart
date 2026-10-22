@@ -1,7 +1,9 @@
 import 'dart:math';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../../data/providers/deck_provider.dart';
 import '../../../data/providers/theme_provider.dart';
 import '../../../data/services/deck_tools.dart';
@@ -416,4 +418,64 @@ class _ManaCurve extends StatelessWidget {
       ],
     ]);
   }
+}
+
+/// Exportar o deck: a lista (nomes em inglês, no formato do Moxfield e do
+/// Arena) para copiar ou mandar pelo WhatsApp e outros apps.
+Future<void> exportDeckSheet(BuildContext context, DeckModel deck) async {
+  await showModalBottomSheet(
+    context: context,
+    backgroundColor: const Color(0xFF1E1E24),
+    isScrollControlled: true,
+    builder: (ctx) => FutureBuilder<Map<String, String>>(
+      future: DeckTools.englishNames(deck.cards),
+      builder: (ctx, snap) {
+        if (!snap.hasData) {
+          return const SizedBox(height: 200, child: Center(child: CircularProgressIndicator()));
+        }
+        final text = DeckTools.exportList(deck.cards, english: snap.data!);
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+            child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+              Text('Exportar ${deck.name}', style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 4),
+              const Text('Formato do Moxfield, Arena e Archidekt (nomes em inglês).', style: TextStyle(color: Colors.white54, fontSize: 12)),
+              const SizedBox(height: 12),
+              ConstrainedBox(
+                constraints: BoxConstraints(maxHeight: MediaQuery.of(ctx).size.height * 0.45),
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(color: Colors.black26, borderRadius: BorderRadius.circular(12)),
+                  child: SingleChildScrollView(child: SelectableText(text, style: const TextStyle(color: Colors.white, fontFamily: 'monospace', fontSize: 13))),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    icon: const Icon(Icons.copy),
+                    label: const Text('Copiar'),
+                    onPressed: () {
+                      Clipboard.setData(ClipboardData(text: text));
+                      Navigator.pop(ctx);
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Lista copiada.')));
+                    },
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    icon: const Icon(Icons.share),
+                    label: const Text('Compartilhar'),
+                    onPressed: () => SharePlus.instance.share(ShareParams(text: '${deck.name}\n\n$text', subject: deck.name)),
+                  ),
+                ),
+              ]),
+            ]),
+          ),
+        );
+      },
+    ),
+  );
 }

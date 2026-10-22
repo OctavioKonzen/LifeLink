@@ -4,7 +4,7 @@
 //   cd tool/rules-test && npm install && npm test
 
 import { initializeTestEnvironment, assertSucceeds, assertFails } from '@firebase/rules-unit-testing'
-import { doc, getDoc, setDoc, runTransaction, updateDoc } from 'firebase/firestore'
+import { doc, getDoc, setDoc, runTransaction, updateDoc, collection, query, where, limit, getDocs } from 'firebase/firestore'
 import fs from 'fs'
 
 const env = await initializeTestEnvironment({ projectId: 'lifelink-test', firestore: { rules: fs.readFileSync(new URL('../../firestore.rules', import.meta.url), 'utf8'), host: '127.0.0.1', port: 8080 } })
@@ -82,5 +82,7 @@ await run('18. criar mesa online em nome próprio', assertSucceeds(setDoc(doc(a,
 await run('19. outro na mesa muda a vida', assertSucceeds(updateDoc(doc(c, 'tables/ABC123'), { 'p0.lives': 35 })))
 await run('20. trocar o dono da mesa é recusado (deve dar erro)', assertFails(updateDoc(doc(c, 'tables/ABC123'), { owner: 'carol' })))
 await run('21. sem login não vê a mesa (deve dar erro)', assertFails(getDoc(doc(anon, 'tables/ABC123'))))
+await run('22. o amigo acha o nick atual pelo uid (depois de trocar)', getDocs(query(collection(b, 'nicks'), where('uid', '==', 'alice'), limit(1))).then((q) => { if (q.empty || q.docs[0].data().nick.toLowerCase() !== 'alice_nova') throw new Error('nick não achado') }))
+await run('23. atualizar o nick do amigo na minha lista', assertSucceeds(setDoc(doc(b, 'users/bob/friends/alice'), { nick: 'Alice_Nova' }, { merge: true })))
 await env.cleanup()
 process.exit(failed ? 1 : 0)

@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest'
-import { deckProblems, parseDeckList, shuffled } from './deckTools'
+import { deckProblems, exportList, parseDeckList, shuffled } from './deckTools'
 
 describe('ferramentas de deck', () => {
   test('lê listas do Moxfield, Archidekt, Arena e MTGO', () => {
@@ -45,5 +45,13 @@ Maybeboard
     const s = shuffled(list, random)
     expect(s).not.toEqual(list)
     expect([...s].sort((a, b) => a - b)).toEqual(list)
+  })
+
+  test('exportar: comandante à parte, cópias juntas e nome em inglês', () => {
+    const id = '0000579f-7b35-4ed3-b44c-db2a538066fe'
+    const cards = [{ name: 'Atraxa', commander: true }, { name: 'Anel Solar', id }, { name: 'Anel Solar', id }, { name: 'Island' }]
+    const text = exportList(cards, new Map([[id, 'Sol Ring']]))
+    expect(text).toBe('Commander\n1 Atraxa\n\nDeck\n1 Island\n2 Sol Ring')
+    expect(parseDeckList(text).map((l) => `${l.qty} ${l.name}`)).toEqual(expect.arrayContaining(['1 Atraxa', '2 Sol Ring', '1 Island']))
   })
 })

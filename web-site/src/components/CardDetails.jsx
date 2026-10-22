@@ -7,6 +7,7 @@ import {
   backImageOf,
   cardById,
   displayName,
+  getJson,
   imageOf,
   manaCost,
   oracleText,
@@ -16,6 +17,7 @@ import {
 import { toDeckCard } from '../lib/deckCards'
 import { deckList, saveDeck, useUserData } from '../lib/userData'
 import { incrementArtsViewed, incrementCardsAdded } from '../lib/xp'
+import { addToCollection, qtyOf, setQty, toggleWish, wished } from '../lib/collection'
 
 const LANGS = [
   ['pt', 'Português'],
@@ -177,6 +179,34 @@ function AddToDeck({ card }) {
   )
 }
 
+/** Guardar na coleção (com quantas tenho) e pôr na lista de desejos. */
+function CollectionButtons({ card }) {
+  const collection = useUserData((s) => s.collection)
+  const wishlist = useUserData((s) => s.wishlist)
+  const deckCard = toDeckCard(card)
+  const qty = qtyOf(collection, card.id)
+  const wish = wished(wishlist, card.id)
+  return (
+    <div className="mt-3 flex flex-wrap items-center gap-2">
+      <button type="button" onClick={() => addToCollection(deckCard)} className="rounded-full bg-amber-400 px-4 py-2 text-sm font-bold text-black hover:brightness-110">
+        📦 Guardar na coleção{qty > 0 ? ` (${qty})` : ''}
+      </button>
+      {qty > 0 && (
+        <button type="button" onClick={() => setQty(card.id, qty - 1)} className="rounded-full bg-text/10 px-3 py-2 text-sm font-bold hover:bg-text/20" aria-label="Tirar uma da coleção">
+          −1
+        </button>
+      )}
+      <button
+        type="button"
+        onClick={() => toggleWish(deckCard)}
+        className={`rounded-full px-4 py-2 text-sm font-bold ${wish ? 'bg-pink-500 text-white' : 'bg-text/10 hover:bg-text/20'}`}
+      >
+        {wish ? '♥ Na lista de desejos' : '♡ Lista de desejos'}
+      </button>
+    </div>
+  )
+}
+
 function NavButton({ onClick, label, children }) {
   return (
     <button
@@ -197,6 +227,36 @@ function NavButton({ onClick, label, children }) {
  */
 // Raridade em português (a Scryfall manda em inglês).
 const RARITY_PT = { common: 'Comum', uncommon: 'Incomum', rare: 'Rara', mythic: 'Mítica', special: 'Especial', bonus: 'Bônus' }
+
+/** As regras oficiais sobre a carta (rulings), em inglês. */
+function Rulings({ card }) {
+  const [list, setList] = useState([])
+  const uri = card.rulings_uri
+  useEffect(() => {
+    let alive = true
+    setList([])
+    if (uri) getJson(uri).then((r) => alive && setList(r.data || []), () => {})
+    return () => {
+      alive = false
+    }
+  }, [uri])
+  if (!list.length) return null
+  return (
+    <details className="mt-5">
+      <summary className="cursor-pointer text-lg font-bold">
+        Regras da carta ({list.length}) <span className="text-xs font-normal text-muted">esclarecimentos oficiais, em inglês</span>
+      </summary>
+      <ul className="mt-2 space-y-3">
+        {list.map((r, k) => (
+          <li key={k} className="text-sm">
+            <span className="block text-xs font-bold text-muted">{String(r.published_at || '').split('-').reverse().join('/')}</span>
+            {r.comment}
+          </li>
+        ))}
+      </ul>
+    </details>
+  )
+}
 
 export default function CardDetails({ card: initial, id, onClose, onPrevious, onNext }) {
   const [card, setCard] = useState(initial || null)
@@ -304,7 +364,10 @@ export default function CardDetails({ card: initial, id, onClose, onPrevious, on
               </section>
             )}
 
+            <Rulings card={card} />
+
             <AddToDeck card={card} />
+            <CollectionButtons card={card} />
 
             <a href={card.scryfall_uri} target="_blank" rel="noreferrer" className="mt-5 inline-block text-sm text-accent underline">
               Ver no Scryfall

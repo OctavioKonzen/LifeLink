@@ -55,4 +55,18 @@ Maybeboard
     expect(s, isNot(list));
     expect([...s]..sort(), list);
   });
+
+  test('exportar: comandante à parte, cópias juntas e nome em inglês', () {
+    const id = '0000579f-7b35-4ed3-b44c-db2a538066fe';
+    final cards = [
+      {'name': 'Atraxa', 'commander': true},
+      {'name': 'Anel Solar', 'id': id},
+      {'name': 'Anel Solar', 'id': id},
+      {'name': 'Island'},
+    ];
+    expect(DeckTools.exportList(cards, english: {id: 'Sol Ring'}), 'Commander\n1 Atraxa\n\nDeck\n1 Island\n2 Sol Ring');
+    // A lista exportada volta igual pelo importar.
+    final back = DeckTools.parse(DeckTools.exportList(cards, english: {id: 'Sol Ring'}));
+    expect([for (final l in back) '${l.qty} ${l.name} ${l.commander}'], containsAll(['1 Atraxa true', '2 Sol Ring false', '1 Island false']));
+  });
 }

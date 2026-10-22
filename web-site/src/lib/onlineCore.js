@@ -122,6 +122,16 @@ export async function isAccepted(fs, db, me, friendUid) {
   }
 }
 
+/** O nick atual do amigo (ele pode ter trocado depois de virar amigo); null se não achar. */
+export async function currentNick(fs, db, friendUid) {
+  try {
+    const snap = await fs.getDocs(fs.query(fs.collection(db, 'nicks'), fs.where('uid', '==', friendUid), fs.limit(1)))
+    return snap.empty ? null : (snap.docs[0].data().nick ?? null)
+  } catch {
+    return null
+  }
+}
+
 export async function decksOf(fs, db, friendUid) {
   const snap = await fs.getDocs(col(fs, db, friendUid, 'decks'))
   return snap.docs.map((d) => ({ ...d.data(), id: d.id })).sort((a, b) => String(a.name).localeCompare(String(b.name)))

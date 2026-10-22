@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import 'package:provider/provider.dart';
 
+import '../../../data/providers/collection_provider.dart';
 import '../../../data/providers/theme_provider.dart';
 import '../../../data/services/scryfall_service.dart';
 import 'card_detail_screen.dart';
@@ -62,9 +63,12 @@ CardReading readCard(List<({String text, double top, double left, double height}
 /// Escanear uma carta com a câmera: aponta para a carta e o app acha a mesma
 /// versão (coleção e arte) e abre a carta, com o texto no idioma escolhido
 /// nas configurações. Com [targetDeckId], o "adicionar" vai para esse deck.
+/// Com [collect] (ou a chave em cima), cada carta lida vai direto para a
+/// coleção, sem abrir: é só ir passando as cartas na frente da câmera.
 class CardScanScreen extends StatefulWidget {
   final String? targetDeckId;
-  const CardScanScreen({super.key, this.targetDeckId});
+  final bool collect;
+  const CardScanScreen({super.key, this.targetDeckId, this.collect = false});
 
   @override
   State<CardScanScreen> createState() => _CardScanScreenState();
@@ -79,6 +83,12 @@ class _CardScanScreenState extends State<CardScanScreen> {
   bool _paused = false;
   final Set<String> _failed = {}; // o que já tentou e não achou
   Timer? _loop;
+  late bool _collect = widget.collect;
+  // A última carta guardada: a mesma carta parada na frente da câmera não
+  // conta de novo por alguns segundos.
+  String? _lastId;
+  DateTime _lastAt = DateTime(2000);
+  int _saved = 0;
 
   @override
   void initState() {
@@ -140,6 +150,20 @@ class _CardScanScreenState extends State<CardScanScreen> {
       if (card == null) {
         _failed.add(key);
         setState(() => _status = 'Não achei "${reading.name ?? ''}". Ajuste a carta na moldura.');
+        return;
+      }
+      if (_collect) {
+        final id = '${card['id']}';
+        if (id == _lastId && DateTime.now().difference(_lastAt) < const Duration(seconds: 4)) return;
+        final qty = context.read<CollectionProvider>().add(card);
+        HapticFeedback.heavyImpact();
+        _lastId = id;
+        _lastAt = DateTime.now();
+        _failed.clear();
+        setState(() {
+          _saved++;
+          _status = qty == 0 ? 'A coleção está cheia (${CollectionProvider.maxCards} cartas diferentes).' : 'Guardada: ${card['name']} ($qty na coleção). Próxima!';
+        });
         return;
       }
       HapticFeedback.heavyImpact();
@@ -234,7 +258,17 @@ class _CardScanScreenState extends State<CardScanScreen> {
     final camera = _camera;
     return Scaffold(
       backgroundColor: Colors.black,
-      appBar: AppBar(backgroundColor: Colors.black, foregroundColor: Colors.white, title: const Text('Escanear carta')),
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        foregroundColor: Colors.white,
+        title: Text(_collect ? 'Guardar na coleção${_saved > 0 ? ' ($_saved)' : ''}' : 'Escanear carta'),
+        actions: [
+          Row(children: [
+            const Text('Coleção', style: TextStyle(fontSize: 13)),
+            Switch(value: _collect, activeThumbColor: Colors.amber, onChanged: (v) => setState(() => _collect = v)),
+          ]),
+        ],
+      ),
       body: _error != null
           ? Center(child: Padding(padding: const EdgeInsets.all(24), child: Text(_error!, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white70))))
           : camera == null

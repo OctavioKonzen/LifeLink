@@ -5,6 +5,7 @@ import PricesPage from './pages/PricesPage'
 import DecksPage from './pages/DecksPage'
 import LifeCounterPage from './pages/LifeCounterPage'
 import MatchesPage from './pages/MatchesPage'
+import CollectionPage from './pages/CollectionPage'
 import FriendsPage from './pages/FriendsPage'
 import MissionsPage from './pages/MissionsPage'
 import MyDecksPage from './pages/MyDecksPage'
@@ -21,6 +22,7 @@ import { setTheme, useTheme } from './lib/theme'
 const SECTIONS = [
   { path: '/', label: 'Cartas', color: '#448aff', icon: 'search' },
   { path: '/meus-decks', label: 'Meus decks', color: '#7c4dff', icon: 'layers' },
+  { path: '/colecao', label: 'Coleção', color: '#ffd54f', icon: 'box' },
   { path: '/precos', label: 'Preços de hoje', color: '#ffa000', icon: 'money' },
   { path: '/decks', label: 'Decks oficiais', color: '#00c853', icon: 'book' },
   { path: '/contador', label: 'Contador de vida', color: '#ff5252', icon: 'heart' },
@@ -242,6 +244,7 @@ export default function App() {
             <Route path="/decks" element={<DecksPage />} />
             <Route path="/contador" element={<LifeCounterPage />} />
             <Route path="/partidas" element={<MatchesPage />} />
+            <Route path="/colecao" element={<CollectionPage />} />
             <Route path="/amigos" element={<FriendsPage />} />
             <Route path="/missoes" element={<MissionsPage />} />
             <Route path="/meus-decks" element={<MyDecksPage />} />

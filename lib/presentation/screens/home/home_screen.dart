@@ -19,6 +19,8 @@ import '../search/today_prices_screen.dart';
 import 'arena_missions_screen.dart';
 import 'profile_screen.dart'; 
 import 'account_screen.dart';
+import '../collection/collection_screen.dart';
+import '../../../data/providers/collection_provider.dart';
 import '../../../data/account/auth_service.dart';
 import '../../widgets/neon.dart';
 import '../../widgets/player.dart';
@@ -47,7 +49,37 @@ class _HomeScreenState extends State<HomeScreen> {
     ScryfallService.instance.featuredSets().then((sets) {
       if (mounted) setState(() => _sets = sets);
     }).catchError((_) {});
-    
+    // Uma vez por dia: avisa se alguma carta da lista de desejos ficou mais barata.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _checkWishPrices());
+  }
+
+  Future<void> _checkWishPrices() async {
+    final drops = await context.read<CollectionProvider>().dailyCheck();
+    if (!mounted || drops.isEmpty) return;
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Ficou mais barata!'),
+        content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+          for (final d in drops.take(8))
+            Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Text('${d.card.name}: US\$ ${d.before.toStringAsFixed(2)} → US\$ ${d.card.usd.toStringAsFixed(2)}'),
+            ),
+          if (drops.length > 8) Text('e mais ${drops.length - 8}...'),
+        ]),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Fechar')),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              Navigator.push(context, MaterialPageRoute(builder: (_) => const CollectionScreen(initialTab: 1)));
+            },
+            child: const Text('Ver lista'),
+          ),
+        ],
+      ),
+    );
   }
 
   void _startCarouselTimer() {
@@ -127,8 +159,10 @@ class _HomeScreenState extends State<HomeScreen> {
       ("Preços", Icons.monetization_on, const Color(0xFFFFA000), () => go(const TodayPricesScreen())),
       ("Missões", Icons.auto_awesome, const Color(0xFF26A69A), () => go(const ArenaMissionsScreen())),
       ("Perfil", Icons.emoji_events, const Color(0xFF00B0FF), () => go(const ProfileScreen())),
+      ("Minha coleção", Icons.inventory_2, const Color(0xFFFFD54F), () => go(const CollectionScreen())),
+      ("Desejos", Icons.favorite, const Color(0xFFFF4081), () => go(const CollectionScreen(initialTab: 1))),
     ];
-    // As 3 linhas dividem a altura que sobra na tela (sem rolar).
+    // As linhas dividem a altura que sobra na tela (sem rolar).
     final rows = <Widget>[];
     for (var i = 0; i < tiles.length; i += 2) {
       if (i > 0) rows.add(const SizedBox(height: 12));
@@ -458,6 +492,14 @@ class _HomeScreenState extends State<HomeScreen> {
             onTap: () {
               Navigator.pop(context);
               Navigator.push(context, MaterialPageRoute(builder: (context) => const FriendsScreen()));
+            },
+          ),
+          ListTile(
+            leading: Icon(Icons.inventory_2, color: textColor),
+            title: Text("Minha coleção", style: TextStyle(color: textColor)),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(context, MaterialPageRoute(builder: (context) => const CollectionScreen()));
             },
           ),
           ListTile(
