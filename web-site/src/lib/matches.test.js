@@ -37,4 +37,14 @@ describe('partidas', () => {
     expect(hasNestedList(cloud)).toBe(false)
     expect(fromCloud({ game: cloud }).game.commanderDamage[0].slice(0, 2)).toEqual([0, 5])
   })
+
+  test('o dano do 2º comandante (parceiro) vai e volta à parte', () => {
+    const game = { lives: [40], partners: [0, 1], commanderDamage: [[0, 5]], partnerDamage: [[0, 9]] }
+    const cloud = toCloud('game', game)
+    expect(hasNestedList(cloud)).toBe(false)
+    const back = fromCloud({ game: cloud }).game
+    expect(back.partnerDamage[0][1]).toBe(9)
+    expect(back.commanderDamage[0][1]).toBe(5)
+    expect(back.partners).toEqual([0, 1])
+  })
 })

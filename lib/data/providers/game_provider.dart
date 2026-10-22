@@ -60,6 +60,10 @@ class GameProvider with ChangeNotifier {
   // Segunda cor (degradê, como deck de duas cores); -1 = só uma cor.
   List<int> _colors2 = List.filled(maxPlayers, -1);
   List<List<int>> _commanderDamage = List.generate(maxPlayers, (_) => List.filled(maxPlayers, 0));
+  // Dano do segundo comandante (parceiro) de cada adversário, contado à parte,
+  // e quem joga com dois comandantes (0 ou 1).
+  List<List<int>> _partnerDamage = List.generate(maxPlayers, (_) => List.filled(maxPlayers, 0));
+  List<int> _partners = List.filled(maxPlayers, 0);
   List<String> _playerNames = List.generate(maxPlayers, (i) => "Jogador ${i + 1}");
   // O deck de cada jogador nesta partida (nome; vazio = não disse), para as estatísticas.
   List<String> _decks = List.filled(maxPlayers, '');
@@ -94,6 +98,29 @@ class GameProvider with ChangeNotifier {
   List<int> get lives => _lives;
   List<int> get poison => _poison;
   List<List<int>> get commanderDamage => _commanderDamage;
+
+  /// O comandante [attacker]: 0..maxPlayers-1 é o comandante de cada jogador;
+  /// somando [maxPlayers], o segundo comandante (parceiro) dele.
+  int cmdDamage(int victim, int attacker) =>
+      attacker >= maxPlayers ? _partnerDamage[victim][attacker - maxPlayers] : _commanderDamage[victim][attacker];
+  bool hasPartner(int player) => _partners[player] == 1;
+  String commanderName(int attacker) =>
+      attacker >= maxPlayers ? '${_playerNames[attacker - maxPlayers]} (2º)' : _playerNames[attacker];
+
+  /// O maior dano recebido de um mesmo comandante (é ele que chega a 21).
+  int maxCmdDamage(int victim) {
+    var top = 0;
+    for (int a = 0; a < _playerCount; a++) {
+      if (a == victim) continue;
+      top = max(top, max(_commanderDamage[victim][a], _partnerDamage[victim][a]));
+    }
+    return top;
+  }
+
+  void setPartner(int player, bool on) {
+    _partners[player] = on ? 1 : 0;
+    _saveAndNotify();
+  }
   List<String> get playerNames => _playerNames;
   List<GameEvent> get history => List.unmodifiable(_history);
   bool get canUndo => _history.isNotEmpty;
@@ -172,7 +199,7 @@ class GameProvider with ChangeNotifier {
   bool isDead(int player) {
     if (_lives[player] <= 0 || _poison[player] >= 10) return true;
     for (int a = 0; a < _playerCount; a++) {
-      if (a != player && _commanderDamage[player][a] >= 21) return true;
+      if (a != player && (_commanderDamage[player][a] >= 21 || _partnerDamage[player][a] >= 21)) return true;
     }
     return false;
   }
@@ -223,6 +250,8 @@ class GameProvider with ChangeNotifier {
         // O Firestore não aceita lista dentro de lista: cada linha do dano de
         // comandante vai como texto ("0,5,0,0,0,0").
         'cmdRows': [for (final row in _commanderDamage) row.join(',')],
+        'cmdRows2': [for (final row in _partnerDamage) row.join(',')],
+        'partners': _partners,
         'playerNames': _playerNames,
         'playerDecks': _decks,
       };
@@ -254,6 +283,9 @@ class GameProvider with ChangeNotifier {
         ? [for (final r in rows) '$r'.split(',').where((x) => x.isNotEmpty).map((x) => int.tryParse(x) ?? 0).toList()]
         : (v?['commanderDamage'] as List?) ?? const []; // formato antigo
     _commanderDamage = List.generate(maxPlayers, (i) => _ints(i < cmd.length ? cmd[i] : null, 0));
+    final rows2 = [for (final r in (v?['cmdRows2'] as List? ?? const [])) '$r'.split(',').where((x) => x.isNotEmpty).map((x) => int.tryParse(x) ?? 0).toList()];
+    _partnerDamage = List.generate(maxPlayers, (i) => _ints(i < rows2.length ? rows2[i] : null, 0));
+    _partners = _ints(v?['partners'], 0);
     final decks = [for (final d in (v?['playerDecks'] as List? ?? const [])) d.toString()];
     _decks = List.generate(maxPlayers, (i) => i < decks.length ? decks[i] : '');
     final names = [for (final n in (v?['playerNames'] as List? ?? const [])) _ptName(n.toString())];
@@ -306,15 +338,23 @@ class GameProvider with ChangeNotifier {
 
   void updateCommanderDamage(int victim, int attacker, int delta) {
     final wasDead = isDead(victim);
-    final before = _commanderDamage[victim][attacker];
+    final before = cmdDamage(victim, attacker);
     final after = (before + delta).clamp(0, 21);
     final applied = after - before;
     if (applied == 0) return;
-    _commanderDamage[victim][attacker] = after;
+    _cmdAdd(victim, attacker, applied);
     // O dano de comandante também tira vida.
     _lives[victim] -= applied;
     _record(GameEvent(victim, 'cmd', applied, attacker: attacker));
     _changed(GameEvent(victim, 'cmd', applied, attacker: attacker), wasDead);
+  }
+
+  void _cmdAdd(int victim, int attacker, int delta) {
+    if (attacker >= maxPlayers) {
+      _partnerDamage[victim][attacker - maxPlayers] += delta;
+    } else {
+      _commanderDamage[victim][attacker] += delta;
+    }
   }
 
   /// Desfaz a última mudança da partida.
@@ -325,7 +365,7 @@ class GameProvider with ChangeNotifier {
       case 'life':
         _lives[e.player] -= e.delta;
       case 'cmd':
-        _commanderDamage[e.player][e.attacker!] -= e.delta;
+        _cmdAdd(e.player, e.attacker!, -e.delta);
         _lives[e.player] += e.delta;
       default:
         final list = _counterList(Counter.values.byName(e.kind));
@@ -478,6 +518,7 @@ class GameProvider with ChangeNotifier {
     _plane = null;
     _scheme = null;
     _commanderDamage = List.generate(maxPlayers, (_) => List.filled(maxPlayers, 0));
+    _partnerDamage = List.generate(maxPlayers, (_) => List.filled(maxPlayers, 0));
     _history.clear();
     _saveAndNotify();
   }
@@ -520,6 +561,8 @@ class GameProvider with ChangeNotifier {
     prefs.setString('playerColors', jsonEncode(_colors));
     prefs.setString('playerColors2', jsonEncode(_colors2));
     prefs.setString('commanderDamage', jsonEncode(_commanderDamage));
+    prefs.setString('partnerDamage', jsonEncode(_partnerDamage));
+    prefs.setString('partners', jsonEncode(_partners));
     prefs.setString('playerDecks', jsonEncode(_decks));
     await prefs.setString('playerNames', jsonEncode(_playerNames));
   }
@@ -549,6 +592,12 @@ class GameProvider with ChangeNotifier {
       final rows = jsonDecode(c) as List;
       _commanderDamage = List.generate(maxPlayers, (i) => _ints(i < rows.length ? rows[i] : null, 0));
     }
+    final c2 = prefs.getString('partnerDamage');
+    if (c2 != null) {
+      final rows = jsonDecode(c2) as List;
+      _partnerDamage = List.generate(maxPlayers, (i) => _ints(i < rows.length ? rows[i] : null, 0));
+    }
+    _partners = ints('partners', 0) ?? _partners;
 
     final d = prefs.getString('playerDecks');
     if (d != null) {

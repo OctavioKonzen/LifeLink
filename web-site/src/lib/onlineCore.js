@@ -12,7 +12,7 @@
 
 export const PER_PLAYER = [
   'lives', 'poison', 'energy', 'experience', 'tax', 'treasure', 'storm', 'blessing',
-  'colors', 'colors2', 'playerNames', 'playerDecks', 'turnTotals', 'cmdRows',
+  'colors', 'colors2', 'playerNames', 'playerDecks', 'turnTotals', 'cmdRows', 'cmdRows2', 'partners',
 ]
 
 /** A partida (formato da conta, com cmdRows) → campos da mesa ("g.playerCount", "p0.lives"). */

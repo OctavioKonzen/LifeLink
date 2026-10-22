@@ -55,7 +55,7 @@ export function playSound(name) {
   audio.play().catch(() => {})
 }
 
-const dead = (g, i) => g.lives[i] <= 0 || g.poison[i] >= 10 || g.commander[i].some((d) => d >= 21)
+const dead = (g, i) => g.lives[i] <= 0 || g.poison[i] >= 10 || g.commander[i].some((d) => d >= 21) || (g.partnerDamage?.[i] || []).some((d) => d >= 21)
 const sum = (list) => list.reduce((a, b) => a + b, 0)
 
 /**
@@ -70,7 +70,7 @@ export function soundFor(before, after) {
   }
   for (let i = 0; i < after.players; i++) {
     if (!dead(before, i) && dead(after, i)) take('morte')
-    const cmd = sum(after.commander[i]) - sum(before.commander[i])
+    const cmd = sum(after.commander[i]) + sum(after.partnerDamage?.[i] || []) - sum(before.commander[i]) - sum(before.partnerDamage?.[i] || [])
     const poison = after.poison[i] - before.poison[i]
     const life = after.lives[i] - before.lives[i]
     if (cmd > 0) take('comandante')

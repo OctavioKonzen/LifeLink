@@ -45,6 +45,7 @@ class _PlayerCardWidgetState extends State<PlayerCardWidget> {
 
   // A "página" do quadro: 0 = vida, -1 = veneno, 1 = dano de comandante.
   int _page = 0;
+  int _cmdSel = -1; // o comandante escolhido na página do comandante
   Timer? _pageTimer;
 
   /// Arrastou para o lado: direita vai para o veneno, esquerda para o
@@ -258,86 +259,104 @@ class _PlayerCardWidgetState extends State<PlayerCardWidget> {
     ]);
   }
 
-  /// O dano de comandante recebido de cada adversário (21 de um derrota), no
-  /// mesmo jeito do veneno: com um adversário, o número grande e as metades −
-  /// e +; com vários, uma linha grande para cada um.
+  /// O dano de comandante recebido, no mesmo jeito do veneno: o número grande
+  /// e as metades − e +, de um comandante por vez. Em cima, um botão para
+  /// cada comandante da mesa (e o 2º, do parceiro): cada um conta à parte e
+  /// só 21 de um mesmo comandante derrota.
   Widget _commanderPage(GameProvider game, int i) {
-    final others = [for (int a = 0; a < game.playerCount; a++) if (a != i) a];
+    final cmds = [
+      for (int a = 0; a < game.playerCount; a++)
+        if (a != i) ...[a, if (game.hasPartner(a)) a + GameProvider.maxPlayers],
+    ];
+    if (!cmds.contains(_cmdSel)) _cmdSel = cmds.first;
+    final sel = _cmdSel;
     const tint = Color(0xFFBF360C);
-    Widget header(double size) => Row(mainAxisSize: MainAxisSize.min, children: [
-          Icon(Icons.shield, color: const Color(0xFFFFE0B2), size: size * 0.22),
-          const SizedBox(width: 6),
-          Text('COMANDANTE', style: TextStyle(color: const Color(0xFFFFE0B2), fontWeight: FontWeight.w900, fontSize: size * 0.17, letterSpacing: 1)),
-        ]);
-
-    if (others.length == 1) {
-      final a = others.first;
-      void change(int d) {
-        game.updateCommanderDamage(i, a, d);
-        HapticFeedback.selectionClick();
-        _touchPage();
-      }
-
-      final value = game.commanderDamage[i][a];
-      return Stack(children: [
-        Container(color: tint.withValues(alpha: 0.3)),
-        Row(children: [_zone(-1, change), _zone(1, change)]),
-        IgnorePointer(
-          child: LayoutBuilder(builder: (context, box) {
-            final size = (box.maxHeight * 0.36).clamp(36.0, 170.0);
-            return Center(
-              child: Column(mainAxisSize: MainAxisSize.min, children: [
-                header(size),
-                FittedBox(
-                  child: Text('$value', style: TextStyle(color: value >= 21 ? Colors.redAccent : Colors.white, fontSize: size, fontWeight: FontWeight.w900, height: 1.0)),
-                ),
-                FittedBox(child: Text('de ${game.playerNames[a]} · de 21', maxLines: 1, style: TextStyle(color: Colors.white70, fontWeight: FontWeight.w700, fontSize: size * 0.15))),
-              ]),
-            );
-          }),
-        ),
-        _backToLife(),
-      ]);
+    void change(int d) {
+      game.updateCommanderDamage(i, sel, d);
+      HapticFeedback.selectionClick();
+      _touchPage();
     }
 
-    Widget step(IconData icon, int a, int d) => GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: () {
-            game.updateCommanderDamage(i, a, d);
-            HapticFeedback.selectionClick();
-            _touchPage();
-          },
-          child: Padding(padding: const EdgeInsets.all(8), child: Icon(icon, color: Colors.white, size: 40)),
-        );
+    Widget chip(int c, double size) {
+      final on = c == sel;
+      final value = game.cmdDamage(i, c);
+      return GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () {
+          setState(() => _cmdSel = c);
+          HapticFeedback.selectionClick();
+          _touchPage();
+        },
+        child: Container(
+          margin: const EdgeInsets.symmetric(horizontal: 4),
+          padding: EdgeInsets.symmetric(horizontal: size * 0.1, vertical: size * 0.05),
+          decoration: BoxDecoration(
+            color: on ? Colors.white.withValues(alpha: 0.25) : Colors.black.withValues(alpha: 0.3),
+            borderRadius: BorderRadius.circular(size),
+            border: Border.all(color: on ? Colors.white : Colors.white24, width: 2),
+          ),
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            Container(
+              width: size * 0.12,
+              height: size * 0.12,
+              decoration: BoxDecoration(color: game.colorOf(c % GameProvider.maxPlayers), shape: BoxShape.circle, border: Border.all(color: Colors.white70, width: 1.5)),
+            ),
+            SizedBox(width: size * 0.05),
+            Flexible(child: Text(game.commanderName(c), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: size * 0.13))),
+            SizedBox(width: size * 0.06),
+            Text('$value', style: TextStyle(color: value >= 21 ? Colors.redAccent : Colors.white, fontWeight: FontWeight.w900, fontSize: size * 0.15)),
+          ]),
+        ),
+      );
+    }
+
+    final value = game.cmdDamage(i, sel);
     return Stack(children: [
       Positioned.fill(child: Container(color: tint.withValues(alpha: 0.3))),
+      Positioned.fill(child: Row(children: [_zone(-1, change), _zone(1, change)])),
       Positioned.fill(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(12, 48, 12, 64),
-          child: Center(
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Column(mainAxisSize: MainAxisSize.min, children: [
-                header(110),
-                const SizedBox(height: 8),
-                for (final a in others)
-                  Row(mainAxisSize: MainAxisSize.min, children: [
-                    Container(width: 16, height: 16, decoration: BoxDecoration(color: game.colorOf(a), shape: BoxShape.circle, border: Border.all(color: Colors.white70, width: 2))),
-                    const SizedBox(width: 10),
-                    SizedBox(width: 140, child: Text(game.playerNames[a], overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 20))),
-                    step(Icons.remove_circle_outline, a, -1),
-                    SizedBox(
-                      width: 64,
-                      child: Text('${game.commanderDamage[i][a]}',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(color: game.commanderDamage[i][a] >= 21 ? Colors.redAccent : Colors.white, fontSize: 40, fontWeight: FontWeight.w900)),
-                    ),
-                    step(Icons.add_circle_outline, a, 1),
+        child: LayoutBuilder(builder: (context, box) {
+          final size = (box.maxHeight * (cmds.length > 1 ? 0.3 : 0.36)).clamp(36.0, 170.0);
+          // Os botões dos comandantes num tamanho que dá para ler e tocar.
+          final chipSize = size.clamp(90.0, 120.0);
+          // Tudo cabe no quadro (diminui se precisar); os botões quebram linha.
+          return Padding(
+            padding: const EdgeInsets.fromLTRB(8, 44, 8, 58),
+            child: Center(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: SizedBox(
+                  width: box.maxWidth - 16,
+                  child: Column(mainAxisSize: MainAxisSize.min, children: [
+              IgnorePointer(
+                child: FittedBox(fit: BoxFit.scaleDown, child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  Icon(Icons.shield, color: const Color(0xFFFFE0B2), size: size * 0.22),
+                  const SizedBox(width: 6),
+                  Text('COMANDANTE', style: TextStyle(color: const Color(0xFFFFE0B2), fontWeight: FontWeight.w900, fontSize: size * 0.17, letterSpacing: 1)),
+                ])),
+              ),
+              if (cmds.length > 1)
+                Padding(
+                  padding: EdgeInsets.symmetric(vertical: size * 0.06),
+                  child: Wrap(alignment: WrapAlignment.center, runSpacing: 6, children: [for (final c in cmds) chip(c, chipSize)]),
+                ),
+              IgnorePointer(
+                child: FittedBox(
+                  child: Text('$value', style: TextStyle(color: value >= 21 ? Colors.redAccent : Colors.white, fontSize: size, fontWeight: FontWeight.w900, height: 1.0)),
+                ),
+              ),
+              IgnorePointer(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text('de ${game.commanderName(sel)} · 21 derrota', maxLines: 1, style: TextStyle(color: Colors.white70, fontWeight: FontWeight.w700, fontSize: size * 0.15)),
+                ),
+              ),
                   ]),
-              ]),
+                ),
+              ),
             ),
-          ),
-        ),
+          );
+        }),
       ),
       _backToLife(),
     ]);
@@ -350,15 +369,13 @@ class _PlayerCardWidgetState extends State<PlayerCardWidget> {
     final life = game.lives[i];
     final dead = game.isDead(i);
     final color = game.colorOf(i);
-    int cmdTotal = 0;
-    for (int a = 0; a < game.playerCount; a++) {
-      if (a != i) cmdTotal += game.commanderDamage[i][a];
-    }
+    // O maior dano de um mesmo comandante (não a soma: só 21 de um derrota).
+    final cmdTop = game.maxCmdDamage(i);
     final commander = game.startingLife >= 30;
 
     final badges = <Widget>[
       if (game.counter(Counter.poison, i) > 0) _badge(Icons.science, '${game.counter(Counter.poison, i)}', const Color(0xFFE1BEE7)),
-      if (commander || cmdTotal > 0) _badge(Icons.shield, '$cmdTotal', const Color(0xFFFFE0B2)),
+      if (commander || cmdTop > 0) _badge(Icons.shield, '$cmdTop', const Color(0xFFFFE0B2)),
       if (game.counter(Counter.energy, i) > 0) _badge(Icons.bolt, '${game.counter(Counter.energy, i)}', const Color(0xFFFFF59D)),
       if (game.counter(Counter.experience, i) > 0) _badge(Icons.auto_awesome, '${game.counter(Counter.experience, i)}', Colors.white),
       if (game.counter(Counter.tax, i) > 0) _badge(Icons.account_balance, '+${game.counter(Counter.tax, i)}', const Color(0xFFB2DFDB)),

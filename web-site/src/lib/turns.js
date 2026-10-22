@@ -3,7 +3,7 @@
 // avança quando volta para quem começou. Funções puras sobre a partida no
 // formato da tela (players, lives, poison, commander).
 
-export const isDead = (g, i) => g.lives[i] <= 0 || g.poison[i] >= 10 || g.commander[i].some((d) => d >= 21)
+export const isDead = (g, i) => g.lives[i] <= 0 || g.poison[i] >= 10 || g.commander[i].some((d) => d >= 21) || (g.partnerDamage?.[i] || []).some((d) => d >= 21)
 
 export function startTurns(g, first, now = Date.now()) {
   return { ...g, turnFirst: first, turnPlayer: first, turnRound: 1, turnStartedAt: now, turnTotals: Array(6).fill(0) }
