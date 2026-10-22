@@ -13,7 +13,7 @@ import {
   sets as loadSets,
   symbolUrl,
 } from '../lib/scryfall'
-import { plainText, search as ownSearch } from '../lib/lifelinkCards'
+import { plainText, search as ownSearch, setCards } from '../lib/lifelinkCards'
 import { incrementSearches } from '../lib/xp'
 
 const COLORS = ['W', 'U', 'B', 'R', 'G', 'C']
@@ -42,6 +42,8 @@ export function ownQuery(text, { types = [], colors = [], set = null } = {}) {
   if (!plainText(t) || types.length > 1) return null
   const empty = !t && !types.length && !colors.length && !set
   return {
+    // Só a coleção escolhida: todas as cartas dela na ordem dos números.
+    setOnly: !t && !types.length && !colors.length && !!set,
     text: t,
     nameOnly: !!exact,
     // Sem texto: os comandantes mais jogados (como o "is:commander").
@@ -213,6 +215,10 @@ export default function SearchPage() {
     const load = async () => {
       if (own) {
         try {
+          if (own.setOnly) {
+            const cards = await setCards(own.set)
+            if (cards.length) return { cards, nextPage: null, source: 'lifelink' }
+          }
           const page = await ownSearch({ ...own, page: 0 })
           if (page.cards.length) return { cards: page.cards, nextPage: page.hasMore ? { own, page: 1 } : null, source: 'lifelink' }
         } catch {

@@ -91,6 +91,46 @@ class LifeLinkCards {
     return (map?['$number|$lang'] ?? map?['$number|en'] ?? map?['$number|pt']) as String?;
   }
 
+  /// As cartas de uma coleção na ordem dos números (1, 2, 3...), uma por
+  /// número, no idioma pedido quando existe (senão em inglês).
+  Future<List<Map<String, dynamic>>> setCards(String set, {String lang = 'pt'}) async {
+    final r = await client.get(Uri.parse('$r2/s/${set.toLowerCase()}.json')).timeout(const Duration(seconds: 20));
+    if (r.statusCode == 404) return const [];
+    if (r.statusCode != 200) throw http.ClientException('R2 ${r.statusCode}');
+    final rows = (jsonDecode(utf8.decode(r.bodyBytes)) as List).cast<List>();
+    final byNumber = <String, List>{};
+    for (final row in rows) {
+      final old = byNumber[row[1]];
+      if (old == null || (row[2] == lang && old[2] != lang)) byNumber['${row[1]}'] = row;
+    }
+    final seen = <String>{};
+    return [
+      for (final row in rows)
+        if (seen.add('${row[1]}'))
+          () {
+            final pick = byNumber['${row[1]}']!;
+            final name = '${pick[7]}'.isNotEmpty ? pick[7] : pick[6];
+            return {
+              'id': pick[0],
+              'collectorNumber': pick[1],
+              'lang': pick[2],
+              'rarity': pick[3],
+              'imageUrl': imageUrl('${pick[0]}', inR2: pick[4] == 1),
+              'oracle_id': pick[5],
+              'name': name,
+              'enName': pick[6],
+            };
+          }(),
+    ];
+  }
+
+  /// As coleções (código, nome, data, tipo e quantas cartas), mais novas primeiro.
+  Future<List<Map<String, dynamic>>> setsInfo() async {
+    final r = await client.get(Uri.parse('$r2/data/sets-info.json')).timeout(const Duration(seconds: 20));
+    if (r.statusCode != 200) throw http.ClientException('R2 ${r.statusCode}');
+    return (jsonDecode(utf8.decode(r.bodyBytes)) as List).cast<Map<String, dynamic>>();
+  }
+
   /// Código da coleção → nome.
   Future<Map<String, String>> sets() async =>
       ((await _file('sets.json')) ?? const {}).map((k, v) => MapEntry(k, '$v'));

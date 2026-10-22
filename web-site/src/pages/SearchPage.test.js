@@ -8,6 +8,7 @@ describe('busca no banco do LifeLink', () => {
 
   test('com texto: relevância (sem ordem) e os filtros', () => {
     expect(ownQuery('raio', { types: ['Instant'], colors: ['R', 'C'], set: 'm10' })).toEqual({
+      setOnly: false,
       text: 'raio',
       nameOnly: false,
       types: ['Instant'],
@@ -15,6 +16,11 @@ describe('busca no banco do LifeLink', () => {
       colors: 'RC',
       order: undefined,
     })
+  })
+
+  test('só a coleção: lista na ordem dos números', () => {
+    expect(ownQuery('', { set: 'cmm' })).toMatchObject({ setOnly: true, set: 'cmm' })
+    expect(ownQuery('anel', { set: 'cmm' })).toMatchObject({ setOnly: false })
   })
 
   test('nome exato (sugestão escolhida)', () => {

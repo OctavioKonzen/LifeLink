@@ -15,6 +15,7 @@ import '../deck/my_decks_screen.dart';
 import '../deck/community_decks_screen.dart';
 import '../search/card_search_screen.dart';
 import '../search/card_scan_screen.dart';
+import '../search/set_cards_screen.dart';
 import '../search/today_prices_screen.dart'; 
 import 'arena_missions_screen.dart';
 import 'profile_screen.dart'; 
@@ -235,6 +236,8 @@ class _HomeScreenState extends State<HomeScreen> {
             "subtitle": upcoming ? "Chega em $when · veja as cartas" : "Veja todas as cartas",
             "tagColor": upcoming ? const Color(0xFFF59E0B) : const Color(0xFF8B5CF6),
             "url": set['scryfall_uri'],
+            "setCode": set['code'],
+            "setName": set['name'],
           };
         }(),
       {"image": CardImages.artCropByName("Nadu, Winged Wisdom"), "tag": "BANIDAS", "title": "Lista de Banidas\ne Restritas", "tagColor": const Color(0xFFEF4444), "url": "https://magic.wizards.com/en/banned-restricted-list"},
@@ -385,7 +388,10 @@ class _HomeScreenState extends State<HomeScreen> {
             itemBuilder: (context, index) {
               final item = newsList[index % newsList.length];
               return GestureDetector(
-                onTap: () => _openNews(item["url"]),
+                // Coleção: a tela do app com as cartas na ordem dos números.
+                onTap: () => item["setCode"] != null
+                    ? Navigator.push(context, MaterialPageRoute(builder: (_) => SetCardsScreen(code: '${item["setCode"]}', name: '${item["setName"]}')))
+                    : _openNews(item["url"]),
                 child: Container(
                   margin: const EdgeInsets.symmetric(horizontal: 8),
                   decoration: BoxDecoration(

@@ -23,6 +23,12 @@ void main() {
     'id/be6.json': {pt: oracle},
     'set/cmm.json': {'410|en': en, '410|pt': pt},
     'sets.json': {'cmm': 'Commander Masters'},
+    's/cmm.json': [
+      ['e2', '2', 'en', 'common', 1, 'o2', 'Opt', ''],
+      ['p2', '2', 'pt', 'common', 0, 'o2', 'Opt', 'Optar'],
+      ['e10', '10', 'en', 'rare', 1, 'o10', 'Ten', ''],
+      ['x1', 'IFIYW-1', 'en', 'rare', 1, 'o9', 'Special', ''],
+    ],
     'data/config.json': {'search': 'https://busca.test'},
   };
   final asked = <String>[];
@@ -70,5 +76,14 @@ void main() {
     expect(r.cards.single['name'], 'Anel Solar');
     expect(r.cards.single['usdPrice'], '1.50');
     expect(asked.where((u) => u.contains('config.json')).length, lessThanOrEqualTo(1));
+  });
+
+  test('coleção na ordem dos números, uma por número, em português quando tem', () async {
+    final pt = await LifeLinkCards.instance.setCards('CMM', lang: 'pt');
+    expect([for (final c in pt) c['collectorNumber']], ['2', '10', 'IFIYW-1']);
+    expect(pt.first['name'], 'Optar');
+    expect(pt.first['imageUrl'], 'https://cards.scryfall.io/normal/front/p/2/p2.jpg');
+    final en = await LifeLinkCards.instance.setCards('cmm', lang: 'en');
+    expect(en.first['name'], 'Opt');
   });
 }

@@ -310,6 +310,43 @@ export function fromSearchRow(r, lang = 'pt') {
 }
 
 /**
+ * As cartas de uma coleção na ordem dos números (1, 2, 3...), uma por número,
+ * em português quando existe (resumos no formato da Scryfall).
+ */
+export async function setCards(set, lang = 'pt') {
+  const r = await fetch(`${R2}/s/${String(set).toLowerCase()}.json`)
+  if (r.status === 404) return []
+  if (!r.ok) throw new Error(`R2 ${r.status}`)
+  const rows = await r.json()
+  const pick = new Map()
+  for (const row of rows) {
+    const old = pick.get(row[1])
+    if (!old || (row[2] === lang && old[2] !== lang)) pick.set(row[1], row)
+  }
+  const seen = new Set()
+  const out = []
+  for (const row of rows) {
+    if (seen.has(row[1])) continue
+    seen.add(row[1])
+    const [id, cn, l, rarity, inR2, oracle, name, pn] = pick.get(row[1])
+    out.push({
+      id,
+      oracle_id: oracle,
+      name,
+      ...(pn ? { printed_name: pn } : {}),
+      lang: l,
+      set: String(set).toLowerCase(),
+      collector_number: cn,
+      rarity,
+      image_uris: uris(imageUrl(id, { inR2: inR2 === 1 })),
+      prices: pricesOf(null),
+      _lifelink: 'summary',
+    })
+  }
+  return out
+}
+
+/**
  * Busca (nome, tipo ou texto, em português ou inglês), com filtros.
  * order: relevance (padrão com texto), name, cmc, usd, released, popular.
  * Volta { cards (resumos no formato da Scryfall), hasMore }.

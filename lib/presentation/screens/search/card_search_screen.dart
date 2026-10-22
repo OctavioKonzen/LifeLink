@@ -217,6 +217,25 @@ class _CardSearchScreenState extends State<CardSearchScreen> {
     final exact = RegExp(r'^!"(.*)"$').firstMatch(text);
     if (exact != null) text = exact.group(1)!;
     final f = _filters;
+    // Só a coleção escolhida (sem texto nem outro filtro): todas as cartas
+    // dela na ordem dos números (1, 2, 3...).
+    if (text.isEmpty && f.setCode != null && f.types.isEmpty && f.colors.isEmpty && f.race == null && f.subtype == null && _order == _orders.first) {
+      try {
+        final cards = await LifeLinkCards.instance.setCards(f.setCode!, lang: context.read<ThemeProvider>().cardLanguage);
+        if (!mounted || id != _searchId) return true;
+        if (cards.isNotEmpty) {
+          setState(() {
+            _searchResults = cards;
+            _hasMore = false;
+            _ownPage = null;
+            _nextPageUrl = null;
+            _isLoading = false;
+            _errorMessage = null;
+          });
+          return true;
+        }
+      } catch (_) {}
+    }
     // Sem texto: os comandantes mais usados (como o "is:commander" de antes).
     final types = [...f.types, ?f.race, ?f.subtype, if (text.isEmpty && f.isEmpty) 'Legendary Creature'];
     final userOrder = _order != _orders.first;

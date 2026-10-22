@@ -11,6 +11,7 @@ import {
   resetCache,
   scryfallCard,
   search,
+  setCards,
   toScryfall,
   topPrices,
   typePool,
@@ -293,5 +294,21 @@ describe('busca e preços', () => {
     expect(plainText('raio')).toBe(true)
     expect(plainText('t:dragon')).toBe(false)
     expect(plainText('usd>10')).toBe(false)
+  })
+})
+
+describe('coleção na ordem dos números', () => {
+  test('uma por número, em português quando tem, e os especiais no fim', async () => {
+    resetCache()
+    globalThis.fetch = async () =>
+      new Response(JSON.stringify([
+        ['e2', '2', 'en', 'common', 1, 'o2', 'Opt', ''],
+        ['p2', '2', 'pt', 'common', 0, 'o2', 'Opt', 'Optar'],
+        ['e10', '10', 'en', 'rare', 1, 'o10', 'Ten', ''],
+        ['x1', 'IFIYW-1', 'en', 'rare', 1, 'o9', 'Special', ''],
+      ]), { status: 200 })
+    const cards = await setCards('CMM')
+    expect(cards.map((c) => c.collector_number)).toEqual(['2', '10', 'IFIYW-1'])
+    expect(cards[0].printed_name).toBe('Optar')
   })
 })
