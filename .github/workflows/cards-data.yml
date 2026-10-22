@@ -39,8 +39,10 @@ jobs:
         run: python3 tool/build_cards.py
       - name: Conferir no endereço público
         env:
-          R2_PUBLIC_URL: ${{ vars.R2_PUBLIC_URL }}
+          # A variável R2_PUBLIC_URL (ou o segredo com o mesmo nome).
+          R2_PUBLIC_URL: ${{ vars.R2_PUBLIC_URL || secrets.R2_PUBLIC_URL }}
         run: |
+          if [ -z "$R2_PUBLIC_URL" ]; then echo "::warning::Sem R2_PUBLIC_URL (variável ou segredo): não deu para conferir."; exit 0; fi
           curl -fsS "$R2_PUBLIC_URL/data/meta.json"
           echo
           curl -fsS -o /dev/null -w 'cards.jsonl.gz: %{size_download} bytes\n' "$R2_PUBLIC_URL/data/cards.jsonl.gz"
