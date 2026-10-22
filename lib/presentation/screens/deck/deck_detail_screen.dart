@@ -11,6 +11,7 @@ import '../search/card_search_screen.dart';
 import '../../../data/services/deck_tools.dart';
 import 'deck_tools_screens.dart';
 import '../search/card_scan_screen.dart';
+import '../collection/collection_screen.dart';
 
 class DeckDetailScreen extends StatefulWidget {
   final String deckId;
@@ -251,19 +252,30 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
                 },
                 itemBuilder: (context) => _languages.entries.map((e) => PopupMenuItem(value: e.value, child: Text(e.key))).toList(),
               ),
-              IconButton(
-                icon: const Icon(Icons.picture_as_pdf, color: Colors.blueAccent),
-                tooltip: "Baixar PDF",
-                onPressed: () async {
-                  if (deck.cards.isEmpty) return;
-                  List<String> imageUrls = deck.cards.map((c) => c['imageUrl'].toString()).toList();
-                  await PdfService.generateAndPrintDeckPdf(context, imageUrls);
+              // Mais: exportar a lista, PDF e apagar.
+              PopupMenuButton<String>(
+                icon: Icon(Icons.more_vert, color: textColor),
+                tooltip: "Mais",
+                onSelected: (choice) async {
+                  switch (choice) {
+                    case 'export':
+                      if (deck.cards.isNotEmpty) await exportDeckSheet(context, deck);
+                    case 'missing':
+                      await missingCardsSheet(context, deck);
+                    case 'pdf':
+                      if (deck.cards.isEmpty) return;
+                      List<String> imageUrls = deck.cards.map((c) => c['imageUrl'].toString()).toList();
+                      await PdfService.generateAndPrintDeckPdf(context, imageUrls);
+                    case 'delete':
+                      _deleteDeck(context, deckProvider);
+                  }
                 },
-              ),
-              IconButton(
-                icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
-                onPressed: () => _deleteDeck(context, deckProvider),
-                tooltip: "Apagar Deck",
+                itemBuilder: (context) => const [
+                  PopupMenuItem(value: 'export', child: ListTile(leading: Icon(Icons.share), title: Text('Exportar / compartilhar lista'))),
+                  PopupMenuItem(value: 'missing', child: ListTile(leading: Icon(Icons.inventory_2_outlined), title: Text('O que falta na coleção'))),
+                  PopupMenuItem(value: 'pdf', child: ListTile(leading: Icon(Icons.picture_as_pdf), title: Text('Baixar PDF'))),
+                  PopupMenuItem(value: 'delete', child: ListTile(leading: Icon(Icons.delete_outline, color: Colors.redAccent), title: Text('Apagar deck'))),
+                ],
               ),
             ],
             bottom: PreferredSize(

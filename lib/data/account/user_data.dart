@@ -6,6 +6,7 @@
 //   data.game:     { playerCount, startingLife, lives, poison, cmdRows,
 //                    playerNames, playerDecks, ... (game_provider.dart) }
 //   data.matches:  { list: [partidas terminadas] } (match_provider.dart)
+//   data.collection, data.wishlist: { list: [cartas] } (collection_provider.dart)
 //   decks/{id}:    { id, name, type, cards }   (um documento por deck)
 // O Firestore não aceita lista dentro de lista (o dano de comandante vai
 // como cmdRows, uma linha de texto por jogador).
@@ -38,7 +39,7 @@ class UserData {
   UserData._();
   static final UserData instance = UserData._();
 
-  static const sectionKeys = ['settings', 'profile', 'game', 'matches'];
+  static const sectionKeys = ['settings', 'profile', 'game', 'matches', 'collection', 'wishlist'];
 
   final Map<String, SyncedSection> _sections = {};
   SyncedDecks? decks;

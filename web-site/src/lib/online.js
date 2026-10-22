@@ -133,7 +133,16 @@ export function watchList(name, onChange, onError) {
       fs.collection(db, 'users', user.uid, name),
       async (snap) => {
         let list = snap.docs.map((d) => ({ ...d.data(), uid: d.data().uid ?? d.id, id: d.id }))
-        if (name === 'friends') list = await Promise.all(list.map(async (f) => ({ ...f, accepted: await core.isAccepted(fs, db, user, f.uid) })))
+        if (name === 'friends') {
+          list = await Promise.all(
+            list.map(async (f) => {
+              const [accepted, nick] = await Promise.all([core.isAccepted(fs, db, user, f.uid), core.currentNick(fs, db, f.uid)])
+              // O amigo trocou de nick: mostra o novo e atualiza a minha lista.
+              if (nick && nick !== f.nick) fs.setDoc(fs.doc(db, 'users', user.uid, 'friends', f.id), { nick }, { merge: true }).catch(() => {})
+              return { ...f, accepted, nick: nick || f.nick }
+            }),
+          )
+        }
         if (alive) onChange(list.sort((a, b) => String(a.nick ?? a.fromNick).localeCompare(String(b.nick ?? b.fromNick))))
       },
       (e) => onError?.(e),

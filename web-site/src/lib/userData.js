@@ -4,13 +4,14 @@
 //               totalMatches, statDecks, statCards, statSearches, statArts }
 //   game:     { playerCount, startingLife, lives, poison, commanderDamage, playerNames }
 //   matches:  { list: [partidas terminadas] } (matches.js)
+//   collection, wishlist: { list: [cartas] } (collection.js)
 //   decks:    { [id]: { id, name, type, cards } }
 // Sem conta, ficam só neste navegador. Com conta, sync.js leva para o
 // Firestore e traz o que mudou no app.
 
 import { useSyncExternalStore } from 'react'
 
-export const SECTION_KEYS = ['settings', 'profile', 'game', 'matches']
+export const SECTION_KEYS = ['settings', 'profile', 'game', 'matches', 'collection', 'wishlist']
 const STORAGE_KEY = 'magic_user_data_v1'
 
 export const defaultProfile = () => ({
@@ -63,7 +64,7 @@ export const defaultGame = (startingLife = 40, playerCount = 2, playerNames) => 
 
 export const defaultSettings = () => ({ bgColor: 0xff1e1e24, playerName: 'Jogador 1', cardLanguage: 'pt' })
 
-const defaults = () => ({ settings: defaultSettings(), profile: defaultProfile(), game: defaultGame(), matches: { list: [] }, decks: {} })
+const defaults = () => ({ settings: defaultSettings(), profile: defaultProfile(), game: defaultGame(), matches: { list: [] }, collection: { list: [] }, wishlist: { list: [] }, decks: {} })
 
 // O Firestore não aceita lista dentro de lista: na conta, o dano de
 // comandante vai como cmdRows (uma linha de texto por jogador), como no app.

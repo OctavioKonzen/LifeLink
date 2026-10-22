@@ -8,7 +8,7 @@ import { scryfallIdOf } from '../lib/deckCards'
 import { deckList, deleteDeck, saveDeck, useUserData } from '../lib/userData'
 import { incrementDecksCreated } from '../lib/xp'
 import { useAuth } from '../lib/auth'
-import { DeckAnalysis, ImportListModal, TestHand } from '../components/DeckTools'
+import { DeckAnalysis, ExportDeck, ImportListModal, MissingCards, TestHand } from '../components/DeckTools'
 import { incrementCardsAdded } from '../lib/xp'
 
 const TYPES = ['Commander', 'Challenger', 'Normal'] // os mesmos do app (my_decks_screen.dart)
@@ -57,7 +57,7 @@ function NewDeck({ onClose }) {
 }
 
 function DeckView({ deck, onClose }) {
-  const [tool, setTool] = useState(null) // 'import' | 'analysis' | 'hand'
+  const [tool, setTool] = useState(null) // 'import' | 'analysis' | 'hand' | 'export' | 'missing'
   const total = deck.cards.length
   const price = deck.cards.reduce((sum, c) => sum + (Number.parseFloat(c.usdPrice) || 0), 0)
   const removeCard = (index) => saveDeck({ ...deck, cards: deck.cards.filter((_, i) => i !== index) })
@@ -112,7 +112,33 @@ function DeckView({ deck, onClose }) {
         >
           ✋ Mão de teste
         </button>
+        <button
+          type="button"
+          disabled={total < 1}
+          onClick={() => setTool(tool === 'export' ? null : 'export')}
+          className={`rounded-full px-4 py-1.5 text-sm font-bold disabled:opacity-40 ${tool === 'export' ? 'bg-accent text-white' : 'bg-text/10 hover:bg-text/20'}`}
+        >
+          📤 Exportar
+        </button>
+        <button
+          type="button"
+          disabled={total < 1}
+          onClick={() => setTool(tool === 'missing' ? null : 'missing')}
+          className={`rounded-full px-4 py-1.5 text-sm font-bold disabled:opacity-40 ${tool === 'missing' ? 'bg-accent text-white' : 'bg-text/10 hover:bg-text/20'}`}
+        >
+          📦 O que falta
+        </button>
       </div>
+      {tool === 'missing' && (
+        <div className="mb-5 rounded-2xl bg-text/5 p-4">
+          <MissingCards deck={deck} />
+        </div>
+      )}
+      {tool === 'export' && (
+        <div className="mb-5 rounded-2xl bg-text/5 p-4">
+          <ExportDeck deck={deck} />
+        </div>
+      )}
       {tool === 'analysis' && (
         <div className="mb-5">
           <DeckAnalysis deck={deck} />

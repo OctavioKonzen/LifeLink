@@ -8,6 +8,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:audioplayers/audioplayers.dart'; 
 import 'package:cached_network_image/cached_network_image.dart'; 
 import '../../../data/providers/deck_provider.dart';
+import '../../../data/providers/collection_provider.dart';
 import '../../../data/providers/theme_provider.dart';
 import '../../../data/services/scryfall_service.dart';
 import '../../../data/repositories/card_repository.dart';
@@ -78,8 +79,17 @@ class _CardDetailScreenState extends State<CardDetailScreen> with SingleTickerPr
     try {
       final data = await ScryfallService.instance.getJson('https://api.scryfall.com/cards/$id');
       if (mounted && DeckTools.scryfallIdOf(_currentCard) == id) setState(() => _full = data);
+      // As regras oficiais sobre a carta (rulings), da Wizards e da Scryfall.
+      final uri = data['rulings_uri'];
+      if (uri is String) {
+        final r = await ScryfallService.instance.getJson(uri);
+        final list = [for (final x in (r['data'] as List? ?? const [])) Map<String, dynamic>.from(x as Map)];
+        if (mounted && DeckTools.scryfallIdOf(_currentCard) == id) setState(() => _rulings = list);
+      }
     } catch (_) {}
   }
+
+  List<Map<String, dynamic>>? _rulings;
 
   @override
   void initState() {
@@ -374,7 +384,37 @@ class _CardDetailScreenState extends State<CardDetailScreen> with SingleTickerPr
 
     return Scaffold(
       backgroundColor: bgColor,
-      appBar: AppBar(backgroundColor: Colors.transparent, elevation: 0, foregroundColor: textColor),
+      appBar: AppBar(backgroundColor: Colors.transparent, elevation: 0, foregroundColor: textColor, actions: [
+        // Coleção (+1 cópia; segurar tira uma) e lista de desejos (coração).
+        Builder(builder: (context) {
+          final collection = context.watch<CollectionProvider>();
+          final id = DeckTools.scryfallIdOf(_currentCard) ?? '${_currentCard['id']}';
+          final qty = collection.qtyOf(id);
+          return Row(mainAxisSize: MainAxisSize.min, children: [
+            GestureDetector(
+              onLongPress: qty == 0 ? null : () => collection.setQty(id, qty - 1),
+              child: IconButton(
+                tooltip: 'Guardar na coleção (segure para tirar uma)',
+                onPressed: () {
+                  final n = collection.add(_currentCard);
+                  ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(duration: const Duration(seconds: 2), content: Text(n == 0 ? 'A coleção está cheia.' : 'Na coleção: $n')));
+                },
+                icon: Badge(
+                  isLabelVisible: qty > 0,
+                  label: Text('$qty'),
+                  child: Icon(qty > 0 ? Icons.inventory_2 : Icons.inventory_2_outlined),
+                ),
+              ),
+            ),
+            IconButton(
+              tooltip: 'Lista de desejos',
+              onPressed: () => collection.toggleWish(_currentCard),
+              icon: Icon(collection.wished(id) ? Icons.favorite : Icons.favorite_border, color: collection.wished(id) ? Colors.pinkAccent : null),
+            ),
+          ]);
+        }),
+      ]),
       body: Column(
         children: [
           Expanded(
@@ -579,9 +619,40 @@ class _CardDetailScreenState extends State<CardDetailScreen> with SingleTickerPr
                 }(),
             ]),
           ],
+          if (_rulings?.isNotEmpty ?? false) ...[
+            _buildDivider(textColor),
+            Theme(
+              data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+              child: ExpansionTile(
+                tilePadding: EdgeInsets.zero,
+                childrenPadding: EdgeInsets.zero,
+                iconColor: textColor,
+                collapsedIconColor: textColor,
+                title: Text('Regras da carta (${_rulings!.length})', style: TextStyle(color: textColor, fontSize: 15, fontWeight: FontWeight.bold)),
+                subtitle: Text('Esclarecimentos oficiais, em inglês', style: TextStyle(color: Colors.grey[500], fontSize: 12)),
+                children: [
+                  for (final r in _rulings!)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        Text(_rulingDate('${r['published_at'] ?? ''}'), style: TextStyle(color: Colors.grey[500], fontSize: 11, fontWeight: FontWeight.w700)),
+                        const SizedBox(height: 2),
+                        Text('${r['comment'] ?? ''}', style: TextStyle(color: textColor, fontSize: 13, height: 1.4)),
+                      ]),
+                    ),
+                ],
+              ),
+            ),
+          ],
         ],
       ),
     );
+  }
+
+  /// "2024-02-02" → "02/02/2024".
+  static String _rulingDate(String iso) {
+    final p = iso.split('-');
+    return p.length == 3 ? '${p[2]}/${p[1]}/${p[0]}' : iso;
   }
 
   /// Os preços que o Scryfall informa para esta versão da carta (TCGplayer,

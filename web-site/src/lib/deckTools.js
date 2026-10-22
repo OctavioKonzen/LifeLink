@@ -174,3 +174,29 @@ export function shuffled(list, random = Math.random) {
   }
   return out
 }
+
+/**
+ * A lista do deck para colar no Moxfield, Arena, Archidekt...: "1 Sol Ring",
+ * com o comandante numa seção à parte. english: id da Scryfall → nome em inglês.
+ */
+export function exportList(cards, english = new Map()) {
+  const nameOf = (c) => english.get(scryfallIdOf(c) ?? '') ?? c.name ?? ''
+  const count = (commander) => {
+    const out = new Map()
+    for (const c of cards) if (Boolean(c.commander) === commander && nameOf(c)) out.set(nameOf(c), (out.get(nameOf(c)) || 0) + 1)
+    return [...out.keys()].sort().map((n) => `${out.get(n)} ${n}`).join('\n')
+  }
+  const commanders = count(true)
+  const rest = count(false)
+  return [commanders && `Commander\n${commanders}`, rest && `Deck\n${rest}`].filter(Boolean).join('\n\n')
+}
+
+/** Os nomes em inglês das cartas (pela Scryfall); vazio sem internet. */
+export async function englishNames(cards) {
+  try {
+    const fresh = await refreshDeck(cards)
+    return new Map(cards.map((c, i) => [scryfallIdOf(c) ?? '', fresh[i]?.name]).filter(([id, n]) => id && n))
+  } catch {
+    return new Map()
+  }
+}

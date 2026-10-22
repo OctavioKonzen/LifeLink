@@ -279,10 +279,21 @@ class Friends {
       final list = <Friend>[];
       for (final d in s.docs) {
         var accepted = false;
+        var nick = '${d.data()['nick'] ?? ''}';
         try {
           accepted = (await _net(_col(d.id, 'friends').doc(me).get())).exists;
         } catch (_) {}
-        list.add(Friend(d.id, '${d.data()['nick'] ?? ''}', accepted: accepted));
+        // O amigo pode ter trocado de nick: o atual vem da lista de nicks
+        // (e a minha lista de amigos passa a guardar o novo).
+        try {
+          final found = await _net(_db.collection('nicks').where('uid', isEqualTo: d.id).limit(1).get());
+          final current = found.docs.isEmpty ? null : found.docs.first.data()['nick'] as String?;
+          if (current != null && current != nick) {
+            nick = current;
+            _col(me, 'friends').doc(d.id).set({'nick': current}, SetOptions(merge: true)).catchError((_) {});
+          }
+        } catch (_) {}
+        list.add(Friend(d.id, nick, accepted: accepted));
       }
       list.sort((a, b) => a.nick.toLowerCase().compareTo(b.nick.toLowerCase()));
       return list;

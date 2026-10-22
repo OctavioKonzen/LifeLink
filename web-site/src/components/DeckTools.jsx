@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react'
 import CardImage from './CardImage'
 import { Modal, Spinner } from './ui'
-import { FORMATS, deckProblems, dollarInReais, fetchDeckList, parseDeckList, priceOf, refreshDeck, shuffled } from '../lib/deckTools'
+import { missingFor } from '../lib/collection'
+import { useUserData } from '../lib/userData'
+import { FORMATS, deckProblems, dollarInReais, englishNames, exportList, fetchDeckList, parseDeckList, priceOf, refreshDeck, shuffled } from '../lib/deckTools'
 
 // Ferramentas de deck do site (as mesmas do app, deck_tools_screens.dart):
-// importar lista, preço e legalidade, mão de teste.
+// importar lista, preço e legalidade, mão de teste, exportar.
 
 const TYPES = ['Commander', 'Challenger', 'Normal']
 
@@ -273,6 +275,67 @@ export function TestHand({ deck }) {
           + Comprar
         </button>
       </div>
+    </div>
+  )
+}
+
+/** Exportar o deck: a lista (nomes em inglês) para copiar ou compartilhar (WhatsApp...). */
+export function ExportDeck({ deck }) {
+  const [text, setText] = useState(null)
+  const [done, setDone] = useState('')
+  useEffect(() => {
+    let alive = true
+    englishNames(deck.cards).then((names) => alive && setText(exportList(deck.cards, names)))
+    return () => {
+      alive = false
+    }
+  }, [deck])
+  if (text == null) return <div className="grid place-items-center py-6"><Spinner /></div>
+  const copy = () => navigator.clipboard?.writeText(text).then(() => setDone('Lista copiada.'), () => setDone('Não deu para copiar: selecione o texto.'))
+  const share = () => navigator.share({ title: deck.name, text: `${deck.name}\n\n${text}` }).catch(() => {})
+  const whatsapp = `https://wa.me/?text=${encodeURIComponent(`${deck.name}\n\n${text}`)}`
+  return (
+    <div>
+      <p className="mb-2 text-sm text-muted">Formato do Moxfield, Arena e Archidekt (nomes em inglês).</p>
+      <textarea readOnly value={text} rows={10} className="w-full rounded-xl bg-black/20 p-3 font-mono text-sm" onFocus={(e) => e.target.select()} />
+      <div className="mt-2 flex flex-wrap gap-2">
+        <button type="button" onClick={copy} className="rounded-full bg-text/10 px-4 py-1.5 text-sm font-bold hover:bg-text/20">📋 Copiar</button>
+        {typeof navigator !== 'undefined' && navigator.share && (
+          <button type="button" onClick={share} className="rounded-full bg-text/10 px-4 py-1.5 text-sm font-bold hover:bg-text/20">📤 Compartilhar</button>
+        )}
+        <a href={whatsapp} target="_blank" rel="noreferrer" className="rounded-full bg-emerald-600 px-4 py-1.5 text-sm font-bold text-white hover:brightness-110">WhatsApp</a>
+        {done && <span className="self-center text-sm font-bold text-emerald-400">{done}</span>}
+      </div>
+    </div>
+  )
+}
+
+/** O que falta na coleção para montar o deck, com o custo. */
+export function MissingCards({ deck }) {
+  const collection = useUserData((s) => s.collection)
+  const [brl, setBrl] = useState(null)
+  useEffect(() => {
+    dollarInReais().then(setBrl, () => {})
+  }, [])
+  const missing = missingFor(deck.cards, collection)
+  const cost = missing.reduce((a, m) => a + m.usd * (m.need - m.have), 0)
+  if (!missing.length) return <p className="py-4 text-center font-bold text-emerald-400">Você tem todas as cartas deste deck!</p>
+  return (
+    <div>
+      <p className="mb-2 text-sm text-muted">
+        {missing.length} carta(s) · US$ {cost.toFixed(2)}
+        {brl ? ` · R$ ${(cost * brl).toFixed(2)}` : ''}. Terrenos básicos não contam; qualquer versão da carta serve.
+      </p>
+      <ul className="divide-y divide-text/10">
+        {missing.map((m) => (
+          <li key={m.name} className="flex items-center justify-between gap-3 py-1.5 text-sm">
+            <span className="min-w-0 truncate font-semibold">{m.name}</span>
+            <span className="shrink-0 text-muted">
+              tenho {m.have} de {m.need} · <span className="font-bold text-amber-400">US$ {(m.usd * (m.need - m.have)).toFixed(2)}</span>
+            </span>
+          </li>
+        ))}
+      </ul>
     </div>
   )
 }
