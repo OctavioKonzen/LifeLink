@@ -31,11 +31,11 @@ void main() {
 
     await tester.drag(card, const Offset(-80, 0)); // esquerda: comandante
     await tester.pumpAndSettle();
-    expect(find.text('DANO DE COMANDANTE RECEBIDO'), findsOneWidget);
+    expect(find.text('COMANDANTE'), findsOneWidget);
 
     await tester.tap(find.text('Vida')); // botão de voltar
     await tester.pumpAndSettle();
-    expect(find.text('DANO DE COMANDANTE RECEBIDO'), findsNothing);
+    expect(find.text('COMANDANTE'), findsNothing);
     expect(find.text('40'), findsOneWidget);
     expect(game.lives[0], 40); // arrastar não mexeu na vida
   });
