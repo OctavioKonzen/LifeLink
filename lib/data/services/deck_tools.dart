@@ -327,6 +327,9 @@ class DeckTools {
       .trim()
       .replaceAll(RegExp(r'[\s-]+'), '-');
 
+  // Terreno básico não é sugestão (todo deck tem).
+  static final _basicLand = RegExp(r'^(Snow-Covered )?(Plains|Island|Swamp|Mountain|Forest)$|^Wastes$');
+
   /// Os nomes das cartas que o EDHREC mais recomenda para o comandante, das
   /// mais usadas para as menos (sem as que já estão no deck).
   static List<String> edhrecNames(Map<String, dynamic> page, Set<String> skip) {
@@ -336,7 +339,7 @@ class DeckTools {
       for (final v in ((l as Map)['cardviews'] as List? ?? const [])) {
         final c = v as Map;
         final name = '${c['name'] ?? ''}';
-        if (name.isEmpty || skip.contains(name.toLowerCase())) continue;
+        if (name.isEmpty || skip.contains(name.toLowerCase()) || _basicLand.hasMatch(name)) continue;
         final potential = (c['potential_decks'] as num?)?.toDouble() ?? 0;
         final used = ((c['inclusion'] ?? c['num_decks']) as num?)?.toDouble() ?? 0;
         final s = (potential > 0 ? used / potential : 0) + ((c['synergy'] as num?)?.toDouble() ?? 0) * 0.3;

@@ -85,12 +85,12 @@ Maybeboard
         json_dict: {
           cardlists: [
             { cardviews: [{ name: 'Sol Ring', inclusion: 900, potential_decks: 1000, synergy: 0 }, { name: 'Doubling Season', inclusion: 300, potential_decks: 1000, synergy: 0.5 }] },
-            { cardviews: [{ name: 'Doubling Season', inclusion: 300, potential_decks: 1000, synergy: 0.1 }, { name: 'Opt', num_decks: 100, potential_decks: 1000 }, { name: '' }] },
+            { cardviews: [{ name: 'Doubling Season', inclusion: 300, potential_decks: 1000, synergy: 0.1 }, { name: 'Opt', num_decks: 100, potential_decks: 1000 }, { name: '' }, { name: 'Forest', num_decks: 1000, potential_decks: 1000 }] },
           ],
         },
       },
     }
-    // Sol Ring 0.9; Doubling Season 0.3 + 0.15 = 0.45 (a maior das duas); Opt 0.1.
+    // Sol Ring 0.9; Doubling Season 0.3 + 0.15 = 0.45 (a maior das duas); Opt 0.1; terreno básico fica de fora.
     expect(edhrecNames(page)).toEqual(['Sol Ring', 'Doubling Season', 'Opt'])
     expect(edhrecNames(page, new Set(['sol ring']))).toEqual(['Doubling Season', 'Opt'])
     expect(edhrecNames({})).toEqual([])
