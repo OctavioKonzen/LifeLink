@@ -47,3 +47,31 @@ export function clock(ms) {
   const m = Math.floor(s / 60)
   return m >= 60 ? `${Math.floor(m / 60)}h${String(m % 60).padStart(2, '0')}` : `${String(m).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`
 }
+
+/** Dia → noite → dia... (a primeira vez começa de dia). 0 = fora do jogo. */
+export const toggleDayNight = (g) => ({ ...g, dayNight: g.dayNight === 1 ? 2 : 1 })
+
+/**
+ * Sorteia os lugares (o mesmo do app, GameProvider.shuffleSeats): cada
+ * jogador (nome, cores, deck e parceiro) vai para um lugar da mesa ao acaso.
+ * Só mexe nos primeiros g.players lugares; a partida nova fica com quem chama.
+ */
+export function shuffleSeats(g, random = Math.random) {
+  const order = Array.from({ length: g.players }, (_, i) => i)
+  for (let i = order.length - 1; i > 0; i--) {
+    const j = Math.floor(random() * (i + 1))
+    ;[order[i], order[j]] = [order[j], order[i]]
+  }
+  const move = (list, fill) => {
+    const full = Array.from({ length: 6 }, (_, i) => list?.[i] ?? fill(i))
+    return full.map((v, i) => (i < g.players ? full[order[i]] : v))
+  }
+  return {
+    ...g,
+    names: move(g.names, (i) => `Jogador ${i + 1}`),
+    colors: move(g.colors, (i) => i),
+    colors2: move(g.colors2, () => -1),
+    playerDecks: move(g.playerDecks, () => ''),
+    partners: move(g.partners, () => 0),
+  }
+}

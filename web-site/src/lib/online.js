@@ -2,11 +2,15 @@
 // onlineCore.js; aqui o estado da tela e a ligação com a partida).
 
 import { useSyncExternalStore } from 'react'
-import { getAuthState, loadFirestore } from './auth'
-import { defaultGame, fromCloud, getState, onLocalChange, toCloud, updateSection } from './userData'
+import { getAuthState, loadFirestore, onAuthChange } from './auth'
+import { defaultGame, fromCloud, getState, onLocalChange, subscribe, toCloud, updateSection } from './userData'
+import { publicTrade } from './collection'
+import { syncReady } from './sync'
 import * as core from './onlineCore'
 
-let state = { code: null, isOwner: false, error: null }
+// mySeat: o meu lugar nesta mesa (só neste navegador, não vai para a mesa):
+// com ele, o contador mostra o meu quadro grande e os outros pequenos. -1 = a mesa inteira.
+let state = { code: null, isOwner: false, error: null, mySeat: -1 }
 const listeners = new Set()
 const set = (next) => {
   state = { ...state, ...next }
@@ -21,6 +25,9 @@ export function useOnlineTable() {
     () => state,
   )
 }
+
+/** Escolhe o meu lugar na mesa (-1 = a mesa inteira). */
+export const setMySeat = (seat) => set({ mySeat: seat })
 
 const me = () => {
   const { status, user } = getAuthState()
@@ -100,7 +107,7 @@ export async function leaveTable(reason = null) {
   for (const s of stops) s()
   stops = []
   clearTimeout(timer)
-  set({ code: null, isOwner: false, error: reason })
+  set({ code: null, isOwner: false, error: reason, mySeat: -1 })
   if (code && isOwner && !reason) {
     const { fs, db } = await loadFirestore()
     await fs.deleteDoc(fs.doc(db, 'tables', code)).catch(() => {})
@@ -122,6 +129,50 @@ export const removeFriend = (f) => withDb((fs, db, user) => core.removeFriend(fs
 export const friendDecks = (f) => withDb((fs, db) => core.decksOf(fs, db, f.uid))
 export const inviteFriend = (f, code) => withDb((fs, db, user) => core.inviteFriend(fs, db, user, f, code))
 export const dismissInvite = (code) => withDb((fs, db, user) => core.dismissInvite(fs, db, user, code))
+export const friendTrade = (f) => withDb((fs, db) => core.tradeOf(fs, db, f.uid))
+
+// ----------------------------------------------------------------- troca
+
+let tradeTimer = null
+let published = { uid: null, collection: null, wishlist: null }
+
+function publishSoon() {
+  clearTimeout(tradeTimer)
+  tradeTimer = setTimeout(async () => {
+    // Os dados da conta ainda não chegaram: espera mais um pouco (senão
+    // publicaria a coleção que estava no navegador antes de entrar).
+    if (!syncReady()) return publishSoon()
+    const { collection, wishlist } = getState()
+    try {
+      await withDb((fs, db, user) => core.publishTrade(fs, db, user, publicTrade(collection, wishlist)))
+    } catch {
+      // Sem internet ou sem as regras publicadas: tenta na próxima mudança.
+    }
+  }, 2000)
+}
+
+/**
+ * Publica a lista de troca e de desejos para os amigos verem (o mesmo do
+ * app, Friends.publishTrade): ao entrar na conta e a cada mudança na coleção
+ * ou nos desejos, um pouco depois da última.
+ */
+export function startTradePublish() {
+  const check = () => {
+    const { status, user } = getAuthState()
+    if (status !== 'signedIn' || !user) {
+      clearTimeout(tradeTimer)
+      published = { uid: null, collection: null, wishlist: null }
+      return
+    }
+    const { collection, wishlist } = getState()
+    if (published.uid === user.uid && published.collection === collection && published.wishlist === wishlist) return
+    published = { uid: user.uid, collection, wishlist }
+    publishSoon()
+  }
+  subscribe(check)
+  onAuthChange(check)
+  check()
+}
 
 /** Acompanha uma lista (friends, requests ou invites) do usuário; volta a função para parar. */
 export function watchList(name, onChange, onError) {

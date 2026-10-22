@@ -1,8 +1,9 @@
 // Ferramentas de deck (as mesmas do app, lib/data/services/deck_tools.dart):
 // ler listas do Moxfield, Archidekt, MTG Arena e MTGO, buscar as cartas na
-// Scryfall de 75 em 75, preço, legalidade por formato e a mão de teste.
+// Scryfall de 75 em 75, preço, legalidade por formato, nível (bracket),
+// sugestões para o comandante e a mão de teste.
 
-import { getJson, postJson } from './scryfall'
+import { getJson, postJson, search } from './scryfall'
 import { scryfallIdOf, toDeckCard } from './deckCards'
 
 const API = 'https://api.scryfall.com'
@@ -162,6 +163,100 @@ export async function dollarInReais() {
     return Number.parseFloat(data.USDBRL?.bid) || null
   } catch {
     return null
+  }
+}
+
+// ------------------------------------------------------- nível (bracket)
+
+const EXTRA_TURN = /takes? an extra turn/i
+const LAND_DESTRUCTION = /destroy all (nonbasic )?lands|exile all lands|sacrifices? all lands|each player sacrifices (two|three|four|five|six|seven) lands|lands don't untap|lands do not untap/i
+
+const textOf = (c) => [c.oracle_text || '', ...(c.card_faces || []).map((f) => f?.oracle_text || '')].join('\n')
+
+/**
+ * O nível do deck no Commander (Brackets da Wizards), pelo que dá para ver
+ * nas cartas da Scryfall (refreshDeck): as Game Changers, turnos extras e
+ * destruição de terrenos em massa. Combos de duas cartas e a intenção do deck
+ * (nível 1 e 5) ficam para a mesa conversar. O mesmo do app (DeckTools.bracket).
+ */
+export function bracket(cards) {
+  const gc = new Set()
+  const turns = new Set()
+  const mld = new Set()
+  for (const c of cards) {
+    const name = c.printed_name || c.name
+    if (c.game_changer === true) gc.add(name)
+    const text = textOf(c)
+    if (EXTRA_TURN.test(text)) turns.add(name)
+    if (LAND_DESTRUCTION.test(text)) mld.add(name)
+  }
+  const level = gc.size > 3 || mld.size > 0 || turns.size > 1 ? 4 : gc.size > 0 || turns.size > 0 ? 3 : 2
+  const sorted = (set) => [...set].sort()
+  return { bracket: level, gameChangers: sorted(gc), extraTurns: sorted(turns), landDestruction: sorted(mld) }
+}
+
+export const BRACKET_NAMES = { 1: 'Exibição', 2: 'Básico', 3: 'Melhorado', 4: 'Otimizado', 5: 'cEDH' }
+
+// ------------------------------------------------------------ sugestões
+
+/**
+ * O nome da página do comandante no EDHREC ("Atraxa, Praetors' Voice" →
+ * "atraxa-praetors-voice"; carta de duas faces: só a da frente).
+ */
+export const edhrecSlug = (name) =>
+  String(name)
+    .split(' // ')[0]
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .trim()
+    .replace(/[\s-]+/g, '-')
+
+/**
+ * Os nomes das cartas que o EDHREC mais recomenda para o comandante, das mais
+ * usadas para as menos (sem as de skip: nomes em minúsculas já no deck).
+ */
+export function edhrecNames(page, skip = new Set()) {
+  const lists = page?.container?.json_dict?.cardlists || []
+  const score = new Map()
+  for (const l of lists) {
+    for (const c of l?.cardviews || []) {
+      const name = String(c?.name ?? '')
+      if (!name || skip.has(name.toLowerCase())) continue
+      const potential = Number(c.potential_decks) || 0
+      const used = Number(c.inclusion ?? c.num_decks) || 0
+      const s = (potential > 0 ? used / potential : 0) + (Number(c.synergy) || 0) * 0.3
+      score.set(name, Math.max(score.get(name) ?? -1, s))
+    }
+  }
+  return [...score.keys()].sort((a, b) => score.get(b) - score.get(a))
+}
+
+/**
+ * Sugestões de cartas para o comandante do deck (cartas da Scryfall, em
+ * inglês): do EDHREC e, se não der (o navegador pode bloquear), as mais
+ * populares nas cores dele (ordem do EDHREC na Scryfall). Volta { cards, source }.
+ */
+export async function suggestions(commander, deck, count = 40) {
+  const skip = new Set(deck.map((c) => String(c.name).toLowerCase()))
+  let names = []
+  try {
+    const r = await fetch(`https://json.edhrec.com/pages/commanders/${edhrecSlug(commander.name)}.json`, { signal: AbortSignal.timeout?.(15000) })
+    if (r.ok) names = edhrecNames(await r.json(), skip).slice(0, count)
+  } catch {
+    // Sem EDHREC: vai pela Scryfall.
+  }
+  if (names.length) {
+    const data = await postJson(`${API}/cards/collection`, { identifiers: names.slice(0, 75).map((name) => ({ name })) })
+    const byName = new Map((data.data || []).map((c) => [c.name, c]))
+    const cards = names.map((n) => byName.get(n)).filter(Boolean)
+    if (cards.length) return { cards, source: 'EDHREC' }
+  }
+  const ci = commander.color_identity
+  const colors = (Array.isArray(ci) ? ci.join('') : String(ci ?? '')).toLowerCase()
+  const page = await search(`id<=${colors || 'c'} f:commander -t:basic`, { order: 'edhrec', multilingual: false })
+  return {
+    cards: page.cards.filter((c) => !skip.has(String(c.name).toLowerCase())).slice(0, count),
+    source: 'Scryfall (mais populares nas cores do comandante)',
   }
 }
 

@@ -9,10 +9,12 @@
 // em jogadores diferentes ao mesmo tempo não se atrapalham.
 // Amigos: users/{eu}/friends/{amigo} = { uid, nick }; o pedido vai em
 // users/{amigo}/requests/{eu}; convites em users/{amigo}/invites/{código}.
+// Troca: users/{eu}/public/trade = { nick, trade: [...], wish: [...], at }
+// (o que os amigos veem: as cartas para troca e a lista de desejos).
 
 export const PER_PLAYER = [
   'lives', 'poison', 'energy', 'experience', 'tax', 'treasure', 'storm', 'blessing',
-  'colors', 'colors2', 'playerNames', 'playerDecks', 'turnTotals', 'cmdRows', 'cmdRows2', 'partners',
+  'colors', 'colors2', 'playerNames', 'playerDecks', 'turnTotals', 'cmdRows', 'cmdRows2', 'partners', 'radiation',
 ]
 
 /** A partida (formato da conta, com cmdRows) → campos da mesa ("g.playerCount", "p0.lives"). */
@@ -141,3 +143,16 @@ export const inviteFriend = (fs, db, me, friend, code) =>
   fs.setDoc(fs.doc(col(fs, db, friend.uid, 'invites'), code), { fromUid: me.uid, fromNick: me.nick || '', code, at: fs.serverTimestamp() })
 
 export const dismissInvite = (fs, db, me, code) => fs.deleteDoc(fs.doc(col(fs, db, me.uid, 'invites'), code))
+
+// ----------------------------------------------------------------- troca
+
+/** Publica a minha lista de troca e de desejos para os amigos ({ trade, wish }: [{ id, name, set, img, usd }]). */
+export const publishTrade = (fs, db, me, { trade, wish }) =>
+  fs.setDoc(fs.doc(col(fs, db, me.uid, 'public'), 'trade'), { nick: me.nick || '', trade: trade.slice(0, 500), wish: wish.slice(0, 500), at: fs.serverTimestamp() })
+
+/** A lista de troca e de desejos do amigo (vazias se ele ainda não publicou). */
+export async function tradeOf(fs, db, friendUid) {
+  const data = (await fs.getDoc(fs.doc(col(fs, db, friendUid, 'public'), 'trade'))).data() || {}
+  const listOf = (v) => (Array.isArray(v) ? v.filter((c) => c && typeof c === 'object') : [])
+  return { trade: listOf(data.trade), wish: listOf(data.wish) }
+}
