@@ -175,11 +175,18 @@ def image_order(oracle_ids_main, prints):
 
 # -------------------------------------------------------------------- R2
 
+def account_id(value):
+    """O Account ID, mesmo se veio o endereço inteiro do Cloudflare
+    (https://<id>.r2.cloudflarestorage.com)."""
+    value = value.strip().removeprefix('https://').removeprefix('http://')
+    return value.split('/')[0].split('.')[0]
+
+
 def r2():
     import boto3
     return boto3.client(
         's3',
-        endpoint_url=f"https://{os.environ['R2_ACCOUNT_ID']}.r2.cloudflarestorage.com",
+        endpoint_url=f"https://{account_id(os.environ['R2_ACCOUNT_ID'])}.r2.cloudflarestorage.com",
         aws_access_key_id=os.environ['R2_ACCESS_KEY_ID'],
         aws_secret_access_key=os.environ['R2_SECRET_ACCESS_KEY'],
         region_name='auto',
