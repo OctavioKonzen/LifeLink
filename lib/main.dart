@@ -16,6 +16,7 @@ import 'data/providers/collection_provider.dart';
 import 'data/account/account_sync.dart';
 import 'data/account/auth_service.dart';
 import 'data/account/firebase_setup.dart';
+import 'data/account/online.dart';
 import 'data/services/update_service.dart';
 
 // Importação dos Ecrãs (Screens)
@@ -98,6 +99,12 @@ class _StartupAppState extends State<StartupApp> {
       if (firebase && !AuthService.instance.enabled) {
         AuthService.instance.start();
         AccountSync.instance.start();
+        // A lista de troca e de desejos vai para os amigos verem (ao entrar
+        // na conta e a cada mudança).
+        CollectionProvider.onPublish = Friends.instance.publishTrade;
+        AuthService.instance.addListener(() {
+          if (AuthService.instance.status == AuthStatus.signedIn) collection.publish();
+        });
       }
       if (mounted) setState(() => _step = '');
     } catch (e, stack) {

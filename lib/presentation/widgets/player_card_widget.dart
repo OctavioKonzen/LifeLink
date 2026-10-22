@@ -381,6 +381,7 @@ class _PlayerCardWidgetState extends State<PlayerCardWidget> {
       if (game.counter(Counter.tax, i) > 0) _badge(Icons.account_balance, '+${game.counter(Counter.tax, i)}', const Color(0xFFB2DFDB)),
       if (game.counter(Counter.treasure, i) > 0) _badge(Icons.paid, '${game.counter(Counter.treasure, i)}', const Color(0xFFFFD54F)),
       if (game.counter(Counter.storm, i) > 0) _badge(Icons.thunderstorm, '${game.counter(Counter.storm, i)}', const Color(0xFF90CAF9)),
+      if (game.counter(Counter.radiation, i) > 0) _badge(Icons.warning_amber, '${game.counter(Counter.radiation, i)}', const Color(0xFFC6FF00)),
       if (game.counter(Counter.blessing, i) > 0) _badge(Icons.location_city, '', const Color(0xFFFFF8E1)),
     ];
     final myTurn = game.turnPlayer == i;

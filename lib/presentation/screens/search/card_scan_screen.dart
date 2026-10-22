@@ -5,6 +5,7 @@ import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
 import '../../../data/providers/collection_provider.dart';
@@ -134,27 +135,73 @@ class _CardScanScreenState extends State<CardScanScreen> {
     _busy = true;
     try {
       final photo = await camera.takePicture();
-      final text = await _recognizer.processImage(InputImage.fromFilePath(photo.path));
-      File(photo.path).delete().catchError((_) => File(photo.path));
+      await _read(photo.path, delete: true);
+    } catch (_) {
+      // Foto ou leitura falhou: tenta de novo na próxima volta.
+    } finally {
+      _busy = false;
+    }
+  }
+
+  /// Tirar a foto na hora (botão) ou escolher uma foto da galeria.
+  Future<void> _manual({required bool gallery}) async {
+    // Espera a leitura automática que estiver em andamento.
+    while (_busy) {
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+    }
+    if (!mounted) return;
+    _busy = true;
+    try {
+      String? path;
+      var delete = false;
+      if (gallery) {
+        _paused = true;
+        path = (await ImagePicker().pickImage(source: ImageSource.gallery))?.path;
+        _paused = false;
+      } else {
+        final camera = _camera;
+        if (camera == null || !camera.value.isInitialized) return;
+        HapticFeedback.selectionClick();
+        path = (await camera.takePicture()).path;
+        delete = true;
+      }
+      if (path == null || !mounted) return;
+      setState(() => _status = 'Lendo a foto...');
+      _failed.clear(); // foto escolhida: tenta mesmo se já falhou antes
+      final ok = await _read(path, delete: delete, manual: true);
+      if (!ok && mounted) setState(() => _status = 'Não consegui ler a carta nessa foto. Tente com o nome e o canto de baixo bem à vista.');
+    } catch (_) {
+      if (mounted) setState(() => _status = 'Não deu para usar essa foto.');
+    } finally {
+      _paused = false;
+      _busy = false;
+    }
+  }
+
+  /// Lê a carta da foto e acha a versão certa; volta se achou.
+  Future<bool> _read(String path, {bool delete = false, bool manual = false}) async {
+    {
+      final text = await _recognizer.processImage(InputImage.fromFilePath(path));
+      if (delete) File(path).delete().catchError((_) => File(path));
       final lines = [
         for (final b in text.blocks)
           for (final l in b.lines) (text: l.text, top: l.boundingBox.top, left: l.boundingBox.left, height: l.boundingBox.height),
       ];
       final reading = readCard(lines);
-      if (reading.isEmpty || !mounted) return;
+      if (reading.isEmpty || !mounted) return false;
       final key = reading.toString();
-      if (_failed.contains(key)) return;
+      if (_failed.contains(key)) return false;
       setState(() => _status = 'Procurando ${reading.name ?? '${reading.set?.toUpperCase()} ${reading.number}'}...');
       final card = await _find(reading);
-      if (!mounted) return;
+      if (!mounted) return false;
       if (card == null) {
         _failed.add(key);
         setState(() => _status = 'Não achei "${reading.name ?? ''}". Ajuste a carta na moldura.');
-        return;
+        return manual; // na foto escolhida, a mensagem "não achei" fica
       }
       if (_collect) {
         final id = '${card['id']}';
-        if (id == _lastId && DateTime.now().difference(_lastAt) < const Duration(seconds: 4)) return;
+        if (!manual && id == _lastId && DateTime.now().difference(_lastAt) < const Duration(seconds: 4)) return true;
         final qty = context.read<CollectionProvider>().add(card);
         HapticFeedback.heavyImpact();
         _lastId = id;
@@ -164,21 +211,18 @@ class _CardScanScreenState extends State<CardScanScreen> {
           _saved++;
           _status = qty == 0 ? 'A coleção está cheia (${CollectionProvider.maxCards} cartas diferentes).' : 'Guardada: ${card['name']} ($qty na coleção). Próxima!';
         });
-        return;
+        return true;
       }
       HapticFeedback.heavyImpact();
       _paused = true;
       await Navigator.push(context, MaterialPageRoute(builder: (_) => CardDetailScreen(card: card, targetDeckId: widget.targetDeckId)));
-      if (!mounted) return;
+      if (!mounted) return true;
       _failed.clear();
       setState(() {
         _paused = false;
         _status = 'Aponte para a próxima carta';
       });
-    } catch (_) {
-      // Foto ou leitura falhou: tenta de novo na próxima volta.
-    } finally {
-      _busy = false;
+      return true;
     }
   }
 
@@ -270,7 +314,19 @@ class _CardScanScreenState extends State<CardScanScreen> {
         ],
       ),
       body: _error != null
-          ? Center(child: Padding(padding: const EdgeInsets.all(24), child: Text(_error!, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white70))))
+          // Sem câmera, ainda dá para escolher uma foto da galeria.
+          ? Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  Text(_error!, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white70)),
+                  const SizedBox(height: 16),
+                  ElevatedButton.icon(icon: const Icon(Icons.photo_library), label: const Text('Escolher foto da galeria'), onPressed: () => _manual(gallery: true)),
+                  const SizedBox(height: 12),
+                  Text(_status, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white54)),
+                ]),
+              ),
+            )
           : camera == null
               ? const Center(child: CircularProgressIndicator())
               : Stack(fit: StackFit.expand, children: [
@@ -287,6 +343,17 @@ class _CardScanScreenState extends State<CardScanScreen> {
                         ),
                       );
                     }),
+                  ),
+                  // Tirar a foto na hora ou escolher uma da galeria.
+                  Positioned(
+                    left: 16,
+                    right: 16,
+                    bottom: 96,
+                    child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                      _roundButton(Icons.photo_library, 'Galeria', () => _manual(gallery: true)),
+                      const SizedBox(width: 28),
+                      _roundButton(Icons.camera_alt, 'Tirar foto', () => _manual(gallery: false), big: true),
+                    ]),
                   ),
                   Positioned(
                     left: 16,
@@ -305,4 +372,22 @@ class _CardScanScreenState extends State<CardScanScreen> {
                 ]),
     );
   }
+
+  Widget _roundButton(IconData icon, String label, VoidCallback onTap, {bool big = false}) => GestureDetector(
+        onTap: onTap,
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Container(
+            width: big ? 68 : 52,
+            height: big ? 68 : 52,
+            decoration: BoxDecoration(
+              color: big ? Colors.white : Colors.black.withValues(alpha: 0.6),
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white, width: 3),
+            ),
+            child: Icon(icon, color: big ? Colors.black : Colors.white, size: big ? 32 : 24),
+          ),
+          const SizedBox(height: 4),
+          Text(label, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 12, shadows: [Shadow(blurRadius: 4)])),
+        ]),
+      );
 }

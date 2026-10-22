@@ -260,6 +260,8 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
                   switch (choice) {
                     case 'export':
                       if (deck.cards.isNotEmpty) await exportDeckSheet(context, deck);
+                    case 'suggest':
+                      Navigator.push(context, MaterialPageRoute(builder: (_) => SuggestionsScreen(deck: deck)));
                     case 'missing':
                       await missingCardsSheet(context, deck);
                     case 'pdf':
@@ -272,6 +274,7 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
                 },
                 itemBuilder: (context) => const [
                   PopupMenuItem(value: 'export', child: ListTile(leading: Icon(Icons.share), title: Text('Exportar / compartilhar lista'))),
+                  PopupMenuItem(value: 'suggest', child: ListTile(leading: Icon(Icons.lightbulb_outline), title: Text('Sugestões para o comandante'))),
                   PopupMenuItem(value: 'missing', child: ListTile(leading: Icon(Icons.inventory_2_outlined), title: Text('O que falta na coleção'))),
                   PopupMenuItem(value: 'pdf', child: ListTile(leading: Icon(Icons.picture_as_pdf), title: Text('Baixar PDF'))),
                   PopupMenuItem(value: 'delete', child: ListTile(leading: Icon(Icons.delete_outline, color: Colors.redAccent), title: Text('Apagar deck'))),

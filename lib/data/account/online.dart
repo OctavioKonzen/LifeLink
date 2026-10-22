@@ -22,7 +22,7 @@ import 'auth_service.dart';
 /// Os campos da partida que são uma lista com um valor por jogador.
 const perPlayerKeys = [
   'lives', 'poison', 'energy', 'experience', 'tax', 'treasure', 'storm', 'blessing', //
-  'colors', 'colors2', 'playerNames', 'playerDecks', 'turnTotals', 'cmdRows', 'cmdRows2', 'partners',
+  'colors', 'colors2', 'playerNames', 'playerDecks', 'turnTotals', 'cmdRows', 'cmdRows2', 'partners', 'radiation',
 ];
 
 /// A partida (formato da conta) → campos da mesa ("g.playerCount", "p0.lives").
@@ -98,6 +98,16 @@ class OnlineTable extends ChangeNotifier {
   bool _applying = false;
 
   bool get active => code != null;
+
+  /// O meu lugar nesta mesa (só neste aparelho): com ele, o contador mostra
+  /// o meu quadro grande e os outros pequenos, todos de frente para mim
+  /// (cada um joga com o próprio celular). -1 = a mesa inteira.
+  int mySeat = -1;
+
+  void setMySeat(int seat) {
+    mySeat = seat;
+    notifyListeners();
+  }
 
   /// Aplicando agora uma mudança que veio de outro celular da mesa.
   bool get applying => _applying;
@@ -201,6 +211,7 @@ class OnlineTable extends ChangeNotifier {
       } catch (_) {}
     }
     code = null;
+    mySeat = -1;
     isOwner = false;
     error = reason;
     notifyListeners();
@@ -263,6 +274,35 @@ class Friends {
   Future<void> remove(Friend friend) async {
     final me = _me;
     if (me != null) await _net(_col(me, 'friends').doc(friend.uid).delete());
+  }
+
+  // ----------------------------------------------------------------- troca
+
+  Timer? _tradeTimer;
+
+  /// Publica a minha lista de troca e de desejos para os amigos verem
+  /// (users/{uid}/public/trade), um pouco depois da última mudança.
+  void publishTrade(List<Map<String, dynamic>> trade, List<Map<String, dynamic>> wish) {
+    _tradeTimer?.cancel();
+    _tradeTimer = Timer(const Duration(seconds: 2), () async {
+      final me = _me;
+      if (me == null) return;
+      try {
+        await _net(_col(me, 'public').doc('trade').set({
+          'nick': _myNick,
+          'trade': trade.take(500).toList(),
+          'wish': wish.take(500).toList(),
+          'at': FieldValue.serverTimestamp(),
+        }));
+      } catch (_) {}
+    });
+  }
+
+  /// A lista de troca e de desejos do amigo.
+  Future<({List<Map<String, dynamic>> trade, List<Map<String, dynamic>> wish})> tradeOf(Friend friend) async {
+    final snap = await _net(_col(friend.uid, 'public').doc('trade').get());
+    List<Map<String, dynamic>> list(String k) => [for (final c in (snap.data()?[k] as List? ?? const [])) Map<String, dynamic>.from(c as Map)];
+    return (trade: list('trade'), wish: list('wish'));
   }
 
   Stream<List<Friend>> requests() {

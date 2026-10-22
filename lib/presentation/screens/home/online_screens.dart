@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../../data/account/auth_service.dart';
 import '../../../data/account/online.dart';
 import '../../../data/providers/deck_provider.dart';
+import '../../../data/providers/collection_provider.dart';
 import '../../../data/providers/game_provider.dart';
 import '../../../data/providers/theme_provider.dart';
 import '../../../data/services/scryfall_service.dart';
@@ -77,6 +78,16 @@ class _OnlineTableDialogState extends State<OnlineTableDialog> {
                     child: Text(table.code!, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontSize: 38, fontWeight: FontWeight.w900, letterSpacing: 6)),
                   ),
                 ),
+                const SizedBox(height: 12),
+                const Text('MEU LUGAR', style: TextStyle(color: Colors.white54, fontSize: 12, fontWeight: FontWeight.w800)),
+                const Text('Cada um no seu celular: o seu quadro fica grande e os dos outros pequenos, todos de frente para você.',
+                    style: TextStyle(color: Colors.white38, fontSize: 12)),
+                const SizedBox(height: 6),
+                Wrap(spacing: 6, runSpacing: 6, children: [
+                  ChoiceChip(label: const Text('Mesa inteira'), selected: table.mySeat < 0, onSelected: (_) => table.setMySeat(-1)),
+                  for (int i = 0; i < widget.game.playerCount; i++)
+                    ChoiceChip(label: Text(widget.game.playerNames[i]), selected: table.mySeat == i, onSelected: (_) => table.setMySeat(i)),
+                ]),
                 const SizedBox(height: 12),
                 const Text('CONVIDAR AMIGO', style: TextStyle(color: Colors.white54, fontSize: 12, fontWeight: FontWeight.w800)),
                 StreamBuilder<List<Friend>>(
@@ -272,7 +283,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
                         child: ListTile(
                           leading: CircleAvatar(child: Text(f.nick.isEmpty ? '?' : f.nick[0].toUpperCase())),
                           title: Text(f.nick),
-                          subtitle: Text(f.accepted ? 'Toque para ver os decks' : 'Esperando aceitar o pedido'),
+                          subtitle: Text(f.accepted ? 'Toque para ver os decks e as trocas' : 'Esperando aceitar o pedido'),
                           onTap: f.accepted ? () => Navigator.push(context, MaterialPageRoute(builder: (_) => FriendDecksScreen(friend: f))) : null,
                           trailing: IconButton(
                             icon: const Icon(Icons.person_remove_outlined),
@@ -301,15 +312,16 @@ class FriendDecksScreen extends StatelessWidget {
     final text = light ? Colors.black87 : Colors.white;
     return Scaffold(
       backgroundColor: theme.backgroundColor,
-      appBar: AppBar(title: Text('Decks de ${friend.nick}', style: TextStyle(color: text)), backgroundColor: Colors.transparent, elevation: 0, iconTheme: IconThemeData(color: text)),
+      appBar: AppBar(title: Text('${friend.nick}: decks e trocas', style: TextStyle(color: text)), backgroundColor: Colors.transparent, elevation: 0, iconTheme: IconThemeData(color: text)),
       body: FutureBuilder<List<Map<String, dynamic>>>(
         future: Friends.instance.decksOf(friend),
         builder: (context, snap) {
           if (snap.hasError) return Center(child: Padding(padding: const EdgeInsets.all(24), child: Text(_message(snap.error!), textAlign: TextAlign.center, style: TextStyle(color: text))));
           final decks = snap.data;
           if (decks == null) return const Center(child: CircularProgressIndicator());
-          if (decks.isEmpty) return Center(child: Text('${friend.nick} ainda não tem decks.', style: TextStyle(color: text)));
           return ListView(padding: const EdgeInsets.all(12), children: [
+            _TradeWith(friend: friend, text: text),
+            if (decks.isEmpty) Padding(padding: const EdgeInsets.all(24), child: Text('${friend.nick} ainda não tem decks.', textAlign: TextAlign.center, style: TextStyle(color: text))),
             for (final d in decks)
               () {
                 final cards = [for (final c in (d['cards'] as List? ?? const [])) Map<String, dynamic>.from(c as Map)];
@@ -355,6 +367,61 @@ class FriendDecksScreen extends StatelessWidget {
           ]);
         },
       ),
+    );
+  }
+}
+
+/// As trocas possíveis com o amigo: o que ele tem para troca e está na minha
+/// lista de desejos, e o que eu tenho para troca e ele quer.
+class _TradeWith extends StatelessWidget {
+  final Friend friend;
+  final Color text;
+  const _TradeWith({required this.friend, required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    final collection = context.watch<CollectionProvider>();
+    return FutureBuilder(
+      future: Friends.instance.tradeOf(friend),
+      builder: (context, snap) {
+        final data = snap.data;
+        if (data == null) return const SizedBox.shrink();
+        final m = collection.matches(data.trade, data.wish);
+        Widget list(String title, List<Map<String, dynamic>> cards, String empty) => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(title, style: TextStyle(color: text.withValues(alpha: 0.6), fontSize: 12, fontWeight: FontWeight.w800)),
+              const SizedBox(height: 4),
+              if (cards.isEmpty) Text(empty, style: TextStyle(color: text.withValues(alpha: 0.45), fontSize: 13)),
+              for (final c in cards)
+                ListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  leading: ClipRRect(
+                    borderRadius: BorderRadius.circular(3),
+                    child: CachedNetworkImage(imageUrl: '${c['img'] ?? ''}', httpHeaders: CardImages.headers, width: 30, height: 42, fit: BoxFit.cover, errorWidget: (_, _, _) => const SizedBox(width: 30)),
+                  ),
+                  title: Text('${c['name']}', style: TextStyle(color: text, fontWeight: FontWeight.w700)),
+                  subtitle: Text('${c['set'] ?? ''} · US\$ ${((c['usd'] as num?) ?? 0).toStringAsFixed(2)}', style: TextStyle(color: text.withValues(alpha: 0.55))),
+                ),
+              const SizedBox(height: 8),
+            ]);
+        return Card(
+          margin: const EdgeInsets.only(bottom: 12),
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+              Row(children: [
+                const Icon(Icons.swap_horiz, color: Colors.amber),
+                const SizedBox(width: 8),
+                Text('Trocas com ${friend.nick}', style: TextStyle(color: text, fontSize: 16, fontWeight: FontWeight.w900)),
+              ]),
+              const SizedBox(height: 10),
+              list('${friend.nick.toUpperCase()} TEM PARA TROCA E VOCÊ QUER', m.theyHave, 'Nada da sua lista de desejos.'),
+              list('VOCÊ TEM PARA TROCA E ${friend.nick.toUpperCase()} QUER', m.iHave, 'Nada da lista de desejos de ${friend.nick}. Marque cartas "para troca" na sua coleção.'),
+              Text('${data.trade.length} carta(s) para troca · ${data.wish.length} na lista de desejos', style: TextStyle(color: text.withValues(alpha: 0.45), fontSize: 12)),
+            ]),
+          ),
+        );
+      },
     );
   }
 }

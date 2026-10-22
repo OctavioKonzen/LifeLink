@@ -4,7 +4,7 @@
   <img src="https://img.shields.io/badge/Flutter-3.x-blue?logo=flutter&style=for-the-badge" />
   <img src="https://img.shields.io/badge/React-19-61DAFB?logo=react&style=for-the-badge" />
   <img src="https://img.shields.io/badge/Firebase-FFCA28?logo=firebase&style=for-the-badge" />
-  <img src="https://img.shields.io/badge/Android-1.0.23-green?logo=android&style=for-the-badge" />
+  <img src="https://img.shields.io/badge/Android-1.0.24-green?logo=android&style=for-the-badge" />
 </p>
 
 <div align="center">
@@ -30,7 +30,9 @@
 
 ### Cartas
 
-**Escanear com a câmera** (app): aponte para a carta e o app acha a mesma versão (coleção e arte) e abre a carta com o texto no idioma escolhido, pronta para adicionar ao deck. Fica na busca do início, na busca de cartas e no deck.
+**Escanear com a câmera** (app): aponte para a carta e o app acha a mesma versão (coleção e arte) e abre a carta com o texto no idioma escolhido, pronta para adicionar ao deck. Fica na busca do início, na busca de cartas e no deck. Dá também para **tirar a foto** na hora ou **escolher uma foto da galeria**.
+
+**Sem internet** (app): em Configurações, baixe todas as cartas uma vez (pelo Wi-Fi) e a busca continua funcionando offline, em inglês.
 
 A busca procura pelo **nome em português ou inglês** ("Raio" encontra "Lightning Bolt") e também pelo **texto da carta**, em inglês ("flying", "destroy target creature"). Enquanto você digita aparecem **sugestões de nomes**, e as **buscas recentes** ficam guardadas. Os **filtros** separam por cor, tipo, raça de criatura e edição. Quem conhece a sintaxe do Scryfall (`t:dragon c:r`, `o:"draw a card"`) pode usar direto.
 
@@ -40,8 +42,9 @@ A ficha de cada carta: imagem em **alta qualidade** (PNG), frente e verso nas ca
 
 ### Minha coleção e lista de desejos
 
-* **Coleção**: as cartas que você tem, com a quantidade de cada uma e o **valor total** em dólar e real. No app, o **scan** tem o modo "guardar na coleção": é só ir passando as cartas na frente da câmera.
+* **Coleção**: as cartas que você tem, com a quantidade de cada uma e o **valor total** em dólar, real e euro (Cardmarket), separadas em **pastas** (fichário, caixa...). No app, o **scan** tem o modo "guardar na coleção": é só ir passando as cartas na frente da câmera.
 * **O que falta**: em cada deck, as cartas que ainda não estão na coleção (qualquer versão serve, terrenos básicos não contam) e quanto custam.
+* **Troca com amigos**: marque cartas "para troca"; na página de cada amigo aparece o que ele tem para troca que está na sua lista de desejos, e o contrário.
 * **Lista de desejos**: as cartas que você quer, com o preço de quando entraram e o de hoje. O app confere os preços uma vez por dia e **avisa quando algum cai**.
 
 ### Meus decks
@@ -52,7 +55,9 @@ Seus decks, sincronizados com a conta: crie um deck novo (Commander, Challenger 
 * **Preço e legalidade**: o valor do deck hoje em dólar, **real** e euro, as cartas mais caras e se o deck é legal em Commander, Standard, Pioneer, Modern, Legacy, Vintage e Pauper (tamanho, cópias, banidas e restritas).
 * **Cópias juntas**: cartas iguais aparecem uma vez só com a quantidade (ex.: 4×); segurando a carta dá para pôr mais uma cópia, tirar uma, marcar como **comandante** (vem primeiro) ou trocar. Tirar carta tem "Desfazer". Tocar no nome **renomeia** o deck.
 * **Curva de mana e cores** do deck, junto do preço e da legalidade.
-* **Mão de teste**: compra 7, **mulligan de Londres** (põe uma no fundo por mulligan) e comprar as próximas.
+* **Mão de teste e simulação**: compra 7, **mulligan de Londres** (põe uma no fundo por mulligan) e depois joga as cartas turno a turno (um terreno por turno, mana em jogo, comandante na zona de comando).
+* **Nível do deck (Bracket)**: o nível de 1 a 5 do Commander, com as **Game Changers** do deck, turnos extras e destruição de terrenos em massa.
+* **Sugestões para o comandante**: as cartas mais usadas com ele no **EDHREC**, com um toque para pôr no deck.
 * **Exportar**: a lista do deck com os nomes em inglês, no formato do Moxfield e do Arena, para **copiar** ou **mandar pelo WhatsApp**.
 * No app dá também para **traduzir o deck** para outro idioma e gerar um **PDF para imprimir** as cartas (proxies).
 
@@ -71,7 +76,8 @@ Feito para a mesa, como os apps do gênero (Lifetap, MTG Companion): de **2 a 6 
 * **Arraste o quadro** do jogador para a direita para ver o **veneno** e para a esquerda para o **dano de comandante** recebido, ali na mesa: em cima, um botão para cada comandante (e o 2º, de quem joga com **parceiro**), cada um contando à parte até 21 (arrastar de volta, tocar em "Vida" ou esperar volta para a vida).
 * **Toque** na metade esquerda tira 1 de vida, na direita soma 1; **segurando**, vai de 1 em 1, cada vez mais rápido (no site também). O quanto mudou (ex.: −7) aparece em cima da vida.
 * **Contadores** de cada jogador: veneno (até 10), energia, experiência, imposto do comandante, tesouro, tempestade, cidade abençoada e **dano de comandante** nas duas direções: o que o seu comandante causou em cada oponente e o que você recebeu de cada um (até 21, que também tira vida de quem recebe).
-* **Monarca** e **iniciativa**: a coroa e o castelo aparecem no quadro de quem tem.
+* **Monarca** e **iniciativa**: a coroa e o castelo aparecem no quadro de quem tem. **Dia e noite**: o sol ou a lua ao lado do botão do meio. Contador de **radiação**.
+* **Sortear lugares**: cada jogador (nome, cor e deck) vai para um lugar da mesa ao acaso.
 * **Turnos**: a vez passa no sentido horário (pulando quem morreu), com a rodada e o **cronômetro** no quadro de quem joga e o tempo total de cada um. O "quem começa" já começa a contar.
 * **Planechase** (o plano em jogo e o **dado planar 3D**, com o custo de cada rolagem extra na mesma vez) e **Archenemy** (revelar esquemas), com as cartas sorteadas da Scryfall.
 * **Histórico de vida** de cada jogador: gráfico e a lista de cada mudança (dano, cura e comandante).
@@ -83,7 +89,7 @@ A partida fica salva e, com a conta, é a mesma no app e no site. Cada partida t
 
 ### Mesa online e amigos
 
-* **Mesa online**: no contador, "Mesa online" cria uma mesa com um **código de 6 letras**; cada um entra com o código no próprio celular (app) ou no site e a vida, os contadores e a vez de todos aparecem **em tempo real** em todos. Cada jogador fica num pedaço separado da mesa, então dois celulares mexendo ao mesmo tempo não se atrapalham. O dono fecha a mesa para todos.
+* **Mesa online**: no contador, "Mesa online" cria uma mesa com um **código de 6 letras**; cada um entra com o código no próprio celular (app) ou no site e a vida, os contadores e a vez de todos aparecem **em tempo real** em todos. Cada jogador fica num pedaço separado da mesa, então dois celulares mexendo ao mesmo tempo não se atrapalham. O dono fecha a mesa para todos. Em **"Meu lugar"**, cada um joga com o próprio celular: o seu quadro fica grande e os dos outros pequenos, todos de frente para você.
 * **Amigos pelo nick**: peça amizade pelo nick (se o amigo trocar de nick, a lista mostra o novo), aceite os pedidos, veja os **decks dos amigos** (e copie para os seus) e **convide amigos** para a sua mesa online. No app fica no menu do início → Amigos; no site, no Perfil.
 
 ### Partidas e estatísticas

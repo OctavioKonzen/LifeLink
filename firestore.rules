@@ -62,6 +62,12 @@ service cloud.firestore {
         allow write: if isOwner(uid);
       }
 
+      // O que eu mostro para os amigos: a lista de troca e a de desejos.
+      match /public/{doc} {
+        allow read: if isOwner(uid) || isFriendOf(uid);
+        allow write: if isOwner(uid);
+      }
+
       // Pedidos de amizade: qualquer um pede em nome próprio; o dono vê e apaga.
       match /requests/{fromUid} {
         allow read, delete: if isOwner(uid);

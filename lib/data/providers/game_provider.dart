@@ -6,7 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../account/user_data.dart';
 
 /// Os contadores extras de cada jogador (além de vida e dano de comandante).
-enum Counter { poison, energy, experience, tax, treasure, storm, blessing }
+enum Counter { poison, energy, experience, tax, treasure, storm, blessing, radiation }
 
 /// Uma mudança na partida, para o histórico e o "desfazer".
 class GameEvent {
@@ -55,6 +55,9 @@ class GameProvider with ChangeNotifier {
   List<int> _tax = List.filled(maxPlayers, 0);
   List<int> _treasure = List.filled(maxPlayers, 0);
   List<int> _storm = List.filled(maxPlayers, 0);
+  List<int> _radiation = List.filled(maxPlayers, 0);
+  // Dia e noite (cartas de Innistrad): 0 = fora do jogo, 1 = dia, 2 = noite.
+  int _dayNight = 0;
   List<int> _blessing = List.filled(maxPlayers, 0); // cidade abençoada: 0 ou 1
   List<int> _colors = List.generate(maxPlayers, (i) => i);
   // Segunda cor (degradê, como deck de duas cores); -1 = só uma cor.
@@ -125,6 +128,18 @@ class GameProvider with ChangeNotifier {
   List<GameEvent> get history => List.unmodifiable(_history);
   bool get canUndo => _history.isNotEmpty;
   int get monarch => _monarch;
+  int get dayNight => _dayNight;
+
+  /// Dia → noite → dia... (a primeira vez começa de dia).
+  void toggleDayNight() {
+    _dayNight = _dayNight == 1 ? 2 : 1;
+    _saveAndNotify();
+  }
+
+  void clearDayNight() {
+    _dayNight = 0;
+    _saveAndNotify();
+  }
   int get initiative => _initiative;
   int get turnPlayer => _turnPlayer;
   int get turnRound => _turnRound;
@@ -165,6 +180,7 @@ class GameProvider with ChangeNotifier {
         Counter.tax => _tax[player],
         Counter.treasure => _treasure[player],
         Counter.storm => _storm[player],
+        Counter.radiation => _radiation[player],
         Counter.blessing => _blessing[player],
       };
 
@@ -175,6 +191,7 @@ class GameProvider with ChangeNotifier {
         Counter.tax => _tax,
         Counter.treasure => _treasure,
         Counter.storm => _storm,
+        Counter.radiation => _radiation,
         Counter.blessing => _blessing,
       };
 
@@ -235,6 +252,8 @@ class GameProvider with ChangeNotifier {
         'tax': _tax,
         'treasure': _treasure,
         'storm': _storm,
+        'radiation': _radiation,
+        'dayNight': _dayNight,
         'blessing': _blessing,
         'monarch': _monarch,
         'initiative': _initiative,
@@ -299,6 +318,8 @@ class GameProvider with ChangeNotifier {
   void _readExtras(Map<String, dynamic>? v) {
     _treasure = _ints(v?['treasure'], 0);
     _storm = _ints(v?['storm'], 0);
+    _radiation = _ints(v?['radiation'], 0);
+    _dayNight = (v?['dayNight'] as num?)?.toInt() ?? 0;
     _blessing = _ints(v?['blessing'], 0);
     _monarch = (v?['monarch'] as num?)?.toInt() ?? -1;
     _initiative = (v?['initiative'] as num?)?.toInt() ?? -1;
@@ -499,6 +520,19 @@ class GameProvider with ChangeNotifier {
     resetGame();
   }
 
+  /// Sorteia os lugares: cada jogador (nome, cores, deck e parceiro) vai
+  /// para um lugar da mesa ao acaso, e começa uma partida nova.
+  void shuffleSeats([Random? rng]) {
+    final order = List.generate(_playerCount, (i) => i)..shuffle(rng ?? Random());
+    List<T> move<T>(List<T> list) => [for (int i = 0; i < maxPlayers; i++) i < _playerCount ? list[order[i]] : list[i]];
+    _playerNames = move(_playerNames);
+    _colors = move(_colors);
+    _colors2 = move(_colors2);
+    _decks = move(_decks);
+    _partners = move(_partners);
+    resetGame();
+  }
+
   void resetGame() {
     gameId++;
     _lives = List.filled(maxPlayers, _startingLife);
@@ -508,6 +542,8 @@ class GameProvider with ChangeNotifier {
     _tax = List.filled(maxPlayers, 0);
     _treasure = List.filled(maxPlayers, 0);
     _storm = List.filled(maxPlayers, 0);
+    _radiation = List.filled(maxPlayers, 0);
+    _dayNight = 0;
     _blessing = List.filled(maxPlayers, 0);
     _monarch = -1;
     _initiative = -1;
@@ -526,7 +562,7 @@ class GameProvider with ChangeNotifier {
   // -------------------------------------------------------------- salvar
 
   static const _extraKeys = [
-    'treasure', 'storm', 'blessing', 'monarch', 'initiative', 'turnPlayer', 'turnFirst', //
+    'treasure', 'storm', 'blessing', 'radiation', 'dayNight', 'monarch', 'initiative', 'turnPlayer', 'turnFirst', //
     'turnRound', 'turnStartedAt', 'turnTotals', 'plane', 'scheme',
   ];
 

@@ -7,8 +7,8 @@ import '../account/user_data.dart';
 import '../services/deck_tools.dart';
 
 /// Uma carta guardada (na coleção ou na lista de desejos), no formato da
-/// conta: { id, name, oracle_id, set, num, img, usd, qty } e, na lista de
-/// desejos, também { added (preço quando entrou), at (quando) }.
+/// conta: { id, name, oracle_id, set, num, img, usd, eur, qty, folder,
+/// trade } e, na lista de desejos, também { added (preço quando entrou), at }.
 class SavedCard {
   final String id;
   final String name;
@@ -17,11 +17,28 @@ class SavedCard {
   final String number;
   final String img;
   double usd;
+  double eur; // Cardmarket
   int qty;
+  String folder; // a pasta da coleção ('' = sem pasta)
+  bool trade; // para troca (os amigos veem)
   final double added;
   final int at;
 
-  SavedCard({required this.id, required this.name, this.oracleId, this.set = '', this.number = '', this.img = '', this.usd = 0, this.qty = 1, double? added, int? at})
+  SavedCard({
+    required this.id,
+    required this.name,
+    this.oracleId,
+    this.set = '',
+    this.number = '',
+    this.img = '',
+    this.usd = 0,
+    this.eur = 0,
+    this.qty = 1,
+    this.folder = '',
+    this.trade = false,
+    double? added,
+    int? at,
+  })
       : added = added ?? usd,
         at = at ?? DateTime.now().millisecondsSinceEpoch;
 
@@ -36,6 +53,7 @@ class SavedCard {
       number: '${card['collectorNumber'] ?? ''}',
       img: '${card['imageUrl'] ?? ''}',
       usd: usd,
+      eur: double.tryParse('${card['eurPrice'] ?? ''}') ?? 0,
     );
   }
 
@@ -47,7 +65,10 @@ class SavedCard {
         number: '${m['num'] ?? ''}',
         img: '${m['img'] ?? ''}',
         usd: (m['usd'] as num?)?.toDouble() ?? 0,
+        eur: (m['eur'] as num?)?.toDouble() ?? 0,
         qty: (m['qty'] as num?)?.toInt() ?? 1,
+        folder: '${m['folder'] ?? ''}',
+        trade: m['trade'] == true,
         added: (m['added'] as num?)?.toDouble(),
         at: (m['at'] as num?)?.toInt(),
       );
@@ -60,7 +81,10 @@ class SavedCard {
         'num': number,
         'img': img,
         'usd': usd,
+        if (eur > 0) 'eur': eur,
         if (!wish) 'qty': qty,
+        if (!wish && folder.isNotEmpty) 'folder': folder,
+        if (!wish && trade) 'trade': true,
         if (wish) 'added': added,
         if (wish) 'at': at,
       };
@@ -74,7 +98,11 @@ class SavedCard {
         'collectorNumber': number,
         'oracle_id': oracleId,
         'usdPrice': usd.toStringAsFixed(2),
+        if (eur > 0) 'eurPrice': eur.toStringAsFixed(2),
       };
+
+  /// O resumo que os amigos veem (troca e desejos).
+  Map<String, dynamic> toPublic() => {'id': id, 'name': name, 'set': set, 'img': img, 'usd': usd};
 }
 
 /// Uma carta que falta para montar o deck.
@@ -118,6 +146,44 @@ class CollectionProvider with ChangeNotifier {
   int qtyOf(String id) => _cards.where((c) => c.id == id).fold(0, (a, c) => a + c.qty);
   int get totalCards => _cards.fold(0, (a, c) => a + c.qty);
   double get totalUsd => _cards.fold(0.0, (a, c) => a + c.usd * c.qty);
+  double get totalEur => _cards.fold(0.0, (a, c) => a + c.eur * c.qty);
+
+  /// As pastas da coleção, em ordem.
+  List<String> get folders => ({for (final c in _cards) if (c.folder.isNotEmpty) c.folder}.toList()..sort());
+
+  void setFolder(String id, String folder) {
+    for (final c in _cards) {
+      if (c.id == id) c.folder = folder.trim();
+    }
+    _changed('collection');
+  }
+
+  void setTrade(String id, bool trade) {
+    for (final c in _cards) {
+      if (c.id == id) c.trade = trade;
+    }
+    _changed('collection');
+  }
+
+  // ----------------------------------------------------------------- troca
+
+  /// Avisado quando a lista de troca ou de desejos muda (a conta publica
+  /// para os amigos verem: users/{uid}/public/trade).
+  static void Function(List<Map<String, dynamic>> trade, List<Map<String, dynamic>> wish)? onPublish;
+
+  void publish() => onPublish?.call([for (final c in _cards) if (c.trade) c.toPublic()], [for (final c in _wishes) c.toPublic()]);
+
+  /// As trocas possíveis com um amigo: o que ele tem para troca e eu quero,
+  /// e o que eu tenho para troca e ele quer (pelo nome da carta).
+  ({List<Map<String, dynamic>> theyHave, List<Map<String, dynamic>> iHave}) matches(List<Map<String, dynamic>> theirTrade, List<Map<String, dynamic>> theirWish) {
+    String key(Object? n) => '$n'.toLowerCase();
+    final myWish = {for (final c in _wishes) key(c.name)};
+    final theirWishes = {for (final c in theirWish) key(c['name'])};
+    return (
+      theyHave: [for (final c in theirTrade) if (myWish.contains(key(c['name']))) c],
+      iHave: [for (final c in _cards) if (c.trade && theirWishes.contains(key(c.name))) c.toPublic()],
+    );
+  }
 
   /// Mais uma cópia da carta na coleção; volta quantas tem agora.
   int add(Map<String, dynamic> card, [int n = 1]) {
@@ -201,12 +267,15 @@ class CollectionProvider with ChangeNotifier {
     final all = {for (final c in [..._cards, ..._wishes]) c.id};
     final ids = [for (final id in all) if (RegExp(r'^[0-9a-f-]{36}$').hasMatch(id)) id];
     final prices = <String, double>{};
+    final euros = <String, double>{};
     for (var start = 0; start < ids.length; start += 75) {
       final chunk = ids.sublist(start, (start + 75).clamp(0, ids.length));
       final data = await DeckTools.postCollection([for (final id in chunk) {'id': id}]);
       for (final c in (data['data'] as List? ?? const [])) {
         final p = double.tryParse('${c['prices']?['usd'] ?? c['prices']?['usd_foil'] ?? ''}');
         if (p != null) prices['${c['id']}'] = p;
+        final e = double.tryParse('${c['prices']?['eur'] ?? c['prices']?['eur_foil'] ?? ''}');
+        if (e != null) euros['${c['id']}'] = e;
       }
     }
     final drops = <({SavedCard card, double before})>[];
@@ -218,6 +287,9 @@ class CollectionProvider with ChangeNotifier {
     }
     for (final c in _cards) {
       c.usd = prices[c.id] ?? c.usd;
+    }
+    for (final c in [..._cards, ..._wishes]) {
+      c.eur = euros[c.id] ?? c.eur;
     }
     if (prices.isNotEmpty) {
       _changed('collection');
@@ -247,6 +319,7 @@ class CollectionProvider with ChangeNotifier {
     notifyListeners();
     _save();
     UserData.instance.changed(key);
+    publish();
   }
 
   Future<void> _save() async {
