@@ -10,7 +10,7 @@ on:
     inputs:
       minutes:
         description: 'Minutos para copiar imagens (0 = só o banco)'
-        default: '300'
+        default: '270'
 
 concurrency:
   group: cards-data
@@ -35,7 +35,7 @@ jobs:
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           R2_BUCKET: lifelink
-          MAX_MINUTES: ${{ github.event.inputs.minutes || '300' }}
+          MAX_MINUTES: ${{ github.event.inputs.minutes || '270' }}
         run: python3 tool/build_cards.py
       - name: Conferir no endereço público
         env:

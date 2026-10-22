@@ -283,6 +283,57 @@ def copy_images(s3, bucket, ids, urls, have, deadline):
     return done, len(todo) - done
 
 
+# ------------------------------------------------- arquivos por carta
+
+def shard_files(cards, sets):
+    """Os arquivos que o app e o site buscam no R2 pelo código (sem baixar o
+    banco inteiro). Volta {caminho: conteúdo}:
+      c/<oracle_id>.json   a carta com todas as variações (sem preços)
+      pr/<xx>.json         os preços de todas as variações das cartas cujo
+                           oracle_id começa com xx (muda todo dia)
+      id/<xxx>.json        código da variação → oracle_id (xxx = começo do código)
+      set/<coleção>.json   "número|idioma" → código da variação (para a câmera)
+      sets.json            código da coleção → nome
+    """
+    files, prices, ids, by_set = {}, {}, {}, {}
+    for card in cards:
+        o = card['o']
+        static = dict(card, v=[{k: x for k, x in v.items() if k != '$'} for v in card['v']])
+        files[f'c/{o}.json'] = static
+        prices.setdefault(o[:2], {})[o] = {v['id']: v['$'] for v in card['v'] if v.get('$')}
+        for v in card['v']:
+            ids.setdefault(v['id'][:3], {})[v['id']] = o
+            by_set.setdefault(v['s'], {})[f"{v.get('cn', '')}|{v.get('l', 'en')}"] = v['id']
+    files.update({f'pr/{k}.json': v for k, v in prices.items()})
+    files.update({f'id/{k}.json': v for k, v in ids.items()})
+    files.update({f'set/{k}.json': v for k, v in by_set.items()})
+    files['sets.json'] = sets
+    return {k: json.dumps(v, ensure_ascii=False, separators=(',', ':')).encode() for k, v in files.items()}
+
+
+def publish_shards(s3, bucket, files):
+    """Envia só os arquivos que mudaram desde a última vez (o resumo de cada
+    um fica em data/shards.json.gz)."""
+    import hashlib
+    try:
+        old = json.loads(gzip.decompress(s3.get_object(Bucket=bucket, Key='data/shards.json.gz')['Body'].read()))
+    except Exception:
+        old = {}
+    new = {k: hashlib.md5(v).hexdigest() for k, v in files.items()}
+    changed = [k for k, h in new.items() if old.get(k) != h]
+    print(f'arquivos por carta: {len(files)}, mudaram {len(changed)}', flush=True)
+
+    def put(key):
+        cache = 'public, max-age=3600' if key.startswith('pr/') else 'public, max-age=86400'
+        s3.put_object(Bucket=bucket, Key=key, Body=files[key], ContentType='application/json', CacheControl=cache)
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=16) as pool:
+        for i, _ in enumerate(pool.map(put, changed), 1):
+            if i % 5000 == 0:
+                print(f'  {i} enviados', flush=True)
+    s3.put_object(Bucket=bucket, Key='data/shards.json.gz', Body=gzip.compress(json.dumps(new).encode()), ContentType='application/gzip')
+
+
 def main():
     no_images = '--sem-imagens' in sys.argv
     started = time.time()
@@ -316,6 +367,7 @@ def main():
     if s3:
         s3.put_object(Bucket=bucket, Key='data/images.txt.gz', Body=gzip.compress('\n'.join(sorted(have)).encode()), ContentType='application/gzip')
         s3.put_object(Bucket=bucket, Key='data/cards.jsonl.gz', Body=data, ContentType='application/gzip', CacheControl='public, max-age=3600')
+        publish_shards(s3, bucket, shard_files([json.loads(l) for l in text.splitlines()[1:]], sets))
         s3.put_object(Bucket=bucket, Key='data/meta.json', Body=json.dumps(meta).encode(), ContentType='application/json', CacheControl='public, max-age=300')
     else:
         with open('cards.jsonl.gz', 'wb') as f:
