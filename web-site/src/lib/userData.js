@@ -56,6 +56,8 @@ export const defaultGame = (startingLife = 40, playerCount = 2, playerNames) => 
   plane: null,
   scheme: null,
   commanderDamage: Array.from({ length: 6 }, () => Array(6).fill(0)),
+  // Dano do 2º comandante (parceiro) de cada um, contado à parte.
+  partnerDamage: Array.from({ length: 6 }, () => Array(6).fill(0)),
   playerNames: playerNames || Array.from({ length: 6 }, (_, i) => `Jogador ${i + 1}`),
 })
 
@@ -67,17 +69,20 @@ const defaults = () => ({ settings: defaultSettings(), profile: defaultProfile()
 // comandante vai como cmdRows (uma linha de texto por jogador), como no app.
 export function toCloud(key, value) {
   if (key !== 'game' || !value) return value
-  const { commanderDamage, ...rest } = value
-  return { ...rest, cmdRows: (commanderDamage || []).map((row) => row.join(',')) }
+  const { commanderDamage, partnerDamage, ...rest } = value
+  const rows = (m) => (m || []).map((row) => row.join(','))
+  return { ...rest, cmdRows: rows(commanderDamage), cmdRows2: rows(partnerDamage) }
 }
 
 export function fromCloud(data) {
   const game = data?.game
   if (!game || !Array.isArray(game.cmdRows)) return data
-  const { cmdRows, ...rest } = game
-  const rows = cmdRows.map((r) => String(r).split(',').filter(Boolean).map((v) => Number(v) || 0))
-  const commanderDamage = Array.from({ length: 6 }, (_, i) => Array.from({ length: 6 }, (_, j) => rows[i]?.[j] ?? 0))
-  return { ...data, game: { ...rest, commanderDamage } }
+  const { cmdRows, cmdRows2, ...rest } = game
+  const matrix = (list) => {
+    const rows = (list || []).map((r) => String(r).split(',').filter(Boolean).map((v) => Number(v) || 0))
+    return Array.from({ length: 6 }, (_, i) => Array.from({ length: 6 }, (_, j) => rows[i]?.[j] ?? 0))
+  }
+  return { ...data, game: { ...rest, commanderDamage: matrix(cmdRows), partnerDamage: matrix(cmdRows2) } }
 }
 
 function load() {

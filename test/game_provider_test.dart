@@ -145,4 +145,34 @@ void main() {
     expect(game.counter(Counter.treasure, 0), 0);
     expect(game.plane, isNull);
   });
+
+  test('dano de comandante: cada comandante conta à parte (e o parceiro também)', () async {
+    game.setPlayerCount(4);
+    game.updateLife(0, 100); // para a vida não acabar antes
+    const p = GameProvider.maxPlayers;
+    game.updateCommanderDamage(0, 1, 20);
+    game.updateCommanderDamage(0, 2, 20);
+    game.setPartner(3, true);
+    game.updateCommanderDamage(0, 3, 15);
+    game.updateCommanderDamage(0, 3 + p, 15);
+    // 70 no total, mas nenhum comandante chegou a 21.
+    expect(game.isDead(0), isFalse);
+    expect(game.maxCmdDamage(0), 20);
+    expect(game.cmdDamage(0, 3 + p), 15);
+    expect(game.commanderName(3 + p), '${game.playerNames[3]} (2º)');
+    game.updateCommanderDamage(0, 3 + p, 6);
+    expect(game.isDead(0), isTrue);
+    game.undo(); // os toques seguidos no mesmo comandante viraram um só (15 + 6)
+    expect(game.cmdDamage(0, 3 + p), 0);
+    expect(game.isDead(0), isFalse);
+    game.updateCommanderDamage(0, 3 + p, 15);
+
+    // Vai e volta pela conta.
+    final other = GameProvider();
+    await other.ready;
+    await other.applySync(game.toSync());
+    expect(other.hasPartner(3), isTrue);
+    expect(other.cmdDamage(0, 3 + p), 15);
+    expect(other.commanderDamage[0][1], 20);
+  });
 }

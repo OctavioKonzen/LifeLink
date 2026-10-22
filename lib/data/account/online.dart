@@ -22,7 +22,7 @@ import 'auth_service.dart';
 /// Os campos da partida que são uma lista com um valor por jogador.
 const perPlayerKeys = [
   'lives', 'poison', 'energy', 'experience', 'tax', 'treasure', 'storm', 'blessing', //
-  'colors', 'colors2', 'playerNames', 'playerDecks', 'turnTotals', 'cmdRows',
+  'colors', 'colors2', 'playerNames', 'playerDecks', 'turnTotals', 'cmdRows', 'cmdRows2', 'partners',
 ];
 
 /// A partida (formato da conta) → campos da mesa ("g.playerCount", "p0.lives").

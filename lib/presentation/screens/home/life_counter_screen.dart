@@ -492,12 +492,26 @@ class _LifeCounterScreenState extends State<LifeCounterScreen> {
                 Text('MEU COMANDANTE ATACOU', style: TextStyle(color: game.colorOf(index), fontSize: 12, fontWeight: FontWeight.w900, letterSpacing: 0.5)),
                 const SizedBox(height: 4),
                 for (final a in others)
-                  row('em ${game.playerNames[a]}', Icons.gps_fixed, game.colorOf(a), game.commanderDamage[a][index], (d) => game.updateCommanderDamage(a, index, d)),
+                  row('em ${game.playerNames[a]}${game.hasPartner(index) ? ' (1º)' : ''}', Icons.gps_fixed, game.colorOf(a), game.commanderDamage[a][index], (d) => game.updateCommanderDamage(a, index, d)),
+                if (game.hasPartner(index))
+                  for (final a in others)
+                    row('em ${game.playerNames[a]} (2º)', Icons.gps_fixed, game.colorOf(a), game.cmdDamage(a, index + GameProvider.maxPlayers),
+                        (d) => game.updateCommanderDamage(a, index + GameProvider.maxPlayers, d)),
+                FilterChip(
+                  avatar: const Icon(Icons.people, size: 18),
+                  label: const Text('Jogo com 2 comandantes (parceiro)'),
+                  selected: game.hasPartner(index),
+                  onSelected: (on) => game.setPartner(index, on),
+                ),
                 const SizedBox(height: 12),
                 const Text('DANO DE COMANDANTE QUE RECEBI', style: TextStyle(color: Colors.white54, fontSize: 12, fontWeight: FontWeight.w800, letterSpacing: 0.5)),
                 const SizedBox(height: 4),
-                for (final a in others)
-                  row('de ${game.playerNames[a]}', Icons.shield, game.colorOf(a), game.commanderDamage[index][a], (d) => game.updateCommanderDamage(index, a, d)),
+                for (final a in others) ...[
+                  row('de ${game.commanderName(a)}', Icons.shield, game.colorOf(a), game.commanderDamage[index][a], (d) => game.updateCommanderDamage(index, a, d)),
+                  if (game.hasPartner(a))
+                    row('de ${game.commanderName(a + GameProvider.maxPlayers)}', Icons.shield, game.colorOf(a), game.cmdDamage(index, a + GameProvider.maxPlayers),
+                        (d) => game.updateCommanderDamage(index, a + GameProvider.maxPlayers, d)),
+                ],
                 const SizedBox(height: 8),
                 const Text('O dano de comandante também tira vida de quem recebe. 21 de um mesmo comandante derrota.', style: TextStyle(color: Colors.white38, fontSize: 12)),
                 const SizedBox(height: 12),
@@ -554,7 +568,7 @@ class _LifeCounterScreenState extends State<LifeCounterScreen> {
                             ),
                             Expanded(
                               child: Text(
-                                c.kind == 'cmd' ? 'comandante de ${game.playerNames[c.attacker ?? 0]}' : (c.delta < 0 ? 'dano' : 'cura'),
+                                c.kind == 'cmd' ? 'comandante de ${game.commanderName(c.attacker ?? 0)}' : (c.delta < 0 ? 'dano' : 'cura'),
                                 style: const TextStyle(color: Colors.white70),
                               ),
                             ),
@@ -779,7 +793,7 @@ class _LifeCounterScreenState extends State<LifeCounterScreen> {
                   itemBuilder: (context, k) {
                     final e = events[k];
                     final time = '${e.at.hour.toString().padLeft(2, '0')}:${e.at.minute.toString().padLeft(2, '0')}';
-                    final what = e.kind == 'cmd' ? 'comandante de ${game.playerNames[e.attacker!]}' : labels[e.kind]!;
+                    final what = e.kind == 'cmd' ? 'comandante de ${game.commanderName(e.attacker!)}' : labels[e.kind]!;
                     return ListTile(
                       dense: true,
                       leading: CircleAvatar(radius: 6, backgroundColor: game.colorOf(e.player)),

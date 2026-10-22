@@ -51,16 +51,25 @@ const COUNTERS = [
   ['treasure', 'Tesouro', '💰', 1, 99],
   ['storm', 'Tempestade', '🌩', 1, 99],
 ]
-/** Dano de comandante de attacker em victim (até 21); também tira vida de quem recebe. */
+/**
+ * Dano de comandante de attacker em victim (até 21); também tira vida de quem
+ * recebe. attacker de 6 a 11 é o 2º comandante (parceiro), contado à parte.
+ */
 function commanderHit(g, victim, attacker, d) {
-  const before = g.commander[victim][attacker]
+  const partner = attacker >= 6
+  const key = partner ? 'partnerDamage' : 'commander'
+  const a = partner ? attacker - 6 : attacker
+  const matrix = g[key] || Array.from({ length: 6 }, () => Array(6).fill(0))
+  const before = matrix[victim]?.[a] ?? 0
   const after = clamp(before + d, 0, 21)
   return {
     ...g,
-    commander: g.commander.map((row, k) => (k === victim ? row.map((v, m) => (m === attacker ? after : v)) : row)),
+    [key]: matrix.map((row, k) => (k === victim ? row.map((v, m) => (m === a ? after : v)) : row)),
     lives: g.lives.map((v, k) => (k === victim ? v - (after - before) : v)),
   }
 }
+const cmdSum = (g, i) => [...g.commander[i], ...(g.partnerDamage?.[i] || [])].reduce((a, b) => a + b, 0)
+const partnerHit = (g, victim, attacker) => g.partnerDamage?.[victim]?.[attacker] ?? 0
 const setAt = (list, i, value) => Array.from({ length: 6 }, (_, k) => (k === i ? value : (list?.[k] ?? 0)))
 
 /** Deixa a tela acesa enquanto o contador está aberto (onde o navegador deixa). */
@@ -286,12 +295,26 @@ function Player({ i, game, update, history, deckNames }) {
           </div>
           <p className="px-1 pt-1 text-xs font-bold uppercase tracking-wide text-white/80">🎯 Meu comandante atacou</p>
           {others.map((j) => (
-            <Row key={`deu-${j}`} label={`em ${game.names[j]}`} value={game.commander[j][i]} onChange={(d) => update((g) => commanderHit(g, j, i, d))} />
+            <Row key={`deu-${j}`} label={`em ${game.names[j]}${game.partners?.[i] ? ' (1º)' : ''}`} value={game.commander[j][i]} onChange={(d) => update((g) => commanderHit(g, j, i, d))} />
           ))}
-          <p className="px-1 pt-1 text-xs font-bold uppercase tracking-wide text-white/60">🛡 Dano de comandante que recebi</p>
-          {others.map((j) => (
-            <Row key={`recebeu-${j}`} label={`de ${game.names[j]}`} value={game.commander[i][j]} onChange={(d) => update((g) => commanderHit(g, i, j, d))} />
-          ))}
+          {game.partners?.[i] > 0 &&
+            others.map((j) => (
+              <Row key={`deu2-${j}`} label={`em ${game.names[j]} (2º)`} value={partnerHit(game, j, i)} onChange={(d) => update((g) => commanderHit(g, j, i + 6, d))} />
+            ))}
+          <button
+            type="button"
+            onClick={() => update((g) => ({ ...g, partners: setAt(g.partners, i, g.partners?.[i] > 0 ? 0 : 1) }), { silent: true })}
+            className={`self-start rounded-full px-3 py-1 text-xs font-bold ${game.partners?.[i] > 0 ? 'bg-white text-black' : 'bg-black/25'}`}
+          >
+            👥 Jogo com 2 comandantes (parceiro)
+          </button>
+          <p className="px-1 pt-1 text-xs font-bold uppercase tracking-wide text-white/60">🛡 Dano de comandante que recebi (21 de um mesmo derrota)</p>
+          {others.map((j) => [
+            <Row key={`recebeu-${j}`} label={`de ${game.names[j]}`} value={game.commander[i][j]} onChange={(d) => update((g) => commanderHit(g, i, j, d))} />,
+            game.partners?.[j] > 0 && (
+              <Row key={`recebeu2-${j}`} label={`de ${game.names[j]} (2º)`} value={partnerHit(game, i, j)} onChange={(d) => update((g) => commanderHit(g, i, j + 6, d))} />
+            ),
+          ])}
           <p className="px-1 pt-1 text-xs font-bold uppercase tracking-wide text-white/60">📈 Histórico de vida</p>
           <LifeHistory entries={history} start={game.lives[i] - history.reduce((a, e) => a + e.delta, 0)} />
         </div>
@@ -353,7 +376,7 @@ export default function LifeCounterPage() {
     for (let i = 0; i < after.players; i++) {
       const delta = after.lives[i] - before.lives[i]
       if (!delta) continue
-      const cmd = after.commander[i].reduce((a, b) => a + b, 0) > before.commander[i].reduce((a, b) => a + b, 0)
+      const cmd = cmdSum(after, i) > cmdSum(before, i)
       changes.push({ i, delta, life: after.lives[i], kind: cmd ? 'cmd' : 'life', at: now })
     }
     if (!changes.length) return
