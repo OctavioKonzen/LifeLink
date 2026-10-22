@@ -11,6 +11,7 @@ import 'package:provider/provider.dart';
 
 import '../../../data/providers/collection_provider.dart';
 import '../../../data/providers/theme_provider.dart';
+import '../../../data/services/lifelink_cards.dart';
 import '../../../data/services/scryfall_service.dart';
 import 'card_detail_screen.dart';
 
@@ -75,6 +76,48 @@ CardReading readCard(List<({String text, double top, double left, double height}
 /// Acha a mesma versão da carta lida e o texto no idioma [want] (o das
 /// configurações). Volta a carta no formato do app, ou null.
 Future<Map<String, dynamic>?> findCard(CardReading r, String want) async {
+  // Primeiro no banco do LifeLink (R2 e a busca na Cloudflare).
+  if (want == 'pt' || want == 'en') {
+    try {
+      final own = await findCardOwn(r, want);
+      if (own != null) return own;
+    } catch (_) {}
+  }
+  return findCardScryfall(r, want);
+}
+
+/// No banco do LifeLink: pela coleção e número (a versão exata) ou pelo nome
+/// (português ou inglês), escolhendo a versão da coleção lida, se houver.
+Future<Map<String, dynamic>?> findCardOwn(CardReading r, String want) async {
+  final cards = LifeLinkCards.instance;
+  if (r.set != null && r.number != null) {
+    final id = await cards.printBySetNumber(r.set!, r.number!, lang: r.lang ?? 'en');
+    if (id != null) return cards.appCard(id, lang: want);
+  }
+  if (r.name == null) return null;
+  // O nome lido (com erro de leitura, tenta só as primeiras palavras).
+  final words = r.name!.split(RegExp(r'\s+'));
+  String? oracle;
+  for (var k = words.length; k >= 1 && oracle == null; k--) {
+    final found = await cards.search(text: words.take(k).join(' '), nameOnly: true, lang: want);
+    if (found.cards.isNotEmpty) oracle = '${found.cards.first['oracle_id']}';
+    if (k <= 2) break;
+  }
+  if (oracle == null) return null;
+  final card = await cards.card(oracle);
+  if (card == null) return null;
+  final vs = (card['v'] as List).cast<Map<String, dynamic>>();
+  final v = vs.firstWhere(
+    (v) => (r.set == null || v['s'] == r.set) && (r.number == null || v['cn'] == r.number) && (r.set != null || r.number != null),
+    orElse: () => LifeLinkCards.variationFor(card, lang: want),
+  );
+  final sets = await cards.sets().catchError((_) => <String, String>{});
+  return LifeLinkCards.toApp({...card, '_sets': sets}, v, lang: want);
+}
+
+/// Na Scryfall (o caminho de antes; para outros idiomas ou se o banco do
+/// LifeLink não responder).
+Future<Map<String, dynamic>?> findCardScryfall(CardReading r, String want) async {
   final scryfall = ScryfallService.instance;
   Map<String, dynamic>? printing;
 

@@ -9,6 +9,7 @@ import '../../../data/providers/theme_provider.dart';
 import '../../../data/providers/xp_provider.dart';
 import '../../../data/services/scryfall_service.dart';
 import '../../../data/services/offline_cards.dart';
+import '../../../data/services/lifelink_cards.dart';
 
 class CardSearchScreen extends StatefulWidget {
   final String? targetDeckId; // adicionando cartas a este deck
@@ -78,7 +79,9 @@ class _CardSearchScreenState extends State<CardSearchScreen> {
     
     _scrollController.addListener(() {
       if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 400) {
-        if (!_isLoading && _hasMore && _nextPageUrl != null) {
+        if (!_isLoading && _hasMore && _ownPage != null) {
+          _fetchFromLifeLink(page: _ownPage! + 1);
+        } else if (!_isLoading && _hasMore && _nextPageUrl != null) {
           _fetchFromScryfall(nextPage: _nextPageUrl!);
         }
       }
@@ -128,7 +131,13 @@ class _CardSearchScreenState extends State<CardSearchScreen> {
       return;
     }
     _suggestDebounce = Timer(const Duration(milliseconds: 200), () async {
-      final names = await _scryfall.autocomplete(v);
+      // Nomes do banco do LifeLink (português e inglês); sem ele, da Scryfall.
+      List<String> names;
+      try {
+        names = await LifeLinkCards.instance.names(v, lang: context.read<ThemeProvider>().cardLanguage);
+      } catch (_) {
+        names = await _scryfall.autocomplete(v);
+      }
       if (mounted && _searchController.text == v) {
         setState(() => _suggestions = names.take(8).toList());
       }
@@ -184,11 +193,78 @@ class _CardSearchScreenState extends State<CardSearchScreen> {
     
     _lastText = queryText;
     _offline = false;
+    _ownPage = null;
+    // Busca no banco do LifeLink (Cloudflare). Quem digitar a sintaxe da
+    // Scryfall (t:dragon, o:"...") ainda vai direto na Scryfall.
+    if (!RegExp(r'[:<>=]').hasMatch(queryText)) {
+      if (await _fetchFromLifeLink(page: 0)) return;
+    }
     String q = queryText.trim().isEmpty ? "is:commander" : ScryfallService.buildTextQuery(queryText);
     
     if (!_filters.isEmpty) q = "$q ${_filters.toQuery()}";
 
     await _fetchFromScryfall(query: q);
+  }
+
+  int? _ownPage; // a página da busca no banco do LifeLink (null = Scryfall)
+
+  /// Busca no banco do LifeLink; volta false se ele não respondeu (aí a
+  /// busca vai para a Scryfall).
+  Future<bool> _fetchFromLifeLink({required int page}) async {
+    final id = page == 0 ? ++_searchId : _searchId;
+    if (page > 0) setState(() => _isLoading = true);
+    var text = _lastText.trim();
+    final exact = RegExp(r'^!"(.*)"$').firstMatch(text);
+    if (exact != null) text = exact.group(1)!;
+    final f = _filters;
+    // Só a coleção escolhida (sem texto nem outro filtro): todas as cartas
+    // dela na ordem dos números (1, 2, 3...).
+    if (text.isEmpty && f.setCode != null && f.types.isEmpty && f.colors.isEmpty && f.race == null && f.subtype == null && _order == _orders.first) {
+      try {
+        final cards = await LifeLinkCards.instance.setCards(f.setCode!, lang: context.read<ThemeProvider>().cardLanguage);
+        if (!mounted || id != _searchId) return true;
+        if (cards.isNotEmpty) {
+          setState(() {
+            _searchResults = cards;
+            _hasMore = false;
+            _ownPage = null;
+            _nextPageUrl = null;
+            _isLoading = false;
+            _errorMessage = null;
+          });
+          return true;
+        }
+      } catch (_) {}
+    }
+    // Sem texto: os comandantes mais usados (como o "is:commander" de antes).
+    final types = [...f.types, ?f.race, ?f.subtype, if (text.isEmpty && f.isEmpty) 'Legendary Creature'];
+    final userOrder = _order != _orders.first;
+    try {
+      final result = await LifeLinkCards.instance.search(
+        text: text,
+        nameOnly: exact != null,
+        types: types,
+        set: f.setCode,
+        colors: f.colors.isEmpty ? null : f.colors.where((c) => c != 'C').join(),
+        order: userOrder ? _order.$2 : (text.isEmpty ? 'popular' : null),
+        desc: _order.$3 == 'desc',
+        page: page,
+        lang: context.read<ThemeProvider>().cardLanguage,
+      );
+      if (!mounted || id != _searchId) return true;
+      setState(() {
+        _searchResults = page == 0 ? result.cards : [..._searchResults, ...result.cards];
+        _hasMore = result.hasMore;
+        _ownPage = page;
+        _nextPageUrl = null;
+        _isLoading = false;
+        _errorMessage = null;
+      });
+      return true;
+    } catch (_) {
+      if (page > 0 && mounted) setState(() => _isLoading = false);
+      return page > 0; // na primeira página, tenta a Scryfall
+    }
   }
 
   Future<void> _fetchFromScryfall({String? query, String? nextPage}) async {

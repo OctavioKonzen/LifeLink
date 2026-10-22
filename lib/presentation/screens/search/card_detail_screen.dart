@@ -2,6 +2,7 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../../../data/services/deck_tools.dart';
+import '../../../data/services/lifelink_cards.dart';
 import 'package:flutter/foundation.dart'; 
 import 'package:provider/provider.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -76,6 +77,28 @@ class _CardDetailScreenState extends State<CardDetailScreen> with SingleTickerPr
   Future<void> _loadFull() async {
     final id = DeckTools.scryfallIdOf(_currentCard);
     if (id == null) return;
+    // A carta do banco do LifeLink (R2): detalhes, preços de hoje e o que
+    // faltar na carta (a busca traz só o resumo).
+    final lang = context.read<ThemeProvider>().cardLanguage;
+    try {
+      final found = await LifeLinkCards.instance.byPrint(id);
+      if (found != null) {
+        final sets = await LifeLinkCards.instance.sets().catchError((_) => <String, String>{});
+        final app = LifeLinkCards.toApp({...found.card, '_sets': sets}, found.variation, lang: lang);
+        if (mounted && DeckTools.scryfallIdOf(_currentCard) == id) {
+          setState(() {
+            _full = LifeLinkCards.details(found.card, found.variation);
+            _currentCard = {
+              ..._currentCard,
+              for (final e in app.entries)
+                if (_currentCard[e.key] == null || '${_currentCard[e.key]}'.isEmpty || const {'usdPrice', 'usdFoil', 'eurPrice', 'tixPrice', 'setName'}.contains(e.key)) e.key: e.value,
+            };
+          });
+        }
+        await _loadRulings(id);
+        return;
+      }
+    } catch (_) {}
     try {
       final data = await ScryfallService.instance.getJson('https://api.scryfall.com/cards/$id');
       if (mounted && DeckTools.scryfallIdOf(_currentCard) == id) setState(() => _full = data);
@@ -90,6 +113,16 @@ class _CardDetailScreenState extends State<CardDetailScreen> with SingleTickerPr
   }
 
   List<Map<String, dynamic>>? _rulings;
+
+  /// As regras oficiais da carta (rulings). Elas não estão no banco do
+  /// LifeLink: vêm da Scryfall, só o texto.
+  Future<void> _loadRulings(String id) async {
+    try {
+      final r = await ScryfallService.instance.getJson('https://api.scryfall.com/cards/$id/rulings');
+      final list = [for (final x in (r['data'] as List? ?? const [])) Map<String, dynamic>.from(x as Map)];
+      if (mounted && DeckTools.scryfallIdOf(_currentCard) == id) setState(() => _rulings = list);
+    } catch (_) {}
+  }
 
   @override
   void initState() {

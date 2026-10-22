@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../account/user_data.dart';
 import '../services/deck_tools.dart';
+import '../services/lifelink_cards.dart';
 
 /// Uma carta guardada (na coleção ou na lista de desejos), no formato da
 /// conta: { id, name, oracle_id, set, num, img, usd, eur, qty, folder,
@@ -268,14 +269,25 @@ class CollectionProvider with ChangeNotifier {
     final ids = [for (final id in all) if (RegExp(r'^[0-9a-f-]{36}$').hasMatch(id)) id];
     final prices = <String, double>{};
     final euros = <String, double>{};
-    for (var start = 0; start < ids.length; start += 75) {
-      final chunk = ids.sublist(start, (start + 75).clamp(0, ids.length));
+    // Os preços de hoje do banco do LifeLink (R2); o que faltar, da Scryfall.
+    void read(Map c) {
+      final p = double.tryParse('${c['prices']?['usd'] ?? c['prices']?['usd_foil'] ?? ''}');
+      if (p != null) prices['${c['id']}'] = p;
+      final e = double.tryParse('${c['prices']?['eur'] ?? c['prices']?['eur_foil'] ?? ''}');
+      if (e != null) euros['${c['id']}'] = e;
+    }
+
+    final missing = [...ids];
+    try {
+      final own = await LifeLinkCards.instance.many(ids);
+      own.values.forEach(read);
+      missing.removeWhere(own.containsKey);
+    } catch (_) {}
+    for (var start = 0; start < missing.length; start += 75) {
+      final chunk = missing.sublist(start, (start + 75).clamp(0, missing.length));
       final data = await DeckTools.postCollection([for (final id in chunk) {'id': id}]);
       for (final c in (data['data'] as List? ?? const [])) {
-        final p = double.tryParse('${c['prices']?['usd'] ?? c['prices']?['usd_foil'] ?? ''}');
-        if (p != null) prices['${c['id']}'] = p;
-        final e = double.tryParse('${c['prices']?['eur'] ?? c['prices']?['eur_foil'] ?? ''}');
-        if (e != null) euros['${c['id']}'] = e;
+        read(c as Map);
       }
     }
     final drops = <({SavedCard card, double before})>[];

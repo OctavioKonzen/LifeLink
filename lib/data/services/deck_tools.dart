@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:math';
 import 'package:http/http.dart' as http;
+import 'lifelink_cards.dart';
 import 'scryfall_service.dart';
 
 /// Uma linha de uma lista de deck ("4 Lightning Bolt", "1 Sol Ring (CMM) 410").
@@ -91,8 +92,13 @@ class DeckTools {
   static Future<({List<Map<String, dynamic>> cards, List<String> missing, List<Map<String, dynamic>> commanders})> fetch(List<DeckLine> lines) async {
     final found = <int, Map<String, dynamic>>{};
     final missing = <String>[];
-    for (var start = 0; start < lines.length; start += 75) {
-      final chunk = lines.sublist(start, min(start + 75, lines.length));
+    // Primeiro no banco do LifeLink (coleção e número no R2, ou o nome na
+    // busca da Cloudflare); o que não achar vai para a Scryfall.
+    final own = await _fetchOwn(lines);
+    final rest = [for (var i = 0; i < lines.length; i++) if (!own.containsKey(i)) i];
+    for (var start = 0; start < rest.length; start += 75) {
+      final idx = rest.sublist(start, min(start + 75, rest.length));
+      final chunk = [for (final i in idx) lines[i]];
       final ids = [
         for (final l in chunk)
           l.set != null && l.number != null ? {'set': l.set, 'collector_number': l.number} : {'name': l.name},
@@ -108,27 +114,56 @@ class DeckTools {
           // Com edição errada, tenta só pelo nome; com nome errado, a Scryfall tenta adivinhar.
           try {
             final name = Uri.encodeQueryComponent(chunk[i].name);
-            found[start + i] = await ScryfallService.instance.getJson('https://api.scryfall.com/cards/named?fuzzy=$name');
+            found[idx[i]] = await ScryfallService.instance.getJson('https://api.scryfall.com/cards/named?fuzzy=$name');
           } catch (_) {
             missing.add(chunk[i].name);
           }
           continue;
         }
-        if (k < cards.length) found[start + i] = cards[k++];
+        if (k < cards.length) found[idx[i]] = cards[k++];
       }
     }
     final out = <Map<String, dynamic>>[];
     final commanders = <Map<String, dynamic>>[];
     for (var i = 0; i < lines.length; i++) {
-      final c = found[i];
+      final c = own[i] ?? (found[i] == null ? null : deckCardOf(found[i]!));
       if (c == null) continue;
-      final card = {...deckCardOf(c), if (lines[i].commander) 'commander': true};
+      final card = {...c, if (lines[i].commander) 'commander': true};
       if (lines[i].commander) commanders.add(card);
       for (var q = 0; q < lines[i].qty; q++) {
         out.add(card);
       }
     }
     return (cards: out, missing: missing, commanders: commanders);
+  }
+
+  /// As linhas da lista achadas no banco do LifeLink: índice → carta de deck.
+  static Future<Map<int, Map<String, dynamic>>> _fetchOwn(List<DeckLine> lines) async {
+    final out = <int, Map<String, dynamic>>{};
+    final cards = LifeLinkCards.instance;
+    Future<void> one(int i) async {
+      final l = lines[i];
+      try {
+        if (l.set != null && l.number != null) {
+          final id = await cards.printBySetNumber(l.set!, l.number!);
+          if (id != null) {
+            final c = await cards.appCard(id, lang: 'en');
+            if (c != null) out[i] = c;
+            return;
+          }
+        }
+        final found = await cards.search(text: l.name, nameOnly: true, lang: 'en');
+        final hit = found.cards.where((c) => '${c['enName']}'.toLowerCase() == l.name.toLowerCase() || '${c['enName']}'.toLowerCase().startsWith('${l.name.toLowerCase()} //'));
+        if (hit.isEmpty) return;
+        final c = await cards.appCard('${hit.first['id']}', lang: 'en');
+        if (c != null) out[i] = c;
+      } catch (_) {}
+    }
+
+    for (var start = 0; start < lines.length; start += 10) {
+      await Future.wait([for (var i = start; i < min(start + 10, lines.length); i++) one(i)]);
+    }
+    return out;
   }
 
   /// POST /cards/collection (até 75 cartas por pedido).
@@ -182,8 +217,18 @@ class DeckTools {
       final id = scryfallIdOf(c);
       unique[id ?? 'name:${c['name']}'] = id != null ? {'id': id} : {'name': c['name']};
     }
-    final keys = unique.keys.toList();
     final out = <String, Map<String, dynamic>>{};
+    // Primeiro no banco do LifeLink (R2); o que não estiver lá, na Scryfall.
+    try {
+      final own = await LifeLinkCards.instance.many(unique.keys.where((k) => !k.startsWith('name:')));
+      for (final e in own.entries) {
+        out[e.key] = e.value;
+        out['name:${e.value['name']}'] = e.value;
+        if (e.value['printed_name'] != null) out['name:${e.value['printed_name']}'] = e.value;
+        unique.remove(e.key);
+      }
+    } catch (_) {}
+    final keys = unique.keys.toList();
     for (var start = 0; start < keys.length; start += 75) {
       final chunk = keys.sublist(start, min(start + 75, keys.length));
       final data = await postCollection([for (final k in chunk) unique[k]!]);
@@ -362,11 +407,32 @@ class DeckTools {
       }
     } catch (_) {}
     if (names.isNotEmpty) {
+      // As cartas sugeridas pelo banco do LifeLink (nome exato na busca da
+      // Cloudflare, carta no R2); se ele não responder, pela Scryfall.
+      try {
+        final ids = <String>[];
+        for (var start = 0; start < names.length; start += 10) {
+          final found = await Future.wait(names.skip(start).take(10).map((n) => LifeLinkCards.instance.search(text: n, nameOnly: true, lang: 'en').then(
+                (r) => r.cards.where((c) => '${c['enName']}'.toLowerCase() == n.toLowerCase()).map((c) => '${c['id']}').firstOrNull,
+                onError: (_) => null,
+              )));
+          ids.addAll(found.whereType<String>());
+        }
+        final own = await LifeLinkCards.instance.many(ids);
+        if (own.isNotEmpty) return (cards: [for (final id in ids) if (own[id] != null) own[id]!], source: source);
+      } catch (_) {}
       final data = await postCollection([for (final n in names.take(75)) {'name': n}]);
       final byName = {for (final c in (data['data'] as List? ?? const [])) '${(c as Map)['name']}': Map<String, dynamic>.from(c)};
       return (cards: [for (final n in names) if (byName[n] != null) byName[n]!], source: source);
     }
-    // Sem EDHREC: as mais jogadas nas cores do comandante.
+    // Sem EDHREC: as mais jogadas nas cores do comandante (banco do LifeLink).
+    try {
+      final ci = commander['color_identity'] is List ? (commander['color_identity'] as List).join() : '${commander['color_identity'] ?? ''}';
+      final found = await LifeLinkCards.instance.search(colors: ci.toUpperCase(), order: 'popular', lang: 'en');
+      final ids = [for (final c in found.cards) if (!skip.contains('${c['enName']}'.toLowerCase()) && !'${c['type_line']}'.contains('Basic')) '${c['id']}'];
+      final own = await LifeLinkCards.instance.many(ids.take(count));
+      if (own.isNotEmpty) return (cards: [for (final id in ids) if (own[id] != null) own[id]!], source: 'LifeLink (mais populares nas cores do comandante)');
+    } catch (_) {}
     source = 'Scryfall (mais populares nas cores do comandante)';
     final colors = (commander['color_identity'] is List ? (commander['color_identity'] as List).join() : '${commander['color_identity'] ?? ''}').toLowerCase();
     final page = await ScryfallService.instance.search('id<=${colors.isEmpty ? 'c' : colors} f:commander -t:basic', order: 'edhrec', multilingual: false);

@@ -15,6 +15,7 @@ import {
   typeLine,
 } from '../lib/scryfall'
 import { toDeckCard } from '../lib/deckCards'
+import { scryfallCard, versions as ownVersions } from '../lib/lifelinkCards'
 import { deckList, saveDeck, useUserData } from '../lib/userData'
 import { incrementArtsViewed, incrementCardsAdded } from '../lib/xp'
 import { addToCollection, qtyOf, setQty, toggleWish, wished } from '../lib/collection'
@@ -89,8 +90,22 @@ function Versions({ card, onPick }) {
     let alive = true
     const q = card.oracle_id ? `oracleid:${card.oracle_id} lang:${lang}` : `!"${card.name}" lang:${lang}`
     setState({ loading: true, cards: [] })
-    search(q, { order: 'released', unique: 'prints', multilingual: false })
-      .then((page) => alive && setState({ loading: false, cards: page.cards.filter((c) => imageOf(c, 'small')) }))
+    // Inglês e português: as variações do banco do LifeLink (R2); o resto, ou
+    // se ele não responder, na Scryfall.
+    const load = async () => {
+      if ((lang === 'pt' || lang === 'en') && card.oracle_id) {
+        try {
+          const own = await ownVersions(card.oracle_id, lang)
+          if (own.length) return own
+        } catch {
+          // Vai pela Scryfall.
+        }
+      }
+      const page = await search(q, { order: 'released', unique: 'prints', multilingual: false })
+      return page.cards.filter((c) => imageOf(c, 'small'))
+    }
+    load()
+      .then((cards) => alive && setState({ loading: false, cards }))
       .catch((e) => alive && setState({ loading: false, cards: [], error: e.message }))
     return () => {
       alive = false
@@ -266,12 +281,22 @@ export default function CardDetails({ card: initial, id, onClose, onPrevious, on
   useEffect(() => {
     setBack(false)
     setError(null)
+    let alive = true
     if (initial) {
       setCard(initial)
-      return
+      // Da busca do LifeLink vem só o resumo: a ficha completa (texto,
+      // legalidade, preços de hoje) vem do R2.
+      if (initial._lifelink === 'summary') {
+        scryfallCard(initial.id, initial.printed_name ? 'pt' : undefined)
+          .catch(() => null)
+          .then((full) => full || cardById(initial.id))
+          .then((full) => alive && full && setCard((c) => (c?.id === full.id ? full : c)), () => {})
+      }
+      return () => {
+        alive = false
+      }
     }
     if (!id) return
-    let alive = true
     setCard(null)
     cardById(id).then((c) => alive && setCard(c), (e) => alive && setError(e.message))
     return () => {

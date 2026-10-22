@@ -1,14 +1,44 @@
+import 'dart:math';
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../data/providers/game_provider.dart';
+import '../../../data/services/lifelink_cards.dart';
 import '../../../data/services/scryfall_service.dart';
 import '../../../data/services/sound_service.dart';
 import '../../widgets/dice_table.dart';
 
-/// Uma carta sorteada da Scryfall (plano, fenômeno ou esquema), no formato
-/// guardado na partida: nome, imagem e texto.
+final Map<String, List<Map<String, dynamic>>> _pools = {};
+
+/// Todas as cartas de um tipo (planos, fenômenos, esquemas) no banco do
+/// LifeLink, guardadas enquanto o app está aberto.
+Future<List<Map<String, dynamic>>> _pool(List<String> types) async {
+  final key = types.join(',');
+  if (_pools[key] != null) return _pools[key]!;
+  final out = <Map<String, dynamic>>[];
+  for (final type in types) {
+    for (var page = 0; page < 12; page++) {
+      final r = await LifeLinkCards.instance.search(types: [type], order: 'name', page: page, lang: 'en');
+      // "plane" também acha "planeswalker": fica só o tipo certo.
+      out.addAll(r.cards.where((c) => RegExp('^$type( |\$)').hasMatch('${c['type_line']}')));
+      if (!r.hasMore) break;
+    }
+  }
+  return _pools[key] = out;
+}
+
+/// Uma carta sorteada (plano, fenômeno ou esquema), no formato guardado na
+/// partida: nome, imagem e texto. Do banco do LifeLink; sem ele, da Scryfall.
 Future<Map<String, dynamic>> randomCard(String query) async {
+  try {
+    final pool = await _pool(query.contains('scheme') ? ['Scheme'] : ['Plane', 'Phenomenon']);
+    if (pool.isNotEmpty) {
+      final pick = pool[Random().nextInt(pool.length)];
+      final full = await LifeLinkCards.instance.appCard('${pick['id']}', lang: 'pt') ?? pick;
+      return {'id': full['id'], 'name': full['name'] ?? '', 'type': full['type_line'] ?? '', 'image': full['imageUrl'] ?? '', 'text': full['oracle_text'] ?? ''};
+    }
+  } catch (_) {}
   final data = await ScryfallService.instance.getJson(
     'https://api.scryfall.com/cards/random?q=${Uri.encodeQueryComponent(query)}',
     useCache: false,

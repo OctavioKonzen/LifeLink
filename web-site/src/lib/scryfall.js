@@ -2,6 +2,8 @@
 // um pedido de cada vez (o Scryfall pede no máximo 10 por segundo), respostas
 // guardadas por 10 minutos e mensagens de erro compreensíveis.
 
+import { names as ownNames, scryfallCard } from './lifelinkCards'
+
 const BASE = 'https://api.scryfall.com'
 const CACHE_MS = 10 * 60 * 1000
 const MIN_INTERVAL_MS = 100
@@ -107,6 +109,13 @@ export async function search(query, { order = 'name', dir, unique, multilingual 
 export async function autocomplete(text) {
   const q = text.trim()
   if (q.length < 2) return []
+  // Nomes do banco do LifeLink (português e inglês); sem ele, da Scryfall.
+  try {
+    const list = await ownNames(q)
+    if (list.length) return list
+  } catch {
+    // O banco do LifeLink não respondeu: vai pela Scryfall.
+  }
   try {
     const params = new URLSearchParams({ q, include_multilingual: 'true' })
     const data = await getJson(`${BASE}/cards/autocomplete?${params}`)
@@ -116,7 +125,14 @@ export async function autocomplete(text) {
   }
 }
 
+/** A carta pelo código: do banco do LifeLink (R2); sem ele, da Scryfall. */
 export async function cardById(id) {
+  try {
+    const own = await scryfallCard(id)
+    if (own) return own
+  } catch {
+    // O R2 não respondeu: vai pela Scryfall.
+  }
   return getJson(`${BASE}/cards/${encodeURIComponent(id)}`)
 }
 

@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import '../models/card_model.dart';
+import '../services/lifelink_cards.dart';
 import '../services/scryfall_service.dart';
 
 class CardRepository {
@@ -11,6 +12,31 @@ class CardRepository {
     final searchPart = (query != null && query.isNotEmpty)
         ? '${ScryfallService.buildTextQuery(query)} '
         : '';
+
+    // Do banco do LifeLink: sem busca, as 600 versões mais caras (R2); com
+    // busca, as cartas mais caras com aquele nome ou texto (Cloudflare).
+    if (nextPage == null) {
+      try {
+        final raw = (query == null || query.isEmpty)
+            ? await LifeLinkCards.instance.topPrices()
+            : [
+                for (final c in (await LifeLinkCards.instance.search(text: query, order: 'usd', desc: true)).cards)
+                  {
+                    'id': c['id'],
+                    'oracle_id': c['oracle_id'],
+                    'name': c['enName'],
+                    'printed_name': c['name'],
+                    'rarity': c['rarity'],
+                    'mana_cost': c['mana_cost'],
+                    'type_line': c['type_line'],
+                    'color_identity': '${c['color_identity']}'.split('').where((x) => x.isNotEmpty).toList(),
+                    'prices': {'usd': c['usdPrice']},
+                    'image_uris': {'normal': c['imageUrl']},
+                  },
+              ];
+        if (raw.isNotEmpty) return {'cards': raw.map((j) => CardModel.fromJson(j)).toList(), 'raw': raw, 'hasMore': false, 'nextPage': null};
+      } catch (_) {}
+    }
 
     // lang:any inclui japonês, russo, etc.; prints traz versões especiais
     try {
@@ -29,6 +55,13 @@ class CardRepository {
 
   // Busca outras versões/artes da mesma carta
   Future<List<Map<String, dynamic>>> fetchOtherVersions(String cardName, String lang, String? oracleId) async {
+    // Inglês e português: as versões do banco do LifeLink (R2).
+    if ((lang == 'en' || lang == 'pt') && oracleId != null && oracleId.isNotEmpty) {
+      try {
+        final own = await LifeLinkCards.instance.versions(oracleId, lang: lang);
+        if (own.isNotEmpty) return own;
+      } catch (_) {}
+    }
     String query = (oracleId != null && oracleId.isNotEmpty)
         ? 'oracleid:$oracleId lang:$lang'
         : '!"$cardName" lang:$lang';

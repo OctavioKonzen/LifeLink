@@ -42,6 +42,7 @@ import gzip
 import io
 import json
 import os
+import re
 import sys
 import time
 import urllib.request
@@ -130,6 +131,36 @@ def variation(c, back, have=()):
     return v
 
 
+SET_INFO = {}  # código → nome, data, tipo e quantas cartas (preenchido por collect_prints)
+
+
+def rulings_by_oracle(items):
+    """As regras oficiais (rulings) de cada carta: oracle_id → [[data, texto]]."""
+    out = {}
+    for r in items:
+        if r.get('oracle_id') and r.get('comment'):
+            out.setdefault(r['oracle_id'], []).append([r.get('published_at', ''), r['comment']])
+    return out
+
+
+def catalogs(oracle):
+    """Os tipos e raças para os filtros (no lugar dos catálogos da Scryfall)."""
+    kinds = {'creature': ('Creature', 'Kindred', 'Tribal'), 'artifact': ('Artifact',), 'enchantment': ('Enchantment',),
+             'land': ('Land',), 'planeswalker': ('Planeswalker',)}
+    out = {k: set() for k in kinds}
+    for c in oracle:
+        if c.get('layout') in ('token', 'double_faced_token', 'emblem', 'art_series'):
+            continue
+        for line in (c.get('type_line') or '').split(' // '):
+            if '—' not in line:
+                continue
+            left, right = line.split('—', 1)
+            for k, words in kinds.items():
+                if any(w in left for w in words):
+                    out[k].update(t for t in right.split() if t[:1].isupper())
+    return {k: sorted(v) for k, v in out.items()}
+
+
 def collect_prints(cards):
     """Das versões (all_cards): as variações em inglês e português de cada
     carta e o texto em português (da versão mais nova). Volta
@@ -145,6 +176,10 @@ def collect_prints(cards):
         if not oid or not front:
             continue
         sets[c['set']] = c.get('set_name', c['set'])
+        info = SET_INFO.setdefault(c['set'], {'code': c['set'], 'name': c.get('set_name', c['set']), 'date': c.get('released_at', ''), 'type': c.get('set_type', ''), 'count': 0})
+        info['date'] = min(info['date'] or c.get('released_at', ''), c.get('released_at', '') or info['date'])
+        if lang == 'en':
+            info['count'] += 1
         prints.setdefault(oid, []).append(variation(c, back))
         urls[c['id']] = (front, back)
         if lang == 'pt':
@@ -160,7 +195,7 @@ def collect_prints(cards):
     return prints, pt, sets, urls
 
 
-def card_line(c, prints, pt, have):
+def card_line(c, prints, pt, have, rulings=None):
     """Uma carta do banco (c é a carta do oracle_cards)."""
     fs = faces(c)
     oid = c.get('oracle_id')
@@ -180,6 +215,8 @@ def card_line(c, prints, pt, have):
     p = pt.get(oid)
     if p:
         card.update({k: p[k] for k in ('pn', 'pt', 'px') if k in p})
+    if rulings and rulings.get(oid):
+        card['ru'] = rulings[oid]
     vs = prints.get(oid) or []
     if not any(v['id'] == c['id'] for v in vs):  # a versão principal sempre entra
         vs = [variation(c, image_urls(c)[1])] + vs
@@ -187,13 +224,13 @@ def card_line(c, prints, pt, have):
     return card
 
 
-def build(oracle, prints, pt, sets, have):
+def build(oracle, prints, pt, sets, have, rulings=None):
     lines = [json.dumps({'sets': sets}, ensure_ascii=False, separators=(',', ':'))]
     count = with_pt = 0
     for c in oracle:
         if not image_urls(c)[0]:
             continue
-        card = card_line(c, prints, pt, have)
+        card = card_line(c, prints, pt, have, rulings)
         with_pt += 1 if 'pn' in card else 0
         count += 1
         lines.append(json.dumps(card, ensure_ascii=False, separators=(',', ':')))
@@ -305,10 +342,48 @@ def shard_files(cards, sets):
             ids.setdefault(v['id'][:3], {})[v['id']] = o
             by_set.setdefault(v['s'], {})[f"{v.get('cn', '')}|{v.get('l', 'en')}"] = v['id']
     files.update({f'pr/{k}.json': v for k, v in prices.items()})
+    # A lista de cada coleção na ordem dos números (1, 2, 3...), para a tela
+    # da coleção: [código, número, idioma, raridade, imagem no R2, oracle, nome, nome pt].
+    listing = {}
+    for card in cards:
+        for v in card['v']:
+            if v.get('s'):
+                listing.setdefault(v['s'], []).append([v['id'], v.get('cn', ''), v.get('l', 'en'), v.get('r', ''), v.get('i', 0), card['o'], card['n'],
+                                                      v.get('pn') or (card.get('pn') if v.get('l') == 'pt' else '') or ''])
+
+    def number(row):
+        # 1, 2, 3... (com letra no fim: 12a, 12b) e depois os especiais (ex.: "IFIYW-1").
+        m = re.match(r'^(\d+)(.*)$', row[1])
+        return (0, int(m.group(1)), m.group(2), row[2] != 'en') if m else (1, 0, row[1], row[2] != 'en')
+
+    files.update({f's/{k}.json': sorted(v, key=number) for k, v in listing.items()})
     files.update({f'id/{k}.json': v for k, v in ids.items()})
     files.update({f'set/{k}.json': v for k, v in by_set.items()})
     files['sets.json'] = sets
+    files['data/sets-info.json'] = sorted(SET_INFO.values(), key=lambda x: x['date'] or '', reverse=True)
     return {k: json.dumps(v, ensure_ascii=False, separators=(',', ':')).encode() for k, v in files.items()}
+
+
+def top_prices(cards, sets, count=600):
+    """As variações mais caras (inglês e português), para a tela "Preços de
+    hoje" do app e do site: data/top.json."""
+    rows = []
+    for card in cards:
+        for v in card['v']:
+            prices = v.get('$') or {}
+            usd = prices.get('usd') or prices.get('usd_foil') or prices.get('usd_etched')
+            try:
+                value = float(usd) if usd else 0
+            except ValueError:
+                value = 0
+            if value > 0:
+                rows.append((value, card, v))
+    rows.sort(key=lambda r: r[0], reverse=True)
+    return [clean({
+        'id': v['id'], 'o': card['o'], 'n': card['n'], 'pn': v.get('pn') or (card.get('pn') if v.get('l') == 'pt' else None),
+        'l': v.get('l'), 's': v.get('s'), 'sn': sets.get(v.get('s'), ''), 'cn': v.get('cn'), 'r': v.get('r'),
+        'm': card.get('m'), 't': card.get('t'), 'ci': card.get('ci'), 'i': v.get('i'), '$': v.get('$'),
+    }) for _, card, v in rows[:count]]
 
 
 def publish_shards(s3, bucket, files):
@@ -342,6 +417,8 @@ def main():
     print(f'{sum(len(v) for v in prints.values())} variações em inglês e português, {len(pt)} cartas em português', flush=True)
     print('Lendo as cartas (oracle_cards)...', flush=True)
     oracle = list(bulk('oracle-cards'))
+    print('Lendo as regras (rulings)...', flush=True)
+    rulings = rulings_by_oracle(bulk('rulings'))
     for c in oracle:
         front, back = image_urls(c)
         if front:
@@ -357,7 +434,7 @@ def main():
         copied, left = copy_images(s3, bucket, order, urls, have, deadline)
         print(f'{copied} imagens copiadas; faltam {left}', flush=True)
 
-    text, count, with_pt = build(oracle, prints, pt, sets, have)
+    text, count, with_pt = build(oracle, prints, pt, sets, have, rulings)
     if count < 30000:
         sys.exit(f'Só {count} cartas: a Scryfall mudou o formato?')
     data = gzip.compress(text.encode(), 9)
@@ -367,7 +444,12 @@ def main():
     if s3:
         s3.put_object(Bucket=bucket, Key='data/images.txt.gz', Body=gzip.compress('\n'.join(sorted(have)).encode()), ContentType='application/gzip')
         s3.put_object(Bucket=bucket, Key='data/cards.jsonl.gz', Body=data, ContentType='application/gzip', CacheControl='public, max-age=3600')
-        publish_shards(s3, bucket, shard_files([json.loads(l) for l in text.splitlines()[1:]], sets))
+        cards = [json.loads(line) for line in text.splitlines()[1:]]
+        files = shard_files(cards, sets)
+        files['data/catalogs.json'] = json.dumps(catalogs(oracle), ensure_ascii=False, separators=(',', ':')).encode()
+        publish_shards(s3, bucket, files)
+        s3.put_object(Bucket=bucket, Key='data/top.json', Body=json.dumps(top_prices(cards, sets), ensure_ascii=False, separators=(',', ':')).encode(),
+                      ContentType='application/json', CacheControl='public, max-age=3600')
         s3.put_object(Bucket=bucket, Key='data/meta.json', Body=json.dumps(meta).encode(), ContentType='application/json', CacheControl='public, max-age=300')
     else:
         with open('cards.jsonl.gz', 'wb') as f:

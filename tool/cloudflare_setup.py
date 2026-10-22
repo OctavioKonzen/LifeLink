@@ -56,6 +56,12 @@ def main():
     open(path, 'w').write(text)
     url = f'https://lifelink-cards.{sub}.workers.dev'
     print(f'Banco D1: {uuid}\nWorker: {url}')
+    # O app e o site leem o endereço da busca daqui (não fica fixo no código).
+    if os.environ.get('R2_ACCESS_KEY_ID'):
+        sys.path.insert(0, os.path.dirname(__file__))
+        from build_cards import r2
+        r2().put_object(Bucket=os.environ.get('R2_BUCKET', 'lifelink'), Key='data/config.json',
+                        Body=json.dumps({'search': url}).encode(), ContentType='application/json', CacheControl='public, max-age=300')
     out = os.environ.get('GITHUB_OUTPUT')
     if out:
         with open(out, 'a') as f:

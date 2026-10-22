@@ -9,6 +9,7 @@ import '../../../data/services/scryfall_service.dart';
 import '../search/card_detail_screen.dart'; 
 import '../search/card_search_screen.dart';
 import '../../../data/services/deck_tools.dart';
+import '../../../data/services/lifelink_cards.dart';
 import 'deck_tools_screens.dart';
 import '../search/card_scan_screen.dart';
 import '../collection/collection_screen.dart';
@@ -86,6 +87,22 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
     for (int i = 0; i < deck.cards.length; i++) {
       if (!mounted) return; // saiu da tela no meio
       var card = deck.cards[i];
+      // Português e inglês: do banco do LifeLink (R2), a versão nesse idioma.
+      final oracle = card['oracle_id'];
+      if ((langCode == 'pt' || langCode == 'en') && oracle != null) {
+        try {
+          final own = await LifeLinkCards.instance.card('$oracle');
+          if (own != null) {
+            final vs = (own['v'] as List).cast<Map<String, dynamic>>();
+            final v = vs.where((v) => v['l'] == langCode).firstOrNull ?? LifeLinkCards.variationFor(own, lang: langCode);
+            final sets = await LifeLinkCards.instance.sets().catchError((_) => <String, String>{});
+            final app = LifeLinkCards.toApp({...own, '_sets': sets}, v, lang: langCode);
+            provider.updateCardInDeck(_deckIndex, i, {...card, ...app, if (card['commander'] == true) 'commander': true});
+            translatedCount++;
+            continue;
+          }
+        } catch (_) {}
+      }
       try {
         final oracleId = card['oracle_id'];
         final name = card['name'];
