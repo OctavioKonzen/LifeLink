@@ -7,6 +7,7 @@
 import { updateSection } from './userData'
 import { postJson } from './scryfall'
 import { scryfallIdOf } from './deckCards'
+import { many } from './lifelinkCards'
 
 export const MAX_CARDS = 2000
 
@@ -132,19 +133,31 @@ export function missingFor(deckCards, collection) {
   return out.sort((a, b) => a.name.localeCompare(b.name))
 }
 
-/** Preços de hoje na Scryfall; volta os desejos que ficaram 5% (ou mais) mais baratos. */
+/**
+ * Preços de hoje (do banco do LifeLink no R2; o que faltar, da Scryfall);
+ * volta os desejos que ficaram 5% (ou mais) mais baratos.
+ */
 export async function refreshPrices(collection, wishlist) {
   const ids = [...new Set([...list(collection), ...list(wishlist)].map((c) => c.id))].filter((id) => /^[0-9a-f-]{36}$/.test(id))
   const prices = new Map()
   const euros = new Map()
-  for (let start = 0; start < ids.length; start += 75) {
-    const data = await postJson('https://api.scryfall.com/cards/collection', { identifiers: ids.slice(start, start + 75).map((id) => ({ id })) })
-    for (const c of data.data || []) {
-      const p = Number.parseFloat(c.prices?.usd ?? c.prices?.usd_foil)
-      if (!Number.isNaN(p)) prices.set(c.id, p)
-      const e = Number.parseFloat(c.prices?.eur ?? c.prices?.eur_foil)
-      if (!Number.isNaN(e)) euros.set(c.id, e)
-    }
+  const read = (c) => {
+    const p = Number.parseFloat(c.prices?.usd ?? c.prices?.usd_foil)
+    if (!Number.isNaN(p)) prices.set(c.id, p)
+    const e = Number.parseFloat(c.prices?.eur ?? c.prices?.eur_foil)
+    if (!Number.isNaN(e)) euros.set(c.id, e)
+  }
+  let missing = ids
+  try {
+    const own = await many(ids)
+    for (const c of own.values()) read(c)
+    missing = ids.filter((id) => !own.has(id))
+  } catch {
+    // O R2 não respondeu: tudo pela Scryfall.
+  }
+  for (let start = 0; start < missing.length; start += 75) {
+    const data = await postJson('https://api.scryfall.com/cards/collection', { identifiers: missing.slice(start, start + 75).map((id) => ({ id })) })
+    for (const c of data.data || []) read(c)
   }
   const drops = list(wishlist).filter((c) => prices.has(c.id) && c.usd > 0 && prices.get(c.id) <= c.usd * 0.95).map((c) => ({ ...c, before: c.usd, usd: prices.get(c.id) }))
   if (prices.size) {

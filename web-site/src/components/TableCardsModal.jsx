@@ -1,11 +1,23 @@
 import { useEffect, useRef, useState } from 'react'
 import { Modal, Spinner } from './ui'
-import { getJson, imageOf } from '../lib/scryfall'
+import { getJson, imageOf, oracleText, typeLine } from '../lib/scryfall'
+import { scryfallCard, typePool } from '../lib/lifelinkCards'
 
 // Planechase e Archenemy (o mesmo do app, planar_dialogs.dart): um plano ou
-// esquema sorteado da Scryfall e, no Planechase, o dado planar 3D.
+// esquema sorteado (do banco do LifeLink; sem ele, da Scryfall) e, no
+// Planechase, o dado planar 3D.
 
 async function randomCard(query) {
+  try {
+    const pool = await typePool(query.includes('scheme') ? ['Scheme'] : ['Plane', 'Phenomenon'])
+    if (pool.length) {
+      const pick = pool[Math.floor(Math.random() * pool.length)]
+      const full = (await scryfallCard(pick.id, 'pt').catch(() => null)) || pick
+      return { id: full.id, name: full.printed_name || full.name, type: typeLine(full), image: imageOf(full) || '', text: oracleText(full) }
+    }
+  } catch {
+    // Vai pela Scryfall.
+  }
   // Sem cache: cada pedido é uma carta nova.
   const data = await getJson(`https://api.scryfall.com/cards/random?q=${encodeURIComponent(query)}`, { useCache: false })
   return { id: data.id, name: data.printed_name || data.name, type: data.type_line || '', image: imageOf(data) || '', text: data.oracle_text || '' }

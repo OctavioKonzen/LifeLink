@@ -3,6 +3,7 @@ import CardDetails from '../components/CardDetails'
 import ExpandingGrid from '../components/ExpandingGrid'
 import { ErrorBox, Spinner } from '../components/ui'
 import { buildTextQuery, displayName, imageOf, search } from '../lib/scryfall'
+import { plainText, search as ownSearch, topPrices } from '../lib/lifelinkCards'
 
 /** As cartas mais caras do momento, igual à tela "Preços de hoje" do app. */
 export default function PricesPage() {
@@ -19,9 +20,24 @@ export default function PricesPage() {
   useEffect(() => {
     let alive = true
     setState({ loading: true, cards: [], error: null })
-    const q = `${query.trim() ? `${buildTextQuery(query)} ` : ''}usd>0 lang:any`
-    search(q, { order: 'usd', dir: 'desc', unique: 'prints', multilingual: false })
-      .then((page) => alive && setState({ loading: false, cards: page.cards, error: null }))
+    const text = query.trim()
+    // Do banco do LifeLink: sem busca, as 600 versões mais caras (R2); com
+    // busca, as cartas mais caras com aquele nome ou texto (Cloudflare). Se
+    // ele não responder, da Scryfall.
+    const load = async () => {
+      if (plainText(text)) {
+        try {
+          const cards = text ? (await ownSearch({ text, order: 'usd', desc: true })).cards.filter((c) => c.prices.usd) : await topPrices()
+          if (cards.length) return cards
+        } catch {
+          // Vai pela Scryfall.
+        }
+      }
+      const q = `${text ? `${buildTextQuery(query)} ` : ''}usd>0 lang:any`
+      return (await search(q, { order: 'usd', dir: 'desc', unique: 'prints', multilingual: false })).cards
+    }
+    load()
+      .then((cards) => alive && setState({ loading: false, cards, error: null }))
       .catch((e) => alive && setState({ loading: false, cards: [], error: e.message }))
     return () => {
       alive = false

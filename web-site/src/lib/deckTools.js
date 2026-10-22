@@ -5,6 +5,7 @@
 
 import { getJson, postJson, search } from './scryfall'
 import { scryfallIdOf, toDeckCard } from './deckCards'
+import { many, printBySetNumber, scryfallCard, search as ownSearch } from './lifelinkCards'
 
 const API = 'https://api.scryfall.com'
 const SKIP = /^(sideboard|maybeboard|considering|maybe|tokens?|banco|reservas)\b/i
@@ -68,10 +69,14 @@ export function parseDeckList(text) {
 
 /** Busca as cartas da lista: { cards (uma por cópia, no formato dos decks), missing }. */
 export async function fetchDeckList(lines) {
-  const found = new Map()
+  // Primeiro no banco do LifeLink (coleção e número no R2, ou o nome na busca
+  // da Cloudflare); o que não achar vai para a Scryfall.
+  const found = await fetchOwn(lines)
   const missing = []
-  for (let start = 0; start < lines.length; start += 75) {
-    const chunk = lines.slice(start, start + 75)
+  const rest = lines.map((_, i) => i).filter((i) => !found.has(i))
+  for (let start = 0; start < rest.length; start += 75) {
+    const idx = rest.slice(start, start + 75)
+    const chunk = idx.map((i) => lines[i])
     const ids = chunk.map((l) => (l.set && l.number ? { set: l.set, collector_number: l.number } : { name: l.name }))
     const data = await postJson(`${API}/cards/collection`, { identifiers: ids })
     const notFound = data.not_found || []
@@ -82,13 +87,13 @@ export async function fetchDeckList(lines) {
       if (notFound.some((n) => n.name === asked.name && n.set === asked.set && n.collector_number === asked.collector_number)) {
         // Com edição errada, tenta só pelo nome; com nome errado, a Scryfall tenta adivinhar.
         try {
-          found.set(start + i, await getJson(`${API}/cards/named?fuzzy=${encodeURIComponent(chunk[i].name)}`))
+          found.set(idx[i], await getJson(`${API}/cards/named?fuzzy=${encodeURIComponent(chunk[i].name)}`))
         } catch {
           missing.push(chunk[i].name)
         }
         continue
       }
-      if (k < cards.length) found.set(start + i, cards[k++])
+      if (k < cards.length) found.set(idx[i], cards[k++])
     }
   }
   const out = []
@@ -101,15 +106,61 @@ export async function fetchDeckList(lines) {
   return { cards: out, missing }
 }
 
-/** As cartas do deck atualizadas na Scryfall (preço e legalidade de hoje), uma por cópia. */
+/** O código da carta com esse nome exato (em inglês) na busca do LifeLink, ou null. */
+async function ownIdByName(name) {
+  const lower = name.toLowerCase()
+  const found = await ownSearch({ text: name, nameOnly: true, lang: 'en' })
+  const hit = found.cards.find((c) => c.name.toLowerCase() === lower || c.name.toLowerCase().startsWith(`${lower} //`))
+  return hit?.id ?? null
+}
+
+/** As linhas da lista achadas no banco do LifeLink: índice → carta da Scryfall. */
+async function fetchOwn(lines) {
+  const out = new Map()
+  const one = async (i) => {
+    const l = lines[i]
+    try {
+      if (l.set && l.number) {
+        const id = await printBySetNumber(l.set, l.number)
+        if (id) {
+          const c = await scryfallCard(id, 'en')
+          if (c) out.set(i, c)
+          return
+        }
+      }
+      const id = await ownIdByName(l.name)
+      const c = id && (await scryfallCard(id, 'en'))
+      if (c) out.set(i, c)
+    } catch {
+      // Fica para a Scryfall.
+    }
+  }
+  for (let start = 0; start < lines.length; start += 10) {
+    await Promise.all(lines.slice(start, start + 10).map((_, k) => one(start + k)))
+  }
+  return out
+}
+
+/** As cartas do deck atualizadas (preço e legalidade de hoje), uma por cópia: do R2; o que faltar, da Scryfall. */
 export async function refreshDeck(cards) {
   const unique = new Map()
   for (const c of cards) {
     const id = scryfallIdOf(c)
     unique.set(id ?? `name:${c.name}`, id ? { id } : { name: c.name })
   }
-  const keys = [...unique.keys()]
   const table = new Map()
+  try {
+    const own = await many([...unique.keys()].filter((k) => !k.startsWith('name:')))
+    for (const [id, card] of own) {
+      table.set(id, card)
+      table.set(`name:${card.name}`, card)
+      if (card.printed_name) table.set(`name:${card.printed_name}`, card)
+      unique.delete(id)
+    }
+  } catch {
+    // O R2 não respondeu: tudo pela Scryfall.
+  }
+  const keys = [...unique.keys()].filter((k) => !table.has(k))
   for (let start = 0; start < keys.length; start += 75) {
     const data = await postJson(`${API}/cards/collection`, { identifiers: keys.slice(start, start + 75).map((k) => unique.get(k)) })
     for (const card of data.data || []) {
@@ -249,6 +300,20 @@ export async function suggestions(commander, deck, count = 40) {
     // Sem EDHREC: vai pela Scryfall.
   }
   if (names.length) {
+    // As cartas sugeridas pelo banco do LifeLink (nome exato na busca da
+    // Cloudflare, carta no R2); se ele não responder, pela Scryfall.
+    try {
+      const ids = []
+      for (let start = 0; start < names.length; start += 10) {
+        const found = await Promise.all(names.slice(start, start + 10).map((n) => ownIdByName(n).catch(() => null)))
+        ids.push(...found.filter(Boolean))
+      }
+      const own = await many(ids, 'en')
+      const cards = ids.map((id) => own.get(id)).filter(Boolean)
+      if (cards.length) return { cards, source: 'EDHREC' }
+    } catch {
+      // Vai pela Scryfall.
+    }
     const data = await postJson(`${API}/cards/collection`, { identifiers: names.slice(0, 75).map((name) => ({ name })) })
     const byName = new Map((data.data || []).map((c) => [c.name, c]))
     const cards = names.map((n) => byName.get(n)).filter(Boolean)
@@ -256,6 +321,17 @@ export async function suggestions(commander, deck, count = 40) {
   }
   const ci = commander.color_identity
   const colors = (Array.isArray(ci) ? ci.join('') : String(ci ?? '')).toLowerCase()
+  // Sem EDHREC: as mais jogadas nas cores do comandante (banco do LifeLink).
+  try {
+    const found = await ownSearch({ colors: colors.toUpperCase() || 'C', order: 'popular', lang: 'en' })
+    const ids = found.cards.filter((c) => !skip.has(c.name.toLowerCase()) && !c.type_line.includes('Basic')).map((c) => c.id)
+    const own = await many(ids.slice(0, count + 10), 'en')
+    // Só as que valem no Commander (como o f:commander da Scryfall).
+    const cards = ids.map((id) => own.get(id)).filter((c) => c?.legalities.commander === 'legal').slice(0, count)
+    if (cards.length) return { cards, source: 'LifeLink (mais populares nas cores do comandante)' }
+  } catch {
+    // Vai pela Scryfall.
+  }
   const page = await search(`id<=${colors || 'c'} f:commander -t:basic`, { order: 'edhrec', multilingual: false })
   return {
     cards: page.cards.filter((c) => !skip.has(String(c.name).toLowerCase())).slice(0, count),

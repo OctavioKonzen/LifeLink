@@ -13,6 +13,7 @@ import {
   sets as loadSets,
   symbolUrl,
 } from '../lib/scryfall'
+import { plainText, search as ownSearch } from '../lib/lifelinkCards'
 import { incrementSearches } from '../lib/xp'
 
 const COLORS = ['W', 'U', 'B', 'R', 'G', 'C']
@@ -27,6 +28,29 @@ export function buildQuery(text, { types = [], colors = [], set = null } = {}) {
   if (colors.length) q += ` id<=${colors.join('')}`
   if (set) q += ` set:${set}`
   return q
+}
+
+/**
+ * A mesma busca no banco do LifeLink (a busca da Cloudflare), ou null quando
+ * ela fica com a Scryfall: sintaxe da Scryfall (t:, o:, usd>...) ou mais de
+ * um tipo marcado (a Scryfall junta os tipos com "ou").
+ */
+export function ownQuery(text, { types = [], colors = [], set = null } = {}) {
+  let t = text.trim()
+  const exact = /^!"(.*)"$/.exec(t)
+  if (exact) t = exact[1]
+  if (!plainText(t) || types.length > 1) return null
+  const empty = !t && !types.length && !colors.length && !set
+  return {
+    text: t,
+    nameOnly: !!exact,
+    // Sem texto: os comandantes mais jogados (como o "is:commander").
+    types: empty ? ['Legendary Creature'] : types,
+    set: set || '',
+    colors: colors.length ? colors.join('') : undefined,
+    // Com texto: por relevância (o padrão da busca); sem texto: as mais jogadas.
+    order: t ? undefined : 'popular',
+  }
 }
 
 function useCatalogs() {
@@ -146,12 +170,18 @@ export default function SearchPage() {
   const sentinel = useRef(null)
   const loadingMore = useRef(false)
   const submitted = useRef(null) // busca já feita por submit(): o atraso não refaz
+  // O que foi pedido na última busca (para a busca no banco do LifeLink).
+  const asked = useRef(ownQuery(''))
+  const ask = (value, f) => {
+    asked.current = ownQuery(value, f)
+    setQuery(buildQuery(value, f))
+  }
 
   // Busca 600 ms depois de parar de digitar (igual ao app).
   useEffect(() => {
     if (submitted.current === text) return
     submitted.current = null
-    const timer = setTimeout(() => setQuery(buildQuery(text, filters)), 600)
+    const timer = setTimeout(() => ask(text, filters), 600)
     return () => clearTimeout(timer)
   }, [text, filters])
 
@@ -178,8 +208,22 @@ export default function SearchPage() {
   useEffect(() => {
     let alive = true
     setResult({ cards: [], nextPage: null, loading: true, error: null })
-    search(query)
-      .then((page) => alive && setResult({ cards: page.cards.filter((c) => imageOf(c)), nextPage: page.nextPage, loading: false, error: null }))
+    const own = asked.current
+    // Primeiro no banco do LifeLink; se ele não responder (ou não achar nada), na Scryfall.
+    const load = async () => {
+      if (own) {
+        try {
+          const page = await ownSearch({ ...own, page: 0 })
+          if (page.cards.length) return { cards: page.cards, nextPage: page.hasMore ? { own, page: 1 } : null, source: 'lifelink' }
+        } catch {
+          // Vai pela Scryfall.
+        }
+      }
+      const page = await search(query)
+      return { cards: page.cards.filter((c) => imageOf(c)), nextPage: page.nextPage, source: 'scryfall' }
+    }
+    load()
+      .then((page) => alive && setResult({ ...page, loading: false, error: null }))
       .catch((e) => alive && setResult({ cards: [], nextPage: null, loading: false, error: e.message }))
     return () => {
       alive = false
@@ -194,7 +238,14 @@ export default function SearchPage() {
       if (!entry.isIntersecting || loadingMore.current) return
       loadingMore.current = true
       try {
-        const page = await search('', { nextPage: result.nextPage })
+        const more = result.nextPage
+        if (typeof more === 'object') {
+          // Próxima página da busca do LifeLink.
+          const page = await ownSearch({ ...more.own, page: more.page })
+          setResult((r) => ({ ...r, cards: [...r.cards, ...page.cards], nextPage: page.hasMore ? { own: more.own, page: more.page + 1 } : null }))
+          return
+        }
+        const page = await search('', { nextPage: more })
         setResult((r) => ({ ...r, cards: [...r.cards, ...page.cards.filter((c) => imageOf(c))], nextPage: page.nextPage }))
       } catch (e) {
         setResult((r) => ({ ...r, nextPage: null, moreError: e.message }))
@@ -214,7 +265,7 @@ export default function SearchPage() {
     setFocused(false)
     document.activeElement?.blur()
     setRecent(addRecentSearch(value))
-    setQuery(buildQuery(exactName ? `!"${value}"` : value, filters))
+    ask(exactName ? `!"${value}"` : value, filters)
   }
 
   // Filtro novo sempre refaz a busca, mesmo depois de um submit().
@@ -282,7 +333,11 @@ export default function SearchPage() {
 
       {showFilters && <Filters filters={filters} setFilters={updateFilters} catalogs={catalogs} onClose={() => setShowFilters(false)} />}
 
-      {!typing && !activeFilters && <p className="mb-3 text-sm text-muted">Comandantes em ordem alfabética. Digite para buscar qualquer carta.</p>}
+      {!typing && !activeFilters && (
+        <p className="mb-3 text-sm text-muted">
+          {result.source === 'lifelink' ? 'Os comandantes mais jogados.' : 'Comandantes em ordem alfabética.'} Digite para buscar qualquer carta.
+        </p>
+      )}
 
       {result.loading ? (
         <Spinner />
