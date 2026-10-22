@@ -15,13 +15,20 @@ No R2 (bucket lifelink):
   img/<id>-b.jpg       o verso (cartas de duas faces)
 
 O banco: a primeira linha é {"sets": {código: nome}}; depois, uma linha por
-carta com campos curtos (para o arquivo ficar pequeno):
-  id (a versão principal), o (oracle_id), n/t/x (nome, tipo e texto em
-  inglês), m (custo), cmc, ci (identidade de cor), r (raridade), lg
-  (legalidade: uma letra por formato, ver FORMATS: l legal, b banida,
-  r restrita, n não), gc (1 = game changer), pn/pt/px (português) e
-  v: as variações [id, coleção, número, raridade, idioma, usd, eur,
-  imagem no R2 (0/1), verso (0/1), nome impresso (só se for diferente)].
+carta, com tudo o que a Scryfall tem dela (menos links, ids de outros sites
+e a imagem), em campos curtos para o arquivo ficar pequeno:
+  da carta: id (versão principal), o (oracle_id), n, lay (layout), m (custo),
+    cmc, t (tipo), x (texto), pw/tg (poder/resistência), ly (lealdade),
+    df (defesa), c/ci/ind (cores, identidade, indicador), kw (palavras-chave),
+    pmn (mana que gera), lg (legalidade: formato → l/b/r), gc (game changer),
+    rs (lista reservada), er/pr (posição no EDHREC e no Penny), f (faces),
+    pn/pt/px (nome, tipo e texto em português)
+  v: as variações (inglês e português): id, s (coleção), cn (número),
+    r (raridade), l (idioma), d (data), a (artista), ft (texto ilustrativo),
+    fr/fe/bc (moldura, efeitos, borda), fa (arte total), tl (sem texto),
+    pm/pts (promo e tipos), fn (acabamentos: foil...), wm (marca d'água),
+    $ (todos os preços), b (tem verso), i (imagem já no R2) e, em
+    português, pn/pt/px impressos.
 
 Uso:
   python3 tool/build_cards.py               (tudo; precisa das chaves do R2)
@@ -40,9 +47,8 @@ import time
 import urllib.request
 
 HEADERS = {'User-Agent': 'LifeLink/1.0 (github.com/OctavioKonzen/LifeLink)', 'Accept': 'application/json'}
-FORMATS = ['commander', 'standard', 'pioneer', 'modern', 'legacy', 'vintage', 'pauper']
-LEGAL = {'legal': 'l', 'banned': 'b', 'restricted': 'r'}
 LANGS = ('en', 'pt')
+LEGAL = {'legal': 'l', 'banned': 'b', 'restricted': 'r'}
 
 
 # ------------------------------------------------------------- Scryfall
@@ -81,6 +87,49 @@ def joined(fs, key):
 
 # ----------------------------------------------------------------- banco
 
+def clean(d):
+    """Tira o que está vazio (o arquivo fica menor)."""
+    return {k: v for k, v in d.items() if v not in (None, '', [], {}, False)}
+
+
+def face_oracle(f):
+    """O que é da carta (igual em todas as versões), de uma face."""
+    return clean({
+        'n': f.get('name'), 'm': f.get('mana_cost'), 't': f.get('type_line'), 'x': f.get('oracle_text'),
+        'pw': f.get('power'), 'tg': f.get('toughness'), 'ly': f.get('loyalty'), 'df': f.get('defense'),
+        'c': ''.join(f.get('colors') or []), 'ind': ''.join(f.get('color_indicator') or []),
+    })
+
+
+def printed(c):
+    """Nome, tipo e texto impressos (português), da versão."""
+    fs = faces(c)
+    return clean({
+        'pn': joined(fs, 'printed_name'),
+        'pt': joined(fs, 'printed_type_line'),
+        'px': '\n//\n'.join(f.get('printed_text') or '' for f in fs).strip('\n/'),
+    })
+
+
+def variation(c, back, have=()):
+    """O que muda de uma versão para outra."""
+    fs = faces(c)
+    prices = {k: v for k, v in (c.get('prices') or {}).items() if v}
+    v = clean({
+        'id': c['id'], 's': c.get('set'), 'cn': c.get('collector_number'), 'r': c.get('rarity'), 'l': c.get('lang'),
+        'd': c.get('released_at'), 'a': c.get('artist') or fs[0].get('artist'),
+        'ft': c.get('flavor_text') or joined(fs, 'flavor_text'),
+        'fr': c.get('frame'), 'fe': c.get('frame_effects'), 'bc': c.get('border_color'),
+        'fa': 1 if c.get('full_art') else None, 'tl': 1 if c.get('textless') else None,
+        'pm': 1 if c.get('promo') else None, 'pts': c.get('promo_types'), 'fn': c.get('finishes'),
+        'wm': c.get('watermark') or fs[0].get('watermark'), '$': prices,
+        'b': 1 if back else None,
+    })
+    if c.get('lang') != 'en':
+        v.update(printed(c))
+    return v
+
+
 def collect_prints(cards):
     """Das versões (all_cards): as variações em inglês e português de cada
     carta e o texto em português (da versão mais nova). Volta
@@ -96,50 +145,45 @@ def collect_prints(cards):
         if not oid or not front:
             continue
         sets[c['set']] = c.get('set_name', c['set'])
-        prices = c.get('prices') or {}
-        printed = joined(fs, 'printed_name') if lang == 'pt' else ''
-        prints.setdefault(oid, []).append({
-            'id': c['id'], 'set': c['set'], 'cn': c.get('collector_number', ''), 'r': c.get('rarity', ''),
-            'lang': lang, 'usd': prices.get('usd') or prices.get('usd_foil'), 'eur': prices.get('eur') or prices.get('eur_foil'),
-            'at': c.get('released_at', ''), 'back': 1 if back else 0, 'pn': printed,
-        })
+        prints.setdefault(oid, []).append(variation(c, back))
         urls[c['id']] = (front, back)
-        if lang == 'pt' and printed:
-            old = pt.get(oid)
-            if not old or old['at'] < c.get('released_at', ''):
-                pt[oid] = {'at': c.get('released_at', ''), 'pn': printed, 'pt': joined(fs, 'printed_type_line'),
-                           'px': '\n//\n'.join(x.get('printed_text') or '' for x in fs).strip('\n/')}
+        if lang == 'pt':
+            # A versão em português mais nova; antes as que têm o nome
+            # traduzido (algumas reimpressões mantêm o nome em inglês).
+            p = printed(c)
+            if p.get('pn'):
+                rank = (p['pn'] != c.get('name'), c.get('released_at', ''))
+                if oid not in pt or pt[oid]['rank'] < rank:
+                    pt[oid] = {'rank': rank, **p}
     for vs in prints.values():
-        vs.sort(key=lambda v: v['at'], reverse=True)  # as mais novas primeiro
+        vs.sort(key=lambda v: v.get('d', ''), reverse=True)  # as mais novas primeiro
     return prints, pt, sets, urls
 
 
 def card_line(c, prints, pt, have):
     """Uma carta do banco (c é a carta do oracle_cards)."""
     fs = faces(c)
-    prices = c.get('prices') or {}
-    leg = c.get('legalities') or {}
     oid = c.get('oracle_id')
-    card = {
-        'id': c['id'], 'o': oid, 'n': c['name'], 't': c.get('type_line', ''),
-        'x': c.get('oracle_text') or fs[0].get('oracle_text', ''),
-        'm': c.get('mana_cost') or fs[0].get('mana_cost', ''), 'cmc': c.get('cmc'),
-        'ci': ''.join(c.get('color_identity', [])), 'r': c.get('rarity'),
-        'lg': ''.join(LEGAL.get(leg.get(f), 'n') for f in FORMATS),
-    }
-    if c.get('game_changer'):
-        card['gc'] = 1
+    card = clean({
+        'id': c['id'], 'o': oid, 'n': c['name'], 'lay': c.get('layout'),
+        'm': c.get('mana_cost') or fs[0].get('mana_cost'), 'cmc': c.get('cmc'),
+        't': c.get('type_line'), 'x': c.get('oracle_text') or fs[0].get('oracle_text'),
+        'pw': c.get('power'), 'tg': c.get('toughness'), 'ly': c.get('loyalty'), 'df': c.get('defense'),
+        'c': ''.join(c.get('colors') or []), 'ci': ''.join(c.get('color_identity') or []),
+        'ind': ''.join(c.get('color_indicator') or []), 'kw': c.get('keywords'),
+        'pmn': c.get('produced_mana'),
+        'lg': {f: LEGAL[s] for f, s in (c.get('legalities') or {}).items() if s in LEGAL},
+        'gc': 1 if c.get('game_changer') else None, 'rs': 1 if c.get('reserved') else None,
+        'er': c.get('edhrec_rank'), 'pr': c.get('penny_rank'),
+        'f': [face_oracle(f) for f in fs] if len(fs) > 1 else None,
+    })
     p = pt.get(oid)
     if p:
-        card.update({k: p[k] for k in ('pn', 'pt', 'px')})
+        card.update({k: p[k] for k in ('pn', 'pt', 'px') if k in p})
     vs = prints.get(oid) or []
     if not any(v['id'] == c['id'] for v in vs):  # a versão principal sempre entra
-        front, back = image_urls(c)
-        vs = [{'id': c['id'], 'set': c['set'], 'cn': c.get('collector_number', ''), 'r': c.get('rarity', ''), 'lang': c.get('lang', 'en'),
-               'usd': prices.get('usd'), 'eur': prices.get('eur'), 'back': 1 if back else 0, 'pn': ''}] + vs
-    card['v'] = [[v['id'], v['set'], v['cn'], v['r'], v['lang'], v['usd'], v['eur'],
-                  1 if v['id'] in have else 0, v['back'], v['pn'] if v['pn'] and v['pn'] != card.get('pn') else '']
-                 for v in vs]
+        vs = [variation(c, image_urls(c)[1])] + vs
+    card['v'] = [dict(v, i=1) if v['id'] in have else v for v in vs]
     return card
 
 
@@ -156,18 +200,18 @@ def build(oracle, prints, pt, sets, have):
     return '\n'.join(lines) + '\n', count, with_pt
 
 
-def image_order(oracle_ids_main, prints):
+def image_order(main_ids, prints):
     """A ordem de cópia das imagens: a versão principal de cada carta, depois
     as outras em inglês (mais novas primeiro) e por fim as em português."""
     order, seen = [], set()
-    for vid in oracle_ids_main:
+    for vid in main_ids:
         if vid not in seen:
             seen.add(vid)
             order.append(vid)
     for lang in LANGS:
         for vs in prints.values():
             for v in vs:
-                if v['lang'] == lang and v['id'] not in seen:
+                if v.get('l') == lang and v['id'] not in seen:
                     seen.add(v['id'])
                     order.append(v['id'])
     return order
