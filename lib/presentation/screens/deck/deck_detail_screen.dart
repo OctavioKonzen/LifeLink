@@ -13,6 +13,7 @@ import '../../../data/services/lifelink_cards.dart';
 import 'deck_tools_screens.dart';
 import '../search/card_scan_screen.dart';
 import '../collection/collection_screen.dart';
+import '../../theme/app_theme.dart';
 
 class DeckDetailScreen extends StatefulWidget {
   final String deckId;
@@ -56,7 +57,7 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF1E1E24),
+        backgroundColor: LL.surface,
         title: const Text("Apagar Deck", style: TextStyle(color: Colors.white)),
         content: const Text("Tem certeza que deseja excluir este deck permanentemente?", style: TextStyle(color: Colors.white70)),
         actions: [
@@ -252,7 +253,7 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
                 onPressed: () => _importList(deckProvider),
               ),
               IconButton(
-                icon: const Icon(Icons.price_check, color: Colors.amber),
+                icon: const Icon(Icons.price_check, color: LL.gold),
                 tooltip: "Curva, preço e legalidade",
                 onPressed: deck.cards.isEmpty ? null : () => Navigator.push(context, MaterialPageRoute(builder: (_) => DeckAnalysisScreen(deck: deck))),
               ),
@@ -325,7 +326,7 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const CircularProgressIndicator(color: Colors.blueAccent),
+                    const CircularProgressIndicator(color: LL.gold),
                     const SizedBox(height: 16),
                     Text(
                       _isImporting ? "Importando cartas da lista..." : "Buscando cartas no idioma escolhido...", 
@@ -356,8 +357,8 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
                 builder: (context) => CardSearchScreen(targetDeckId: widget.deckId),
               ));
             },
-            backgroundColor: Colors.blueAccent,
-            child: const Icon(Icons.add, color: Colors.white, size: 30),
+            backgroundColor: LL.gold,
+            child: const Icon(Icons.add, color: LL.onGold, size: 30),
           ),
         ),
       ],
@@ -447,7 +448,7 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
             },
           ),
           ListTile(
-            leading: Icon(Icons.workspace_premium, color: commander ? Colors.amber : null),
+            leading: Icon(Icons.workspace_premium, color: commander ? LL.gold : null),
             title: Text(commander ? 'Não é mais o comandante' : 'Marcar como comandante'),
             onTap: () {
               Navigator.pop(ctx);
@@ -509,7 +510,7 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                 decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.75), borderRadius: BorderRadius.circular(10)),
                 child: Row(mainAxisSize: MainAxisSize.min, children: [
-                  if (card['commander'] == true) const Icon(Icons.workspace_premium, color: Colors.amber, size: 14),
+                  if (card['commander'] == true) const Icon(Icons.workspace_premium, color: LL.gold, size: 14),
                   if (copies.length > 1) Text('${copies.length}×', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 13)),
                 ]),
               ),

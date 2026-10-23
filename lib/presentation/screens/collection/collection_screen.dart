@@ -8,6 +8,7 @@ import '../../../data/providers/theme_provider.dart';
 import '../../../data/services/deck_tools.dart';
 import '../search/card_detail_screen.dart';
 import '../search/card_scan_screen.dart';
+import '../../theme/app_theme.dart';
 
 String _money(double usd, double? brl) => 'US\$ ${usd.toStringAsFixed(2)}${brl != null ? ' · R\$ ${(usd * brl).toStringAsFixed(2)}' : ''}';
 
@@ -76,7 +77,7 @@ class _CollectionScreenState extends State<CollectionScreen> {
           bottom: TabBar(
             labelColor: text,
             unselectedLabelColor: text.withValues(alpha: 0.5),
-            indicatorColor: Colors.amber,
+            indicatorColor: LL.gold,
             tabs: [
               Tab(text: 'Coleção (${collection.totalCards})'),
               Tab(text: 'Desejos (${collection.wishes.length})'),
@@ -84,7 +85,7 @@ class _CollectionScreenState extends State<CollectionScreen> {
           ),
         ),
         floatingActionButton: FloatingActionButton.extended(
-          backgroundColor: Colors.amber,
+          backgroundColor: LL.gold,
           foregroundColor: Colors.black,
           icon: const Icon(Icons.document_scanner),
           label: const Text('Escanear'),
@@ -123,7 +124,7 @@ class _CollectionScreenState extends State<CollectionScreen> {
         width: double.infinity,
         margin: const EdgeInsets.fromLTRB(16, 12, 16, 4),
         padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(color: Colors.amber.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(14), border: Border.all(color: Colors.amber.withValues(alpha: 0.4))),
+        decoration: BoxDecoration(color: LL.gold.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(14), border: Border.all(color: LL.gold.withValues(alpha: 0.4))),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text('Valor da coleção', style: TextStyle(color: text.withValues(alpha: 0.7), fontSize: 12)),
           Text(_money(collection.totalUsd, _brl), style: TextStyle(color: text, fontSize: 20, fontWeight: FontWeight.w900)),
@@ -187,12 +188,12 @@ class _CollectionScreenState extends State<CollectionScreen> {
   Future<void> _cardOptions(CollectionProvider collection, SavedCard c) async {
     await showModalBottomSheet(
       context: context,
-      backgroundColor: const Color(0xFF1E1E24),
+      backgroundColor: LL.surface,
       builder: (ctx) => SafeArea(
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           ListTile(title: Text(c.name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
           SwitchListTile(
-            secondary: const Icon(Icons.swap_horiz, color: Colors.amber),
+            secondary: const Icon(Icons.swap_horiz, color: LL.gold),
             title: const Text('Para troca', style: TextStyle(color: Colors.white)),
             subtitle: const Text('Os amigos veem e o app mostra quem quer esta carta.', style: TextStyle(color: Colors.white54)),
             value: c.trade,
@@ -291,7 +292,7 @@ Future<void> missingCardsSheet(BuildContext context, DeckModel deck) async {
   final cost = missing.fold(0.0, (a, m) => a + m.usd * (m.need - m.have));
   await showModalBottomSheet(
     context: context,
-    backgroundColor: const Color(0xFF1E1E24),
+    backgroundColor: LL.surface,
     isScrollControlled: true,
     builder: (ctx) => SafeArea(
       child: ConstrainedBox(
@@ -315,7 +316,7 @@ Future<void> missingCardsSheet(BuildContext context, DeckModel deck) async {
                   dense: true,
                   title: Text(m.name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
                   subtitle: Text('Tenho ${m.have} de ${m.need}', style: const TextStyle(color: Colors.white54)),
-                  trailing: Text('US\$ ${(m.usd * (m.need - m.have)).toStringAsFixed(2)}', style: const TextStyle(color: Colors.amber, fontWeight: FontWeight.bold)),
+                  trailing: Text('US\$ ${(m.usd * (m.need - m.have)).toStringAsFixed(2)}', style: const TextStyle(color: LL.gold, fontWeight: FontWeight.bold)),
                   onTap: () => Navigator.push(ctx, MaterialPageRoute(builder: (_) => CardDetailScreen(card: m.card))),
                 ),
             ]),

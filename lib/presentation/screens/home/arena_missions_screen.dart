@@ -6,6 +6,7 @@ import '../../../data/providers/deck_provider.dart';
 import '../../../data/providers/xp_provider.dart';
 import '../../../data/services/scryfall_service.dart';
 import '../../widgets/neon.dart';
+import '../../theme/app_theme.dart';
 
 class ArenaMissionsScreen extends StatefulWidget {
   const ArenaMissionsScreen({super.key});
@@ -63,12 +64,12 @@ class _ArenaMissionsScreenState extends State<ArenaMissionsScreen> {
       context: context,
       barrierDismissible: false,
       builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF1E1E24),
+        backgroundColor: LL.surface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text("SEÇÃO CONCLUÍDA!", style: TextStyle(color: Colors.amberAccent, fontSize: 22, fontWeight: FontWeight.bold, letterSpacing: 1.5)),
+            const Text("SEÇÃO CONCLUÍDA!", style: TextStyle(color: LL.gold, fontSize: 22, fontWeight: FontWeight.bold, letterSpacing: 1.5)),
             const SizedBox(height: 20),
             if (reward['type'] == 'avatar')
               ClipOval(child: CachedNetworkImage(imageUrl: reward['imageUrl'], httpHeaders: CardImages.headers, width: 100, height: 100, fit: BoxFit.cover))
@@ -125,7 +126,7 @@ class _ArenaMissionsScreenState extends State<ArenaMissionsScreen> {
         'target': (3 * diffMult).ceil(),
         'current': xpProvider.sinceTierStart('decks'),
         'xp': 100 * tier,
-        'color': Colors.amberAccent
+        'color': LL.gold
       },
       {
         'title': getTitle(['O Colecionador', 'Acumulador']),
@@ -143,7 +144,7 @@ class _ArenaMissionsScreenState extends State<ArenaMissionsScreen> {
         'target': 4 + tier,
         'current': deckProvider.allDecks.length,
         'xp': 200 * tier,
-        'color': Colors.blueAccent
+        'color': LL.gold
       },
       {
         'title': getTitle(['Explorador', 'Viajante']),
@@ -189,15 +190,15 @@ class _ArenaMissionsScreenState extends State<ArenaMissionsScreen> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text("Progresso da Seção", style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
-                        Text("$claimedCount / ${currentMissions.length}", style: const TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold)),
+                        Text("$claimedCount / ${currentMissions.length}", style: const TextStyle(color: LL.gold, fontWeight: FontWeight.bold)),
                       ],
                     ),
                     const SizedBox(height: 15),
-                    ClipRRect(borderRadius: BorderRadius.circular(10), child: LinearProgressIndicator(value: sectionProgress, minHeight: 12, backgroundColor: isLight ? Colors.grey[300] : Colors.grey[800], valueColor: const AlwaysStoppedAnimation<Color>(Colors.blueAccent))),
+                    ClipRRect(borderRadius: BorderRadius.circular(10), child: LinearProgressIndicator(value: sectionProgress, minHeight: 12, backgroundColor: isLight ? Colors.grey[300] : Colors.grey[800], valueColor: const AlwaysStoppedAnimation<Color>(LL.gold))),
                     const SizedBox(height: 15),
                     if (isSectionComplete)
                       ElevatedButton(
-                        style: ElevatedButton.styleFrom(backgroundColor: Colors.amberAccent, foregroundColor: Colors.black87, minimumSize: const Size(double.infinity, 50)),
+                        style: ElevatedButton.styleFrom(backgroundColor: LL.gold, foregroundColor: Colors.black87, minimumSize: const Size(double.infinity, 50)),
                         onPressed: () => _claimSectionReward(xpProvider, xpProvider.currentTier),
                         child: const Text("Resgatar recompensa mítica!", style: TextStyle(fontWeight: FontWeight.bold)),
                       )

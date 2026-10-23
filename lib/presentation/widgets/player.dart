@@ -33,10 +33,16 @@ class PlayerAvatar extends StatelessWidget {
         gradient: SweepGradient(colors: colors),
         boxShadow: xp.selectedBorderId != "0" ? [BoxShadow(color: colors.first.withValues(alpha: 0.5), blurRadius: 10)] : null,
       ),
+      // Sem foto: a inicial do nome no círculo dourado (como no site).
       child: CircleAvatar(
-        backgroundColor: const Color(0xFF2A2A35),
+        backgroundColor: const Color(0xFFF0B44C),
         backgroundImage: xp.selectedAvatar.isNotEmpty ? CachedNetworkImageProvider(xp.selectedAvatar, headers: CardImages.headers) : null,
-        child: xp.selectedAvatar.isEmpty ? Icon(Icons.person, color: Colors.white, size: size * 0.5) : null,
+        child: xp.selectedAvatar.isEmpty
+            ? Text(
+                playerNameOf(context).trim().isEmpty ? '?' : playerNameOf(context).trim()[0].toUpperCase(),
+                style: TextStyle(fontFamily: 'Cinzel', fontWeight: FontWeight.w700, color: const Color(0xFF1B1305), fontSize: size * 0.42),
+              )
+            : null,
       ),
     );
   }
@@ -46,7 +52,7 @@ class PlayerAvatar extends StatelessWidget {
 class LevelBar extends StatelessWidget {
   final Color color;
   final double height;
-  const LevelBar({super.key, this.color = Colors.blueAccent, this.height = 6});
+  const LevelBar({super.key, this.color = const Color(0xFFF0B44C), this.height = 6});
 
   @override
   Widget build(BuildContext context) {
