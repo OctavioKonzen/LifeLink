@@ -126,6 +126,19 @@ def main():
     except Exception as e:  # noqa: BLE001
         say(f'- não deu para ler o /health: {e}')
 
+    # ------------------------------------------------------------ espaço
+    say()
+    say('## Espaço no R2')
+    sizes, counts = {}, {}
+    for page in s3.get_paginator('list_objects_v2').paginate(Bucket=bucket):
+        for obj in page.get('Contents', []):
+            top = obj['Key'].split('/')[0] if '/' in obj['Key'] else '(raiz)'
+            sizes[top] = sizes.get(top, 0) + obj['Size']
+            counts[top] = counts.get(top, 0) + 1
+    for top in sorted(sizes, key=lambda t: -sizes[t]):
+        say(f'- {top}/: {counts[top]} arquivos, {sizes[top] / 1e9:.2f} GB')
+    say(f'- total: **{sum(counts.values())} arquivos, {sum(sizes.values()) / 1e9:.2f} GB** (grátis até 10 GB)')
+
     summary = os.environ.get('GITHUB_STEP_SUMMARY')
     if summary:
         with open(summary, 'a', encoding='utf-8') as f:
