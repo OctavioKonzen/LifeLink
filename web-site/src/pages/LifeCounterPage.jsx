@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { defaultGame, updateSection, useUserData } from '../lib/userData'
 import { incrementMatches, undoMatch } from '../lib/xp'
 import DiceModal from '../components/DiceModal'
@@ -160,8 +161,44 @@ function LifeHistory({ entries, start }) {
   )
 }
 
+// Tocar no número da vida: digita quanto (só o teclado numérico) e escolhe
+// dano ou cura.
+function AmountModal({ name, life, onDone, onClose }) {
+  const [text, setText] = useState('')
+  const amount = Number(text) || 0
+  return (
+    <Modal onClose={onClose}>
+      <div className="mx-auto max-w-xs text-center">
+        <h2 className="text-lg font-black">Vida de {name}</h2>
+        <input
+          autoFocus
+          inputMode="numeric"
+          pattern="[0-9]*"
+          value={text}
+          onChange={(e) => setText(e.target.value.replace(/\D/g, '').slice(0, 3))}
+          placeholder="0"
+          aria-label="Quantidade"
+          className="mt-3 w-full rounded-xl bg-text/10 py-2 text-center text-5xl font-black tabular-nums outline-none"
+        />
+        <p className="mt-2 text-sm text-muted">
+          {amount === 0 ? `Agora: ${life}` : `Dano: ${life - amount} · Cura: ${life + amount}`}
+        </p>
+        <div className="mt-4 flex gap-2">
+          <button type="button" disabled={!amount} onClick={() => onDone(-amount)} className="flex-1 rounded-full bg-red-700 py-2 font-black text-white disabled:opacity-40">
+            − Dano
+          </button>
+          <button type="button" disabled={!amount} onClick={() => onDone(amount)} className="flex-1 rounded-full bg-green-700 py-2 font-black text-white disabled:opacity-40">
+            + Cura
+          </button>
+        </div>
+      </div>
+    </Modal>
+  )
+}
+
 function Player({ i, game, update, history, deckNames }) {
   const [details, setDetails] = useState(false)
+  const [typing, setTyping] = useState(false)
   const life = game.lives[i]
   const dead = isDead(game, i)
   const others = Array.from({ length: game.players }, (_, j) => j).filter((j) => j !== i)
@@ -203,9 +240,15 @@ function Player({ i, game, update, history, deckNames }) {
             −5
           </Step>
         </div>
-        <div className="font-black leading-none tabular-nums drop-shadow" style={{ fontSize: 'min(30cqw, 52cqh)' }}>
+        <button
+          type="button"
+          onClick={() => setTyping(true)}
+          title="Digitar o dano ou a cura"
+          className="font-black leading-none tabular-nums drop-shadow"
+          style={{ fontSize: 'min(30cqw, 52cqh)' }}
+        >
           {dead ? '☠' : life}
-        </div>
+        </button>
         <div className="flex flex-col gap-2">
           <Step label="Somar 1 de vida" onClick={() => update((g) => ({ ...g, lives: g.lives.map((v, k) => (k === i ? v + 1 : v)) }))}>
             +
@@ -215,6 +258,20 @@ function Player({ i, game, update, history, deckNames }) {
           </Step>
         </div>
       </div>
+      {/* Fora do quadro (o quadro com container-type prende o que é fixed). */}
+      {typing &&
+        createPortal(
+          <AmountModal
+            name={game.names[i]}
+            life={life}
+            onClose={() => setTyping(false)}
+            onDone={(amount) => {
+              setTyping(false)
+              update((g) => ({ ...g, lives: g.lives.map((v, k) => (k === i ? v + amount : v)) }))
+            }}
+          />,
+          document.body,
+        )}
       <button type="button" onClick={() => setDetails((d) => !d)} className="w-full truncate rounded-full bg-black/20 px-2 py-1 text-sm font-semibold">
         ☣ {game.poison[i]}
         {COUNTERS.filter(([key]) => game[key]?.[i] > 0).map(([key, , icon]) => ` · ${icon} ${game[key][i]}`)}
