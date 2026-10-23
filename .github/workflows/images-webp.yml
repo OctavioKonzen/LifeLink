@@ -1,0 +1,40 @@
+# Converte as imagens das cartas no R2 para WebP (tool/convert_webp.py).
+# Roda quando pedir; continua de onde parou.
+name: Imagens em WebP (R2)
+
+on:
+  workflow_dispatch:
+    inputs:
+      minutes:
+        description: 'Minutos de conversão'
+        default: '300'
+  push:
+    paths:
+      - tool/convert_webp.py
+      - .github/workflows/images-webp.yml
+
+concurrency:
+  group: cards-data
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  convert:
+    runs-on: ubuntu-latest
+    timeout-minutes: 340
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install boto3 pillow
+      - name: Converter
+        env:
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: lifelink
+          MAX_MINUTES: ${{ github.event.inputs.minutes || '300' }}
+        run: python3 tool/convert_webp.py

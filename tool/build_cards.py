@@ -11,8 +11,8 @@ No R2 (bucket lifelink):
   data/cards.jsonl.gz  o banco (ver abaixo)
   data/meta.json       quando foi feito e quantas cartas e imagens
   data/images.txt.gz   os ids das imagens que já estão no R2
-  img/<id>.jpg         a imagem (frente) de cada variação
-  img/<id>-b.jpg       o verso (cartas de duas faces)
+  img/<id>.jpg         a imagem (frente) de cada variação, em WebP
+  img/<id>-b.jpg       o verso (cartas de duas faces), em WebP
 
 O banco: a primeira linha é {"sets": {código: nome}}; depois, uma linha por
 carta, com tudo o que a Scryfall tem dela (menos links, ids de outros sites
@@ -291,6 +291,32 @@ def fetch(url):
     return None
 
 
+WEBP_QUALITY = 82
+
+
+def to_webp(data):
+    """A imagem em WebP (cerca de metade do JPG, com o texto da carta nítido).
+    Se não ficar menor, volta o original. Volta (bytes, content-type)."""
+    from PIL import Image
+    try:
+        out = io.BytesIO()
+        Image.open(io.BytesIO(data)).convert('RGB').save(out, 'WEBP', quality=WEBP_QUALITY, method=4)
+        webp = out.getvalue()
+        if len(webp) < len(data):
+            return webp, 'image/webp'
+    except Exception:
+        pass
+    return data, 'image/jpeg'
+
+
+def put_image(s3, bucket, key, data):
+    """Guarda a imagem em WebP. O nome continua .jpg para as versões antigas
+    do app acharem; o celular e o navegador leem pelo conteúdo."""
+    body, kind = to_webp(data)
+    s3.put_object(Bucket=bucket, Key=key, Body=body, ContentType=kind, CacheControl='public, max-age=31536000')
+    return len(data), len(body)
+
+
 def copy_images(s3, bucket, ids, urls, have, deadline):
     """Copia as imagens que faltam até o tempo acabar; volta quantas copiou."""
     todo = [i for i in ids if i not in have]
@@ -301,11 +327,11 @@ def copy_images(s3, bucket, ids, urls, have, deadline):
         data = fetch(front)
         if not data:
             return None
-        s3.put_object(Bucket=bucket, Key=f'img/{vid}.jpg', Body=data, ContentType='image/jpeg', CacheControl='public, max-age=31536000')
+        put_image(s3, bucket, f'img/{vid}.jpg', data)
         if back:
             b = fetch(back)
             if b:
-                s3.put_object(Bucket=bucket, Key=f'img/{vid}-b.jpg', Body=b, ContentType='image/jpeg', CacheControl='public, max-age=31536000')
+                put_image(s3, bucket, f'img/{vid}-b.jpg', b)
         return vid
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=8) as pool:
