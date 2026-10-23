@@ -4,7 +4,7 @@
   <img src="https://img.shields.io/badge/Flutter-3.x-blue?logo=flutter&style=for-the-badge" />
   <img src="https://img.shields.io/badge/React-19-61DAFB?logo=react&style=for-the-badge" />
   <img src="https://img.shields.io/badge/Firebase-FFCA28?logo=firebase&style=for-the-badge" />
-  <img src="https://img.shields.io/badge/Android-1.0.27-green?logo=android&style=for-the-badge" />
+  <img src="https://img.shields.io/badge/Android-1.0.28-green?logo=android&style=for-the-badge" />
 </p>
 
 <div align="center">
@@ -74,6 +74,7 @@ Feito para a mesa, como os apps do gênero (Lifetap, MTG Companion): de **2 a 6 
 
 * **Arraste o quadro** do jogador para a direita para ver o **veneno** e para a esquerda para o **dano de comandante** recebido, ali na mesa: em cima, um botão para cada comandante (e o 2º, de quem joga com **parceiro**), cada um contando à parte até 21 (arrastar de volta, tocar em "Vida" ou esperar volta para a vida).
 * **Toque** na metade esquerda tira 1 de vida, na direita soma 1; **segurando**, vai de 1 em 1, cada vez mais rápido (no site também). O quanto mudou (ex.: −7) aparece em cima da vida.
+* **Toque no número** da vida para **digitar** quanto (abre só o teclado numérico) e escolher **Dano** ou **Cura** (no site também).
 * **Contadores** de cada jogador: veneno (até 10), energia, experiência, imposto do comandante, tesouro, tempestade, cidade abençoada e **dano de comandante** nas duas direções: o que o seu comandante causou em cada oponente e o que você recebeu de cada um (até 21, que também tira vida de quem recebe).
 * **Monarca** e **iniciativa**: a coroa e o castelo aparecem no quadro de quem tem. **Dia e noite**: o sol ou a lua ao lado do botão do meio. Contador de **radiação**.
 * **Sortear lugares**: cada jogador (nome, cor e deck) vai para um lugar da mesa ao acaso.

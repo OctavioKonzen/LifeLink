@@ -190,16 +190,24 @@ class _PlayerCardWidgetState extends State<PlayerCardWidget> {
     );
   }
 
-  /// A vida: toque na metade esquerda −, na direita +.
+  /// Tocar no número: digita quanto de dano ou de cura (só o teclado numérico).
+  Future<void> _typeAmount() async {
+    final amount = await showDialog<int>(
+      context: context,
+      builder: (_) => _AmountDialog(name: widget.game.playerNames[widget.index], life: widget.game.lives[widget.index]),
+    );
+    if (amount != null && amount != 0) _change(amount);
+  }
+
+  /// A vida: toque na metade esquerda −, na direita +; no número, digita.
   Widget _lifePage(int life, bool dead) {
     return Stack(children: [
       Row(children: [_zone(-1), _zone(1)]),
-      IgnorePointer(
-        child: LayoutBuilder(builder: (context, box) {
+      LayoutBuilder(builder: (context, box) {
           final size = (box.maxHeight * 0.42).clamp(40.0, 200.0);
           return Center(
             child: Column(mainAxisSize: MainAxisSize.min, children: [
-              AnimatedOpacity(
+              IgnorePointer(child: AnimatedOpacity(
                 opacity: _lifeDelta == 0 ? 0 : 1,
                 duration: const Duration(milliseconds: 150),
                 child: Text(
@@ -211,8 +219,11 @@ class _PlayerCardWidgetState extends State<PlayerCardWidget> {
                     shadows: const [Shadow(color: Colors.black54, blurRadius: 6)],
                   ),
                 ),
-              ),
-              FittedBox(
+              )),
+              GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: _typeAmount,
+                child: FittedBox(
                 child: Text(
                   '$life',
                   style: TextStyle(
@@ -223,11 +234,10 @@ class _PlayerCardWidgetState extends State<PlayerCardWidget> {
                     shadows: [Shadow(color: Colors.black.withValues(alpha: 0.35), blurRadius: 12, offset: const Offset(0, 4))],
                   ),
                 ),
-              ),
+              )),
             ]),
           );
         }),
-      ),
     ]);
   }
 
@@ -531,6 +541,69 @@ class _PlayerCardWidgetState extends State<PlayerCardWidget> {
           ),
         ]),
       ),
+    );
+  }
+}
+
+/// Digitar a quantidade (teclado numérico) e escolher dano ou cura.
+/// Volta o número com o sinal (dano negativo) ou null se cancelou.
+class _AmountDialog extends StatefulWidget {
+  final String name;
+  final int life;
+  const _AmountDialog({required this.name, required this.life});
+
+  @override
+  State<_AmountDialog> createState() => _AmountDialogState();
+}
+
+class _AmountDialogState extends State<_AmountDialog> {
+  final _text = TextEditingController();
+
+  int get _amount => int.tryParse(_text.text) ?? 0;
+
+  @override
+  void dispose() {
+    _text.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final amount = _amount;
+    return AlertDialog(
+      title: Text('Vida de ${widget.name}'),
+      content: Column(mainAxisSize: MainAxisSize.min, children: [
+        TextField(
+          controller: _text,
+          autofocus: true,
+          keyboardType: TextInputType.number,
+          inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(3)],
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontSize: 40, fontWeight: FontWeight.w900),
+          decoration: const InputDecoration(hintText: '0'),
+          onChanged: (_) => setState(() {}),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          amount == 0 ? 'Agora: ${widget.life}' : 'Dano: ${widget.life - amount}  ·  Cura: ${widget.life + amount}',
+          style: TextStyle(color: Theme.of(context).hintColor),
+        ),
+      ]),
+      actionsAlignment: MainAxisAlignment.spaceBetween,
+      actions: [
+        FilledButton.icon(
+          style: FilledButton.styleFrom(backgroundColor: Colors.red.shade700),
+          onPressed: amount == 0 ? null : () => Navigator.pop(context, -amount),
+          icon: const Icon(Icons.remove),
+          label: const Text('Dano'),
+        ),
+        FilledButton.icon(
+          style: FilledButton.styleFrom(backgroundColor: Colors.green.shade700),
+          onPressed: amount == 0 ? null : () => Navigator.pop(context, amount),
+          icon: const Icon(Icons.add),
+          label: const Text('Cura'),
+        ),
+      ],
     );
   }
 }
