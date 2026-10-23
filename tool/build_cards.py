@@ -291,22 +291,26 @@ def fetch(url):
     return None
 
 
-WEBP_QUALITY = 82
+WEBP_QUALITY = 65  # o banco abaixo de 8 GB (testado: 82 → 11 GB, 65 → 7,5 GB)
 
 
-def to_webp(data):
-    """A imagem em WebP (cerca de metade do JPG, com o texto da carta nítido).
-    Se não ficar menor, volta o original. Volta (bytes, content-type)."""
+def to_webp(data, quality=None, width=None):
+    """A imagem em WebP, com o texto da carta legível. width diminui a imagem
+    (mantendo a proporção). Se não ficar menor, volta o original.
+    Volta (bytes, content-type)."""
     from PIL import Image
     try:
+        img = Image.open(io.BytesIO(data)).convert('RGB')
+        if width and img.width > width:
+            img = img.resize((width, round(img.height * width / img.width)), Image.LANCZOS)
         out = io.BytesIO()
-        Image.open(io.BytesIO(data)).convert('RGB').save(out, 'WEBP', quality=WEBP_QUALITY, method=4)
+        img.save(out, 'WEBP', quality=quality or WEBP_QUALITY, method=6)
         webp = out.getvalue()
         if len(webp) < len(data):
             return webp, 'image/webp'
     except Exception:
         pass
-    return data, 'image/jpeg'
+    return data, 'image/jpeg' if data[:3] == b'\xff\xd8\xff' else 'image/webp'
 
 
 def put_image(s3, bucket, key, data):
