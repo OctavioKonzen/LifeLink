@@ -193,7 +193,7 @@ Future<Map<String, dynamic>?> findCardScryfall(CardReading r, String want) async
     'power': printing['power']?.toString(),
     'toughness': printing['toughness']?.toString(),
     'collectorNumber': printing['collector_number'],
-    'usdPrice': printing['prices']?['usd'] ?? '0.00',
+    'usdPrice': printing['prices']?['usd'] ?? printing['prices']?['usd_foil'] ?? printing['prices']?['usd_etched'] ?? '0.00',
     'usdFoil': printing['prices']?['usd_foil'],
     'eurPrice': printing['prices']?['eur'],
     'tixPrice': printing['prices']?['tix'],
