@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import CardImage from '../components/CardImage'
 import CardDetails from '../components/CardDetails'
 import ExpandingGrid from '../components/ExpandingGrid'
-import { ErrorBox, Modal, Spinner } from '../components/ui'
+import { ErrorBox, Modal, PageHeader, Spinner, btnSecondary } from '../components/ui'
 import { coverIds, deck as loadDeck, deckCards, deckList, imageFor } from '../lib/mtgjson'
 import { fromMtgjson } from '../lib/deckCards'
 import { saveDeck } from '../lib/userData'
@@ -59,7 +59,7 @@ function DeckModal({ info, onClose }) {
   }
   return (
     <Modal onClose={onClose} wide>
-      <h2 className="pr-10 text-2xl font-black">{info.name}</h2>
+      <h2 className="pr-10 font-display text-2xl font-bold sm:text-3xl">{info.name}</h2>
       <p className="mb-4 text-sm text-muted">
         {info.type} · {info.releaseDate}
         {total ? ` · ${total} cartas` : ''}
@@ -69,7 +69,7 @@ function DeckModal({ info, onClose }) {
           type="button"
           disabled={saved}
           onClick={save}
-          className="mb-4 rounded-full bg-emerald-600 px-4 py-2 text-sm font-bold hover:brightness-110 disabled:opacity-60"
+          className="mb-5 inline-flex cursor-pointer items-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-on-accent hover:brightness-110 disabled:opacity-60"
         >
           {saved ? '✓ Salvo em Meus decks' : '+ Salvar nos Meus decks'}
         </button>
@@ -92,7 +92,7 @@ function DeckModal({ info, onClose }) {
             >
               <CardImage src={imageFor(c.scryfallId)} alt={c.name} />
               {c.count > 1 && (
-                <span className="absolute right-1 top-1 rounded-full bg-black/80 px-2 text-xs font-black">{c.count}x</span>
+                <span className="absolute right-1 top-1 rounded-lg bg-black/80 px-2 text-xs font-bold">{c.count}x</span>
               )}
             </button>
           )}
@@ -127,13 +127,13 @@ export default function DecksPage() {
 
   return (
     <div>
-      <h1 className="mb-4 text-2xl font-black">Decks oficiais</h1>
+      <PageHeader title="Decks oficiais" description="Os decks lançados pela Wizards (Commander, Challenger, Secret Lair...). Salve um em Meus decks." />
       <input
         value={text}
         onChange={(e) => setText(e.target.value)}
         placeholder="Pesquisar deck..."
         type="search"
-        className="mb-3 w-full rounded-2xl border border-line bg-surface px-4 py-3 outline-none focus:border-accent"
+        className="mb-4 h-12 w-full rounded-2xl border border-line bg-surface px-4 text-sm outline-none placeholder:text-muted/70 focus:border-accent"
       />
       <div className="mb-4 flex gap-2 overflow-x-auto">
         {CATEGORIES.map((name, i) => (
@@ -144,7 +144,7 @@ export default function DecksPage() {
               setCategory(i)
               setLimit(60)
             }}
-            className={`whitespace-nowrap rounded-full px-5 py-2 text-sm font-bold ${category === i ? 'bg-accent' : 'bg-accent/10 text-accent'}`}
+            className={`cursor-pointer whitespace-nowrap rounded-lg px-4 py-2 text-sm font-medium ${category === i ? 'bg-accent text-on-accent' : 'bg-card text-muted hover:text-text'}`}
           >
             {name}
           </button>
@@ -164,10 +164,10 @@ export default function DecksPage() {
                 key={d.fileName}
                 type="button"
                 onClick={() => setOpen(d)}
-                className="rounded-2xl bg-card p-3 text-left shadow transition hover:scale-[1.02]"
+                className="cursor-pointer rounded-2xl border border-line bg-surface p-5 text-left transition hover:border-accent/50"
               >
                 <Cover fileName={d.fileName} />
-                <div className="mt-3 truncate text-sm font-bold">{d.name}</div>
+                <div className="mt-3 truncate text-sm font-semibold">{d.name}</div>
                 <div className="text-xs text-muted">{d.releaseDate}</div>
               </button>
             ))}
@@ -176,7 +176,7 @@ export default function DecksPage() {
             <button
               type="button"
               onClick={() => setLimit((l) => l + 60)}
-              className="mx-auto mt-6 block rounded-full bg-text/10 px-6 py-2 font-bold hover:bg-text/20"
+              className={`${btnSecondary} mx-auto mt-6 flex`}
             >
               Mostrar mais ({shown.length - limit})
             </button>

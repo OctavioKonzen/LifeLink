@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { changeNick, resetPassword, setNick, signIn, signInWithGoogle, signOut, signUp, useAuth } from '../lib/auth'
 import { deleteAccount, logout } from '../lib/sync'
+import { Loader2, LogOut, Pencil } from 'lucide-react'
+import { PageHeader, btnOutline, btnPrimary, inputClass, panel } from '../components/ui'
 
 /** Primeira vez com Google: escolhe o nick antes de entrar. */
 function NickForm({ user, busy, run }) {
@@ -13,8 +15,8 @@ function NickForm({ user, busy, run }) {
         run(() => setNick(nick))
       }}
     >
-      <h2 className="text-center text-xl font-black">Escolha seu nick</h2>
-      <p className="text-center text-sm text-text/70">
+      <h2 className="text-3xl font-semibold tracking-tight">Escolha seu nick</h2>
+      <p className="text-sm text-muted">
         É o nome que aparece no seu perfil, no site e no app.
         {user?.email && (
           <>
@@ -29,10 +31,10 @@ function NickForm({ user, busy, run }) {
         placeholder="Nick"
         maxLength={20}
         autoFocus
-        className="w-full rounded-xl border border-line bg-card px-4 py-3 outline-none focus:border-accent"
+        className={inputClass}
       />
-      <button type="submit" disabled={busy} className="rounded-xl bg-accent py-3 font-bold hover:brightness-110">
-        CONTINUAR
+      <button type="submit" disabled={busy} className={`${btnPrimary} h-11`}>
+        Continuar
       </button>
       <button type="button" disabled={busy} onClick={() => run(signOut)} className="text-sm text-muted hover:underline">
         Usar outra conta
@@ -64,15 +66,24 @@ export default function AccountPage({ bare = false }) {
     }
   }
 
-  const field = (key, label, type = 'text') => (
-    <input
-      value={form[key]}
-      onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))}
-      placeholder={label}
-      type={type}
-      autoComplete={type === 'password' ? (creating ? 'new-password' : 'current-password') : key === 'email' ? 'email' : 'name'}
-      className="w-full rounded-xl border border-line bg-card px-4 py-3 outline-none focus:border-accent"
-    />
+  const field = (key, label, placeholder, type = 'text', extra = null) => (
+    <div className="flex flex-col gap-2">
+      <div className="flex items-center justify-between">
+        <label htmlFor={`conta-${key}`} className="text-sm font-medium">
+          {label}
+        </label>
+        {extra}
+      </div>
+      <input
+        id={`conta-${key}`}
+        value={form[key]}
+        onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))}
+        placeholder={placeholder}
+        type={type}
+        autoComplete={type === 'password' ? (creating ? 'new-password' : 'current-password') : key === 'email' ? 'email' : 'nickname'}
+        className={inputClass}
+      />
+    </div>
   )
 
   let body
@@ -88,12 +99,12 @@ export default function AccountPage({ bare = false }) {
         {user.photo ? (
           <img src={user.photo} alt="" className="h-20 w-20 rounded-full" referrerPolicy="no-referrer" />
         ) : (
-          <div className="grid h-20 w-20 place-items-center rounded-full bg-accent text-3xl font-black">
+          <div className="grid h-20 w-20 place-items-center rounded-full bg-accent font-display text-3xl font-bold text-on-accent ring-4 ring-accent/20">
             {(user.name || user.email || '?')[0].toUpperCase()}
           </div>
         )}
         <div>
-          <div className="text-xl font-black">{user.name}</div>
+          <div className="font-display text-2xl font-bold">{user.name}</div>
           <div className="text-sm text-muted">{user.email}</div>
           <button
             type="button"
@@ -102,17 +113,17 @@ export default function AccountPage({ bare = false }) {
               const next = window.prompt('Novo nick (3 a 20 letras). O antigo fica livre para outras pessoas:', user.name)
               if (next && next.trim() !== user.name) run(() => changeNick(next), `Agora seu nick é ${next.trim()}.`)
             }}
-            className="mt-1 text-sm font-bold text-accent hover:underline"
+            className="mt-2 inline-flex items-center gap-1.5 text-sm font-medium text-accent hover:underline"
           >
-            ✏️ Trocar nick
+            <Pencil className="size-3.5" aria-hidden="true" /> Trocar nick
           </button>
         </div>
-        <p className="max-w-md text-sm text-text/70">
+        <p className="max-w-md text-sm text-muted">
           Seus decks, perfil, nível, missões, preferências e a partida do contador ficam na conta. O que você muda aqui aparece no app na hora, e
           vice-versa.
         </p>
-        <button type="button" disabled={busy} onClick={() => run(logout)} className="rounded-full border border-text/30 px-6 py-2 font-bold hover:bg-text/10">
-          Sair da conta
+        <button type="button" disabled={busy} onClick={() => run(logout)} className={btnOutline}>
+          <LogOut className="size-4" aria-hidden="true" /> Sair da conta
         </button>
         <button
           type="button"
@@ -122,7 +133,7 @@ export default function AccountPage({ bare = false }) {
               run(deleteAccount, 'Conta excluída.')
             }
           }}
-          className="text-sm font-bold text-red-400 hover:underline"
+          className="text-sm font-medium text-danger hover:underline"
         >
           Excluir conta
         </button>
@@ -131,78 +142,91 @@ export default function AccountPage({ bare = false }) {
   } else {
     body = (
       <form
-        className="flex flex-col gap-3"
+        className="flex flex-col gap-5"
         onSubmit={(e) => {
           e.preventDefault()
           run(() => (creating ? signUp(form.name, form.email, form.password) : signIn(form.email, form.password)))
         }}
       >
-        <p className="text-center text-sm text-text/70">Entre para usar os mesmos decks e o mesmo perfil no site e no app.</p>
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() => run(signInWithGoogle)}
-          className="flex items-center justify-center gap-2 rounded-xl bg-white py-3 font-bold text-black ring-1 ring-black/10 hover:bg-white/90"
-        >
-          <span className="text-lg font-black text-blue-600">G</span> Entrar com Google
-        </button>
-        <div className="flex items-center gap-2 text-xs text-muted">
-          <div className="h-px flex-1 bg-text/15" />
-          ou com e-mail
-          <div className="h-px flex-1 bg-text/15" />
+        <div className="flex flex-col gap-2">
+          <h2 className="text-3xl font-semibold tracking-tight">{creating ? 'Criar conta' : 'Bem-vindo de volta'}</h2>
+          <p className="text-muted">
+            {creating ? 'Os mesmos decks e o mesmo perfil no site e no app.' : 'Entre para continuar sua jornada pelo multiverso.'}
+          </p>
         </div>
-        {/* Entrar ou criar conta: as duas opções sempre à vista. */}
-        <div className="grid grid-cols-2 gap-1 rounded-xl bg-text/5 p-1">
-          {[
-            [false, 'Entrar'],
-            [true, 'Criar conta'],
-          ].map(([value, label]) => (
+        {creating && field('name', 'Nick', 'O nome que aparece para todos')}
+        {field('email', 'E-mail', 'voce@exemplo.com', 'email')}
+        {field(
+          'password',
+          'Senha',
+          creating ? 'Pelo menos 6 letras' : '••••••••',
+          'password',
+          !creating && (
             <button
-              key={label}
               type="button"
-              onClick={() => {
-                setCreating(value)
-                setError(null)
-              }}
-              className={`rounded-lg py-2 text-sm font-bold ${creating === value ? 'bg-accent text-white' : 'text-muted hover:text-text'}`}
+              disabled={busy}
+              onClick={() =>
+                form.email.trim()
+                  ? run(() => resetPassword(form.email), 'Enviamos um link para criar uma nova senha.')
+                  : setError('Digite o seu e-mail para receber o link de nova senha.')
+              }
+              className="cursor-pointer text-xs text-accent hover:underline"
             >
-              {label}
+              Esqueci a senha
             </button>
-          ))}
-        </div>
-        {creating && field('name', 'Nick (o nome que aparece para todos)')}
-        {field('email', 'E-mail', 'email')}
-        {field('password', creating ? 'Senha (pelo menos 6 letras)' : 'Senha', 'password')}
-        <button type="submit" disabled={busy} className="rounded-xl bg-accent py-3 font-bold hover:brightness-110">
-          {creating ? 'CRIAR CONTA' : 'ENTRAR'}
+          ),
+        )}
+        <button type="submit" disabled={busy} className={`${btnPrimary} h-11`}>
+          {busy && <Loader2 className="size-4 animate-spin" aria-hidden="true" />}
+          {creating ? 'Criar conta' : 'Entrar'}
         </button>
-        {!creating && (
+        <div className="flex items-center gap-3 text-xs text-muted">
+          <span className="h-px flex-1 bg-line" />
+          ou
+          <span className="h-px flex-1 bg-line" />
+        </div>
+        <button type="button" disabled={busy} onClick={() => run(signInWithGoogle)} className={`${btnOutline} h-11 bg-surface`}>
+          <span className="font-bold text-[#4285f4]">G</span> Continuar com Google
+        </button>
+        <p className="text-center text-sm text-muted">
+          {creating ? 'Já tem conta?' : 'Não tem conta?'}{' '}
           <button
             type="button"
-            disabled={busy}
-            onClick={() =>
-              form.email.trim()
-                ? run(() => resetPassword(form.email), 'Enviamos um link para criar uma nova senha.')
-                : setError('Digite o seu e-mail para receber o link de nova senha.')
-            }
-            className="text-sm text-muted hover:underline"
+            onClick={() => {
+              setCreating(!creating)
+              setError(null)
+            }}
+            className="cursor-pointer font-medium text-accent hover:underline"
           >
-            Esqueci a senha
+            {creating ? 'Entrar' : 'Criar conta'}
           </button>
-        )}
+        </p>
       </form>
     )
   }
 
+  const messages = (
+    <>
+      {error && <p className="mt-4 text-center text-sm font-semibold text-danger">{error}</p>}
+      {notice && <p className="mt-4 text-center text-sm font-semibold text-success">{notice}</p>}
+    </>
+  )
+  // Na tela de entrar: sem caixa, como no redesign.
+  if (bare) {
+    return (
+      <div>
+        {body}
+        {messages}
+      </div>
+    )
+  }
   return (
-    <div className="mx-auto max-w-md">
-      {!bare && <h1 className="mb-5 text-center text-2xl font-black">Conta</h1>}
-      <div className="rounded-2xl bg-surface p-5 shadow-xl ring-1 ring-line">
-        {bare && status !== 'needsNick' && <h1 className="mb-4 text-center text-2xl font-black">Bem-vindo</h1>}
+    <div className="mx-auto max-w-xl">
+      <PageHeader title="Conta" description="Seu nick, o login e os dados salvos na conta." />
+      <div className={`${panel} p-6`}>
         {body}
         {busy && <p className="mt-4 text-center text-sm text-muted">Aguarde...</p>}
-        {error && <p className="mt-4 text-center font-bold text-red-400">{error}</p>}
-        {notice && <p className="mt-4 text-center font-bold text-emerald-400">{notice}</p>}
+        {messages}
       </div>
     </div>
   )

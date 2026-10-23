@@ -56,12 +56,12 @@ export function ImportListModal({ askName = false, onDone, onClose }) {
 
   return (
     <Modal onClose={onClose}>
-      <h2 className="mb-1 text-xl font-black">Importar lista</h2>
+      <h2 className="mb-1 text-xl font-bold">Importar lista</h2>
       <p className="mb-3 text-sm text-muted">Cole a lista exportada do Moxfield, Archidekt, MTG Arena ou MTGO. Ex.: "1 Sol Ring (CMM) 410" ou "4x Lightning Bolt".</p>
       {state.missing.length > 0 ? (
         <div className="space-y-3">
           <p className="rounded-xl bg-amber-400/15 p-3 text-sm text-amber-300">Importado! Não encontrei: {state.missing.join(', ')}</p>
-          <button type="button" onClick={onClose} className="w-full rounded-xl bg-accent py-3 font-bold">
+          <button type="button" onClick={onClose} className="w-full rounded-xl bg-accent text-on-accent py-3 font-bold">
             Pronto
           </button>
         </div>
@@ -73,7 +73,7 @@ export function ImportListModal({ askName = false, onDone, onClose }) {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Nome do deck"
-                className="min-w-0 flex-1 rounded-xl border border-line bg-card px-4 py-2.5 outline-none focus:border-accent"
+                className="min-w-0 flex-1 h-11 rounded-lg border border-line bg-surface px-3.5 text-sm outline-none placeholder:text-muted/70 focus:border-accent"
               />
               <select value={type} onChange={(e) => setType(e.target.value)} className="rounded-xl border border-line bg-card px-3">
                 {TYPES.map((t) => (
@@ -90,8 +90,8 @@ export function ImportListModal({ askName = false, onDone, onClose }) {
             placeholder={"Commander\n1 Atraxa, Praetors' Voice\n\nDeck\n1 Sol Ring\n..."}
             className="rounded-xl border border-line bg-card px-4 py-3 font-mono text-sm outline-none focus:border-accent"
           />
-          {state.error && <p className="text-sm text-red-400">{state.error}</p>}
-          <button type="submit" disabled={state.busy} className="rounded-xl bg-accent py-3 font-bold hover:brightness-110 disabled:opacity-60">
+          {state.error && <p className="text-sm text-danger">{state.error}</p>}
+          <button type="submit" disabled={state.busy} className="rounded-xl bg-accent text-on-accent py-3 font-bold hover:brightness-110 disabled:opacity-60">
             {state.busy ? 'Buscando as cartas...' : 'Importar'}
           </button>
         </form>
@@ -129,14 +129,14 @@ export function ManaCurve({ cards }) {
   const avg = spells ? curve.reduce((a, n, i) => a + n * i, 0) / spells : 0
   const total = Object.values(colors).reduce((a, b) => a + b, 0)
   return (
-    <section className="rounded-2xl bg-text/5 p-4 md:col-span-2">
-      <h3 className="mb-2 text-xs font-black uppercase tracking-wide text-muted">Curva de mana e cores</h3>
+    <section className="rounded-2xl bg-bg p-4 md:col-span-2">
+      <h3 className="mb-2 text-xs font-medium uppercase tracking-widest text-muted">Curva de mana e cores</h3>
       <div className="flex h-28 items-end gap-2">
         {curve.map((n, i) => (
           <div key={i} className="flex flex-1 flex-col items-center justify-end">
             <span className="text-xs font-bold text-muted">{n}</span>
-            <div className="w-full rounded bg-accent" style={{ height: `${(70 * n) / top}px` }} />
-            <span className="mt-1 text-sm font-black">{i === 7 ? '7+' : i}</span>
+            <div className="w-full rounded bg-accent text-on-accent" style={{ height: `${(70 * n) / top}px` }} />
+            <span className="mt-1 text-sm font-bold">{i === 7 ? '7+' : i}</span>
           </div>
         ))}
       </div>
@@ -177,12 +177,12 @@ function BracketSection({ cards }) {
       </p>
     )
   return (
-    <section className="rounded-2xl bg-text/5 p-4 md:col-span-2">
-      <h3 className="mb-2 text-xs font-black uppercase tracking-wide text-muted">Nível do deck (Bracket)</h3>
+    <section className="rounded-2xl bg-bg p-4 md:col-span-2">
+      <h3 className="mb-2 text-xs font-medium uppercase tracking-widest text-muted">Nível do deck (Bracket)</h3>
       <div className="flex items-center gap-3">
-        <span className="grid h-13 w-13 shrink-0 place-items-center rounded-2xl bg-violet-700 text-3xl font-black text-white">{b.bracket}</span>
+        <span className="grid h-13 w-13 shrink-0 place-items-center rounded-2xl bg-violet-700 text-3xl font-bold text-white">{b.bracket}</span>
         <div>
-          <p className="text-lg font-black">
+          <p className="text-lg font-bold">
             Bracket {b.bracket}: {BRACKET_NAMES[b.bracket]}
           </p>
           <p className="text-sm text-muted">{BRACKET_TEXT[b.bracket]}</p>
@@ -190,7 +190,7 @@ function BracketSection({ cards }) {
       </div>
       {list('Game Changers', b.gameChangers, 'text-amber-400')}
       {list('Turnos extras', b.extraTurns, 'text-sky-400')}
-      {list('Destruição de terrenos em massa', b.landDestruction, 'text-red-400')}
+      {list('Destruição de terrenos em massa', b.landDestruction, 'text-danger')}
       <p className="mt-2 text-xs text-muted">Combos de duas cartas não entram na conta: confira com a mesa.</p>
     </section>
   )
@@ -209,7 +209,7 @@ export function DeckAnalysis({ deck }) {
     }
   }, [deck])
   if (state.loading) return <Spinner />
-  if (state.error) return <p className="py-6 text-center text-red-400">{state.error}</p>
+  if (state.error) return <p className="py-6 text-center text-danger">{state.error}</p>
   const { cards, brl } = state
   const usd = cards.reduce((a, c) => a + priceOf(c), 0)
   const eur = cards.reduce((a, c) => a + (Number.parseFloat(c.prices?.eur) || 0), 0)
@@ -225,11 +225,11 @@ export function DeckAnalysis({ deck }) {
     <div className="grid gap-4 md:grid-cols-2">
       <ManaCurve cards={deck.cards} />
       {deck.type === 'Commander' && <BracketSection cards={cards} />}
-      <section className="rounded-2xl bg-text/5 p-4">
-        <h3 className="mb-2 text-xs font-black uppercase tracking-wide text-muted">Preço de hoje (Scryfall)</h3>
-        <p className="text-3xl font-black">US$ {usd.toFixed(2)}</p>
+      <section className="rounded-2xl bg-bg p-4">
+        <h3 className="mb-2 text-xs font-medium uppercase tracking-widest text-muted">Preço de hoje (Scryfall)</h3>
+        <p className="text-3xl font-bold">US$ {usd.toFixed(2)}</p>
         {brl && (
-          <p className="text-lg font-bold text-emerald-400">
+          <p className="text-lg font-bold text-success">
             ≈ R$ {(usd * brl).toFixed(2)} <span className="text-sm font-normal text-muted">(dólar a R$ {brl.toFixed(2)})</span>
           </p>
         )}
@@ -246,8 +246,8 @@ export function DeckAnalysis({ deck }) {
           ))}
         </ul>
       </section>
-      <section className="rounded-2xl bg-text/5 p-4">
-        <h3 className="mb-2 text-xs font-black uppercase tracking-wide text-muted">Legalidade</h3>
+      <section className="rounded-2xl bg-bg p-4">
+        <h3 className="mb-2 text-xs font-medium uppercase tracking-widest text-muted">Legalidade</h3>
         <ul className="space-y-1">
           {Object.entries(FORMATS).map(([key, label]) => {
             const problems = deckProblems(key, cards)
@@ -282,7 +282,7 @@ const isLand = (c) => /Land|Terreno/.test(c.type_line || '')
 function Strip({ title, cards, onPick }) {
   return (
     <div className="mb-3">
-      <p className="mb-1 text-xs font-black uppercase tracking-wide text-muted">{title}</p>
+      <p className="mb-1 text-xs font-medium uppercase tracking-widest text-muted">{title}</p>
       <div className="flex gap-2 overflow-x-auto pb-1">
         {cards.map((c, i) => (
           <button key={`${i}-${c.name}`} type="button" onClick={() => onPick(i)} className="block w-16 shrink-0 rounded-[4.5%] transition hover:scale-[1.05]" title={c.name}>
@@ -367,14 +367,14 @@ export function TestHand({ deck }) {
         ))}
       </div>
       <div className="mt-4 flex flex-wrap gap-2">
-        <button type="button" onClick={() => setS(deal(0))} className="flex-1 rounded-full bg-text/10 py-2.5 font-bold hover:bg-text/20">
+        <button type="button" onClick={() => setS(deal(0))} className="flex-1 rounded-lg bg-card py-2.5 font-bold hover:brightness-125">
           🔀 Nova mão
         </button>
         <button
           type="button"
           disabled={s.mulligans >= 6 || s.turn > 1 || s.battlefield.length > 0}
           onClick={() => setS(deal(s.mulligans + 1))}
-          className="flex-1 rounded-full bg-text/10 py-2.5 font-bold hover:bg-text/20 disabled:opacity-40"
+          className="flex-1 rounded-lg bg-card py-2.5 font-bold hover:brightness-125 disabled:opacity-40"
         >
           ↺ Mulligan
         </button>
@@ -382,7 +382,7 @@ export function TestHand({ deck }) {
           type="button"
           disabled={!!s.toBottom || !s.library.length}
           onClick={draw}
-          className="flex-1 rounded-full bg-text/10 py-2.5 font-bold hover:bg-text/20 disabled:opacity-40"
+          className="flex-1 rounded-lg bg-card py-2.5 font-bold hover:brightness-125 disabled:opacity-40"
         >
           + Comprar 1
         </button>
@@ -390,7 +390,7 @@ export function TestHand({ deck }) {
           type="button"
           disabled={!!s.toBottom}
           onClick={nextTurn}
-          className="flex-1 rounded-full bg-accent py-2.5 font-bold text-white hover:brightness-110 disabled:opacity-40"
+          className="flex-1 rounded-lg bg-accent py-2.5 font-bold text-on-accent hover:brightness-110 disabled:opacity-40"
         >
           ⏭ Próximo turno
         </button>
@@ -443,7 +443,7 @@ export function Suggestions({ deck }) {
             setState({ loading: true, error: null, cards: [], source: '' })
             setAttempt(attempt + 1)
           }}
-          className="rounded-full bg-accent px-4 py-1.5 text-sm font-bold text-white"
+          className="rounded-lg bg-accent px-4 py-1.5 text-sm font-bold text-on-accent"
         >
           Tentar de novo
         </button>
@@ -466,7 +466,7 @@ export function Suggestions({ deck }) {
                   onClick={() => add(c)}
                   aria-label={`Pôr ${c.name} no deck`}
                   title="Pôr no deck"
-                  className={`grid h-7 w-7 place-items-center rounded-full text-sm font-black ${done ? 'bg-emerald-500 text-white' : 'bg-amber-400 text-black hover:brightness-110'}`}
+                  className={`grid h-7 w-7 place-items-center rounded-full text-sm font-bold ${done ? 'bg-success text-white' : 'bg-amber-400 text-black hover:brightness-110'}`}
                 >
                   {done ? '✓' : '+'}
                 </button>
@@ -499,12 +499,12 @@ export function ExportDeck({ deck }) {
       <p className="mb-2 text-sm text-muted">Formato do Moxfield, Arena e Archidekt (nomes em inglês).</p>
       <textarea readOnly value={text} rows={10} className="w-full rounded-xl bg-black/20 p-3 font-mono text-sm" onFocus={(e) => e.target.select()} />
       <div className="mt-2 flex flex-wrap gap-2">
-        <button type="button" onClick={copy} className="rounded-full bg-text/10 px-4 py-1.5 text-sm font-bold hover:bg-text/20">📋 Copiar</button>
+        <button type="button" onClick={copy} className="rounded-lg bg-card px-4 py-1.5 text-sm font-bold hover:brightness-125">📋 Copiar</button>
         {typeof navigator !== 'undefined' && navigator.share && (
-          <button type="button" onClick={share} className="rounded-full bg-text/10 px-4 py-1.5 text-sm font-bold hover:bg-text/20">📤 Compartilhar</button>
+          <button type="button" onClick={share} className="rounded-lg bg-card px-4 py-1.5 text-sm font-bold hover:brightness-125">📤 Compartilhar</button>
         )}
-        <a href={whatsapp} target="_blank" rel="noreferrer" className="rounded-full bg-emerald-600 px-4 py-1.5 text-sm font-bold text-white hover:brightness-110">WhatsApp</a>
-        {done && <span className="self-center text-sm font-bold text-emerald-400">{done}</span>}
+        <a href={whatsapp} target="_blank" rel="noreferrer" className="rounded-lg bg-success px-4 py-1.5 text-sm font-bold text-white hover:brightness-110">WhatsApp</a>
+        {done && <span className="self-center text-sm font-bold text-success">{done}</span>}
       </div>
     </div>
   )
@@ -519,7 +519,7 @@ export function MissingCards({ deck }) {
   }, [])
   const missing = missingFor(deck.cards, collection)
   const cost = missing.reduce((a, m) => a + m.usd * (m.need - m.have), 0)
-  if (!missing.length) return <p className="py-4 text-center font-bold text-emerald-400">Você tem todas as cartas deste deck!</p>
+  if (!missing.length) return <p className="py-4 text-center font-bold text-success">Você tem todas as cartas deste deck!</p>
   return (
     <div>
       <p className="mb-2 text-sm text-muted">

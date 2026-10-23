@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import CardGrid from '../components/CardGrid'
-import { ErrorBox, Spinner } from '../components/ui'
+import { ErrorBox, PageHeader, Spinner, btnOutline, btnPrimary, inputClass, panel } from '../components/ui'
+import { ManaPip } from '../components/Mana'
+import { Clock, Search, SlidersHorizontal } from 'lucide-react'
 import {
   addRecentSearch,
   autocomplete,
@@ -11,7 +13,6 @@ import {
   recentSearches,
   search,
   sets as loadSets,
-  symbolUrl,
 } from '../lib/scryfall'
 import { plainText, search as ownSearch, setCards } from '../lib/lifelinkCards'
 import { incrementSearches } from '../lib/xp'
@@ -82,14 +83,14 @@ function Chips({ title, options, selected, onToggle, filter = '' }) {
   if (!shown.length) return null
   return (
     <div>
-      <h4 className="mb-2 text-xs font-bold uppercase tracking-wide text-accent">{title}</h4>
+      <h4 className="mb-2 text-xs font-medium uppercase tracking-widest text-muted">{title}</h4>
       <div className="flex max-h-40 flex-wrap gap-1.5 overflow-y-auto">
         {shown.map((t) => (
           <button
             key={t}
             type="button"
             onClick={() => onToggle(t)}
-            className={`rounded-full px-3 py-1 text-xs font-semibold ${selected.includes(t) ? 'bg-accent text-white' : 'bg-text/10 hover:bg-text/20'}`}
+            className={`cursor-pointer rounded-lg px-3 py-1.5 text-xs font-medium ${selected.includes(t) ? 'bg-accent text-on-accent' : 'bg-card text-muted hover:text-text'}`}
           >
             {t}
           </button>
@@ -104,36 +105,14 @@ function Filters({ filters, setFilters, catalogs, onClose }) {
   const toggle = (key, value) =>
     setFilters((f) => ({ ...f, [key]: f[key].includes(value) ? f[key].filter((v) => v !== value) : [...f[key], value] }))
   return (
-    <div className="mb-5 space-y-4 rounded-2xl bg-surface p-4">
-      <div className="flex flex-wrap items-center gap-3">
-        <span className="text-sm font-bold">Cores:</span>
-        {COLORS.map((c) => (
-          <button
-            key={c}
-            type="button"
-            onClick={() => toggle('colors', c)}
-            className={`rounded-full border-[3px] transition ${filters.colors.includes(c) ? 'border-accent opacity-100' : 'border-transparent opacity-40'}`}
-          >
-            <img src={symbolUrl(c)} alt={c} width={34} height={34} />
-          </button>
-        ))}
-      </div>
-      <input
-        value={typeFilter}
-        onChange={(e) => setTypeFilter(e.target.value)}
-        placeholder="Filtrar tipos e raças..."
-        className="w-full rounded-lg border border-line bg-card px-3 py-2 text-sm"
-      />
+    <div className={`${panel} page-in mb-6 space-y-5 p-5`}>
+      <input value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} placeholder="Filtrar tipos e raças..." className={inputClass} />
       <Chips title="Tipos e supertipos" options={catalogs.types} selected={filters.types} onToggle={(t) => toggle('types', t)} filter={typeFilter} />
       <Chips title="Raças (criaturas)" options={catalogs.creatures} selected={filters.types} onToggle={(t) => toggle('types', t)} filter={typeFilter} />
       <Chips title="Artefatos e encantamentos" options={catalogs.others} selected={filters.types} onToggle={(t) => toggle('types', t)} filter={typeFilter} />
       <label className="block">
-        <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-accent">Edição</span>
-        <select
-          value={filters.set || ''}
-          onChange={(e) => setFilters((f) => ({ ...f, set: e.target.value || null }))}
-          className="w-full rounded-lg border border-line bg-card px-3 py-2 text-sm"
-        >
+        <span className="mb-2 block text-xs font-medium uppercase tracking-widest text-muted">Edição</span>
+        <select value={filters.set || ''} onChange={(e) => setFilters((f) => ({ ...f, set: e.target.value || null }))} className={inputClass}>
           <option value="">Todas</option>
           {catalogs.sets.map((s) => (
             <option key={s.code} value={s.code}>
@@ -143,14 +122,10 @@ function Filters({ filters, setFilters, catalogs, onClose }) {
         </select>
       </label>
       <div className="flex gap-3">
-        <button
-          type="button"
-          onClick={() => setFilters({ types: [], colors: [], set: null })}
-          className="flex-1 rounded-full border border-text/30 py-2 text-sm font-bold hover:bg-text/10"
-        >
+        <button type="button" onClick={() => setFilters({ types: [], colors: [], set: null })} className={`${btnOutline} flex-1`}>
           Limpar
         </button>
-        <button type="button" onClick={onClose} className="flex-1 rounded-full bg-accent py-2 text-sm font-bold hover:brightness-110">
+        <button type="button" onClick={onClose} className={`${btnPrimary} flex-1`}>
           Fechar
         </button>
       </div>
@@ -290,25 +265,28 @@ export default function SearchPage() {
 
   return (
     <div>
-      <div className="relative mb-4 flex gap-2">
-        <div className="relative flex-1">
+      <PageHeader title="Cartas" description="Busque qualquer carta, em português ou inglês, e veja detalhes, versões e preço." />
+      <div className={`${panel} relative mb-6 flex flex-col gap-3 p-3 sm:flex-row sm:items-center`}>
+        <label className="relative flex-1">
+          <span className="sr-only">Buscar cartas</span>
+          <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted" aria-hidden="true" />
           <input
             value={text}
             onChange={(e) => setText(e.target.value)}
             onFocus={() => setFocused(true)}
             onBlur={() => setTimeout(() => setFocused(false), 150)}
             onKeyDown={(e) => e.key === 'Enter' && submit(text)}
-            placeholder="Nome ou texto da carta (em português ou inglês)..."
-            className="w-full rounded-2xl border border-line bg-surface px-4 py-3 pr-10 outline-none focus:border-accent"
+            placeholder="Nome ou texto da carta, ex: Raio"
+            className="h-11 w-full rounded-xl bg-bg pl-10 pr-3 text-sm placeholder:text-muted/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
             type="search"
             enterKeyHint="search"
           />
           {focused && dropdown.length > 0 && (
-            <div className="absolute left-0 right-0 top-full z-20 mt-1 overflow-hidden rounded-2xl border border-line bg-surface shadow-2xl">
+            <div className="absolute left-0 right-0 top-full z-20 mt-2 overflow-hidden rounded-xl border border-line bg-surface shadow-2xl">
               {!typing && (
-                <div className="flex items-center justify-between px-4 pt-2 text-xs font-bold text-muted">
-                  BUSCAS RECENTES
-                  <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => setRecent(clearRecentSearches())} className="px-2 py-1 text-accent">
+                <div className="flex items-center justify-between px-4 pt-2 text-xs font-medium uppercase tracking-widest text-muted">
+                  Buscas recentes
+                  <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => setRecent(clearRecentSearches())} className="cursor-pointer px-2 py-1 normal-case tracking-normal text-accent">
                     Limpar
                   </button>
                 </div>
@@ -319,28 +297,48 @@ export default function SearchPage() {
                   type="button"
                   onMouseDown={(e) => e.preventDefault()}
                   onClick={() => submit(item, typing)}
-                  className="flex w-full items-center gap-3 px-4 py-2.5 text-left hover:bg-text/10"
+                  className="flex w-full cursor-pointer items-center gap-3 px-4 py-2.5 text-left text-sm hover:bg-card"
                 >
-                  <span className="text-muted">{typing ? '🔍' : '🕘'}</span>
+                  {typing ? <Search className="size-4 text-muted" aria-hidden="true" /> : <Clock className="size-4 text-muted" aria-hidden="true" />}
                   {item}
                 </button>
               ))}
             </div>
           )}
+        </label>
+        <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1" role="group" aria-label="Filtrar por cor">
+            {COLORS.map((c) => (
+              <button
+                key={c}
+                type="button"
+                onClick={() => updateFilters((f) => ({ ...f, colors: f.colors.includes(c) ? f.colors.filter((v) => v !== c) : [...f.colors, c] }))}
+                aria-pressed={filters.colors.includes(c)}
+                className={`grid size-10 cursor-pointer place-items-center rounded-xl border transition ${
+                  filters.colors.includes(c) ? 'border-accent bg-card' : 'border-transparent opacity-60 hover:opacity-100'
+                }`}
+              >
+                <ManaPip color={c} size="md" />
+              </button>
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowFilters((s) => !s)}
+            aria-expanded={showFilters}
+            className={`ml-auto h-10 cursor-pointer gap-2 rounded-xl px-3 text-sm font-medium inline-flex items-center ${showFilters || filters.types.length || filters.set ? 'bg-accent text-on-accent' : 'bg-card text-muted hover:text-text'}`}
+          >
+            <SlidersHorizontal className="size-4" aria-hidden="true" />
+            <span className="hidden sm:inline">Filtros</span>
+            {filters.types.length + (filters.set ? 1 : 0) > 0 && <span>({filters.types.length + (filters.set ? 1 : 0)})</span>}
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={() => setShowFilters((s) => !s)}
-          className={`rounded-2xl px-4 font-bold ${showFilters || activeFilters ? 'bg-accent' : 'bg-surface hover:bg-text/10'}`}
-        >
-          Filtros{activeFilters ? ` (${activeFilters})` : ''}
-        </button>
       </div>
 
       {showFilters && <Filters filters={filters} setFilters={updateFilters} catalogs={catalogs} onClose={() => setShowFilters(false)} />}
 
       {!typing && !activeFilters && (
-        <p className="mb-3 text-sm text-muted">
+        <p className="mb-4 text-sm text-muted">
           {result.source === 'lifelink' ? 'Os comandantes mais jogados.' : 'Comandantes em ordem alfabética.'} Digite para buscar qualquer carta.
         </p>
       )}
@@ -350,7 +348,7 @@ export default function SearchPage() {
       ) : result.error ? (
         <ErrorBox message={result.error} onRetry={() => setRetry((r) => r + 1)} />
       ) : result.cards.length === 0 ? (
-        <p className="py-12 text-center text-muted">
+        <p className="rounded-2xl border border-dashed border-line py-16 text-center text-muted">
           Nenhuma carta encontrada.
           <br />
           Tente outro nome, em português ou inglês, ou uma palavra do texto da carta em inglês.
@@ -363,7 +361,7 @@ export default function SearchPage() {
               <Spinner />
             </div>
           )}
-          {result.moreError && <p className="py-6 text-center text-sm text-red-400">{result.moreError}</p>}
+          {result.moreError && <p className="py-6 text-center text-sm text-danger">{result.moreError}</p>}
         </>
       )}
 

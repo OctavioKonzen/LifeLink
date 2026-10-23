@@ -1,4 +1,4 @@
-// Tema claro/escuro do site, guardado neste navegador (como no Pocketdex).
+// Tema claro/escuro do site, guardado neste navegador (o escuro é o padrão).
 
 import { useSyncExternalStore } from 'react'
 
@@ -12,7 +12,7 @@ function read() {
   } catch {
     // Armazenamento bloqueado: segue o aparelho.
   }
-  return window.matchMedia?.('(prefers-color-scheme: light)').matches ? 'light' : 'dark'
+  return 'dark' // o redesign é escuro; o claro fica no botão
 }
 
 let theme = typeof window === 'undefined' ? 'dark' : read()
