@@ -71,9 +71,14 @@ class UpdateService {
   static Future<String> currentVersion() async => (await PackageInfo.fromPlatform()).version;
 
   /// Os APKs baixados ficam na pasta do app; depois de instalados, sobram.
+  /// Apaga também as cartas que as versões antigas baixavam para usar sem
+  /// internet (hoje o app busca as cartas direto no R2).
   static Future<void> deleteDownloadedApks() async {
     try {
-      final dir = Directory('${(await getApplicationSupportDirectory()).path}/ota_update');
+      final base = (await getApplicationSupportDirectory()).path;
+      final offline = File('$base/cards_offline.jsonl');
+      if (offline.existsSync()) offline.deleteSync();
+      final dir = Directory('$base/ota_update');
       if (!dir.existsSync()) return;
       for (final f in dir.listSync().whereType<File>()) {
         if (f.path.endsWith('.apk')) f.deleteSync();

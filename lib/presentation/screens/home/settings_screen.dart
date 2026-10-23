@@ -1,32 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../data/providers/theme_provider.dart';
-import '../../../data/services/offline_cards.dart';
 import '../../../data/services/update_service.dart';
 import '../../widgets/neon.dart';
 
-class SettingsScreen extends StatefulWidget {
+class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
-
-  @override
-  State<SettingsScreen> createState() => _SettingsScreenState();
-}
-
-class _SettingsScreenState extends State<SettingsScreen> {
-  double? _downloading; // 0 a 1 enquanto baixa as cartas
-
-  Future<void> _downloadCards() async {
-    setState(() => _downloading = 0);
-    try {
-      final count = await OfflineCards.instance.download(progress: (p) {
-        if (mounted) setState(() => _downloading = p);
-      });
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$count cartas salvas no celular.')));
-    } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Não deu para baixar: $e')));
-    }
-    if (mounted) setState(() => _downloading = null);
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -98,50 +77,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     onTap: () => themeProvider.setCardLanguage('en'),
                   ),
                 ],
-              ),
-            ),
-
-            const SizedBox(height: 30),
-
-            // CARTAS SEM INTERNET
-            Text("CARTAS SEM INTERNET", style: TextStyle(color: textColor.withValues(alpha: 0.5), fontSize: 12, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 10),
-            Container(
-              decoration: neonDecoration(AreaColors.profile, neonSurface(context, currentBg), radius: 16, glow: 0.12),
-              padding: const EdgeInsets.all(16),
-              child: FutureBuilder(
-                future: OfflineCards.instance.info(),
-                builder: (context, snap) {
-                  final info = snap.data;
-                  final has = info?.at != null;
-                  return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                    Text(
-                      has
-                          ? '${info!.count} cartas salvas (${info.at!.day.toString().padLeft(2, '0')}/${info.at!.month.toString().padLeft(2, '0')}/${info.at!.year}). Sem internet, a busca usa essas cartas (em inglês, sem as imagens).'
-                          : 'Baixe todas as cartas (uma versão de cada, em inglês) para buscar sem internet. Use o Wi-Fi: são uns 18 MB para baixar e ficam uns 30 MB no celular, com os nomes em português.',
-                      style: TextStyle(color: textColor.withValues(alpha: 0.8), fontSize: 13),
-                    ),
-                    const SizedBox(height: 12),
-                    if (_downloading != null) ...[
-                      LinearProgressIndicator(value: _downloading),
-                      const SizedBox(height: 6),
-                      Text('Baixando... ${(_downloading! * 100).toStringAsFixed(0)}%', style: TextStyle(color: textColor.withValues(alpha: 0.7), fontSize: 12)),
-                    ] else
-                      Row(children: [
-                        Expanded(child: FilledButton.icon(onPressed: _downloadCards, icon: const Icon(Icons.download), label: Text(has ? 'Atualizar' : 'Baixar cartas'))),
-                        if (has) ...[
-                          const SizedBox(width: 8),
-                          OutlinedButton(
-                            onPressed: () async {
-                              await OfflineCards.instance.delete();
-                              setState(() {});
-                            },
-                            child: const Text('Apagar'),
-                          ),
-                        ],
-                      ]),
-                  ]);
-                },
               ),
             ),
 
