@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../../data/providers/theme_provider.dart';
 import '../../../data/services/update_service.dart';
 import '../../widgets/neon.dart';
+import '../../theme/app_theme.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -42,8 +43,8 @@ class SettingsScreen extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: entry.value,
                       shape: BoxShape.circle,
-                      border: Border.all(color: isSelected ? Colors.blueAccent : Colors.grey.withValues(alpha: 0.5), width: isSelected ? 3 : 1),
-                      boxShadow: isSelected ? [BoxShadow(color: Colors.blueAccent.withValues(alpha: 0.3), blurRadius: 10)] : [],
+                      border: Border.all(color: isSelected ? LL.gold : Colors.grey.withValues(alpha: 0.5), width: isSelected ? 3 : 1),
+                      boxShadow: isSelected ? [BoxShadow(color: LL.gold.withValues(alpha: 0.3), blurRadius: 10)] : [],
                     ),
                   ),
                 );
@@ -63,7 +64,7 @@ class SettingsScreen extends StatelessWidget {
                     title: Text("Português (PT-BR)", style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
                     trailing: Icon(
                       themeProvider.cardLanguage == 'pt' ? Icons.radio_button_checked : Icons.radio_button_off,
-                      color: themeProvider.cardLanguage == 'pt' ? Colors.blueAccent : textColor.withValues(alpha: 0.3),
+                      color: themeProvider.cardLanguage == 'pt' ? LL.gold : textColor.withValues(alpha: 0.3),
                     ),
                     onTap: () => themeProvider.setCardLanguage('pt'),
                   ),
@@ -72,7 +73,7 @@ class SettingsScreen extends StatelessWidget {
                     title: Text("Inglês (EN)", style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
                     trailing: Icon(
                       themeProvider.cardLanguage == 'en' ? Icons.radio_button_checked : Icons.radio_button_off,
-                      color: themeProvider.cardLanguage == 'en' ? Colors.blueAccent : textColor.withValues(alpha: 0.3),
+                      color: themeProvider.cardLanguage == 'en' ? LL.gold : textColor.withValues(alpha: 0.3),
                     ),
                     onTap: () => themeProvider.setCardLanguage('en'),
                   ),

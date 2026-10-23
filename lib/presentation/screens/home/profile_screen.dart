@@ -6,6 +6,10 @@ import '../../../data/providers/xp_provider.dart';
 import '../../../data/services/scryfall_service.dart';
 import '../../../data/account/auth_service.dart';
 import '../../widgets/player.dart';
+import '../../theme/app_theme.dart';
+import '../../widgets/neon.dart';
+import '../../../data/providers/deck_provider.dart';
+import 'arena_missions_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -81,6 +85,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
     ctrl.dispose();
   }
 
+  /// Um quadro com o ícone dourado, o nome e o número.
+  Widget _stat(BuildContext context, Color bg, Color text, IconData icon, String label, String value) {
+    final surface = neonSurface(context, bg);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14),
+      decoration: BoxDecoration(color: surface, borderRadius: BorderRadius.circular(16), border: Border.all(color: lineOf(surface))),
+      child: Row(children: [
+        Container(
+          width: 42,
+          height: 42,
+          decoration: BoxDecoration(color: bg.computeLuminance() > 0.5 ? const Color(0xFFF0EDE5) : LL.card, borderRadius: BorderRadius.circular(12)),
+          child: Icon(icon, color: LL.gold, size: 21),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: text.withValues(alpha: 0.55), fontSize: 13)),
+            Text(value, style: TextStyle(color: text, fontSize: 20, fontWeight: FontWeight.w600)),
+          ]),
+        ),
+      ]),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final themeProvider = context.watch<ThemeProvider>();
@@ -104,8 +132,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           appBar: AppBar(
             backgroundColor: Colors.transparent,
             elevation: 0,
-            title: Text("Meu perfil",
-                style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
+            title: const Text("Perfil"),
             actions: [
               if (!signedIn)
               TextButton(
@@ -115,7 +142,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 },
                 child: const Text("Salvar",
                     style: TextStyle(
-                        color: Colors.blueAccent, fontWeight: FontWeight.bold)),
+                        color: LL.gold, fontWeight: FontWeight.bold)),
               )
             ],
           ),
@@ -124,58 +151,112 @@ class _ProfileScreenState extends State<ProfileScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // --- BANNER DE PERFIL (A PARTE PRETA AGORA DINÂMICA) ---
+                // --- O CARTÃO DO PERFIL (o mesmo desenho do site) ---
+                // O banner escolhido aparece suave no fundo, com o brilho dourado.
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: Container(
                     width: double.infinity,
-                    height: 140,
+                    clipBehavior: Clip.antiAlias,
                     decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(20),
-                      gradient: LinearGradient(
-                        colors: activeBanner['colors'],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.3),
-                            blurRadius: 10,
-                            offset: const Offset(0, 4))
-                      ],
+                      color: neonSurface(context, bgColor),
+                      borderRadius: BorderRadius.circular(24),
+                      border: Border.all(color: lineOf(neonSurface(context, bgColor))),
                     ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(20),
-                      child: Row(
-                        children: [
-                          const PlayerAvatar(size: 80),
-                          const SizedBox(width: 20),
+                    child: Stack(children: [
+                      Positioned.fill(
+                        child: Opacity(
+                          opacity: 0.25,
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(colors: activeBanner['colors'], begin: Alignment.topLeft, end: Alignment.bottomRight),
+                            ),
+                          ),
+                        ),
+                      ),
+                      Positioned(
+                        right: -60,
+                        top: -60,
+                        child: Container(
+                          width: 180,
+                          height: 180,
+                          decoration: BoxDecoration(shape: BoxShape.circle, boxShadow: [BoxShadow(color: LL.gold.withValues(alpha: 0.12), blurRadius: 80, spreadRadius: 20)]),
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          const PlayerAvatar(size: 88),
+                          const SizedBox(height: 16),
+                          Text(name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(fontFamily: LL.display, color: textColor, fontSize: 28, fontWeight: FontWeight.w700)),
+                          const SizedBox(height: 2),
+                          Text(xpProvider.selectedTitle.isNotEmpty ? xpProvider.selectedTitle : 'Sem título ainda',
+                              style: TextStyle(color: xpProvider.selectedTitle.isNotEmpty ? LL.gold : textColor.withValues(alpha: 0.55), fontSize: 14)),
+                          const SizedBox(height: 18),
+                          Row(children: [
+                            Text("Nível ${xpProvider.level}", style: const TextStyle(color: LL.gold, fontWeight: FontWeight.w600, fontSize: 13)),
+                            const Spacer(),
+                            Text("${xpProvider.xp} / ${xpProvider.xpForNextLevel} XP", style: TextStyle(color: textColor.withValues(alpha: 0.55), fontSize: 13)),
+                          ]),
+                          const SizedBox(height: 8),
+                          const LevelBar(color: LL.gold, height: 8),
+                        ]),
+                      ),
+                    ]),
+                  ),
+                ),
+
+                const SizedBox(height: 16),
+                // Os números do perfil, em quadros com ícone (como no site).
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: GridView.count(
+                    crossAxisCount: 2,
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    mainAxisSpacing: 12,
+                    crossAxisSpacing: 12,
+                    childAspectRatio: 1.9,
+                    children: [
+                      _stat(context, bgColor, textColor, Icons.layers_outlined, 'Decks', '${context.watch<DeckProvider>().allDecks.length}'),
+                      _stat(context, bgColor, textColor, Icons.construction, 'Decks criados', '${xpProvider.statDecksCreated}'),
+                      _stat(context, bgColor, textColor, Icons.add_box_outlined, 'Cartas', '${xpProvider.statCardsAdded}'),
+                      _stat(context, bgColor, textColor, Icons.search, 'Buscas', '${xpProvider.statSearches}'),
+                      _stat(context, bgColor, textColor, Icons.visibility_outlined, 'Artes vistas', '${xpProvider.statArtsViewed}'),
+                      _stat(context, bgColor, textColor, Icons.sports_kabaddi, 'Partidas', '${xpProvider.totalMatchesPlayed}'),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Material(
+                    color: neonSurface(context, bgColor),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: BorderSide(color: lineOf(neonSurface(context, bgColor)))),
+                    clipBehavior: Clip.antiAlias,
+                    child: InkWell(
+                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ArenaMissionsScreen())),
+                      child: Padding(
+                        padding: const EdgeInsets.all(18),
+                        child: Row(children: [
+                          Container(
+                            width: 44,
+                            height: 44,
+                            decoration: BoxDecoration(color: LL.gold.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(12)),
+                            child: const Icon(Icons.track_changes, color: LL.gold),
+                          ),
+                          const SizedBox(width: 14),
                           Expanded(
-                              child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(name,
-                                  style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 24,
-                                      fontWeight: FontWeight.bold),
-                                  overflow: TextOverflow.ellipsis),
-                              if (xpProvider.selectedTitle.isNotEmpty)
-                                Text("« ${xpProvider.selectedTitle} »",
-                                    style: const TextStyle(
-                                        color: Colors.amberAccent,
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.bold,
-                                        fontStyle: FontStyle.italic)),
-                              Text("Nível ${xpProvider.level} · ${xpProvider.xp}/${xpProvider.xpForNextLevel} XP",
-                                  style: const TextStyle(
-                                      color: Colors.white70, fontSize: 12)),
-                              const SizedBox(height: 6),
-                              const LevelBar(),
-                            ],
-                          )),
-                        ],
+                            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                              Text('Missões', style: TextStyle(color: textColor, fontWeight: FontWeight.w600, fontSize: 16)),
+                              Text('Seção ${xpProvider.currentTier}: recompensas iguais às do site.', style: TextStyle(color: textColor.withValues(alpha: 0.55), fontSize: 13)),
+                            ]),
+                          ),
+                          Icon(Icons.chevron_right, color: textColor.withValues(alpha: 0.4)),
+                        ]),
                       ),
                     ),
                   ),
@@ -339,21 +420,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 horizontal: 16, vertical: 10),
                             decoration: BoxDecoration(
                               color: isSelected
-                                  ? Colors.amberAccent.withValues(alpha: 0.2)
+                                  ? LL.gold.withValues(alpha: 0.2)
                                   : (isLight
                                       ? Colors.black.withValues(alpha: 0.05)
                                       : Colors.white10),
                               borderRadius: BorderRadius.circular(20),
                               border: Border.all(
                                   color: isSelected
-                                      ? Colors.amberAccent
+                                      ? LL.gold
                                       : Colors.transparent),
                             ),
                             child: Text(
                               title,
                               style: TextStyle(
                                 color:
-                                    isSelected ? Colors.amberAccent : textColor,
+                                    isSelected ? LL.gold : textColor,
                                 fontWeight: isSelected
                                     ? FontWeight.bold
                                     : FontWeight.normal,
@@ -404,13 +485,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               shape: BoxShape.circle,
                               border: Border.all(
                                   color: isSelected
-                                      ? Colors.blueAccent
+                                      ? LL.gold
                                       : Colors.transparent,
                                   width: 3),
                               boxShadow: isSelected
                                   ? [
                                       BoxShadow(
-                                          color: Colors.blueAccent
+                                          color: LL.gold
                                               .withValues(alpha: 0.5),
                                           blurRadius: 10)
                                     ]

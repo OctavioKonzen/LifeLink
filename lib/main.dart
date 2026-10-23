@@ -18,6 +18,7 @@ import 'data/account/auth_service.dart';
 import 'data/account/firebase_setup.dart';
 import 'data/account/online.dart';
 import 'data/services/update_service.dart';
+import 'presentation/theme/app_theme.dart';
 
 // Importação dos Ecrãs (Screens)
 import 'presentation/screens/home/home_screen.dart';
@@ -30,7 +31,7 @@ void main() {
   // Erro ao desenhar uma tela: mostra a mensagem em vez de uma área cinza,
   // para dar para mandar um print do que aconteceu.
   ErrorWidget.builder = (details) => Material(
-    color: const Color(0xFF1E1E24),
+    color: LL.surface,
     child: Padding(
       padding: const EdgeInsets.all(16),
       child: Text('Erro: ${details.exceptionAsString()}', style: const TextStyle(color: Colors.redAccent, fontSize: 13)),
@@ -132,7 +133,7 @@ class _StartupAppState extends State<StartupApp> {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       home: Scaffold(
-        backgroundColor: const Color(0xFF1E1E24),
+        backgroundColor: LL.surface,
         body: SafeArea(
           child: Center(
             child: SingleChildScrollView(
@@ -200,49 +201,9 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'LifeLink',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        useMaterial3: true,
-        brightness: themeProvider.backgroundColor.computeLuminance() > 0.5 ? Brightness.light : Brightness.dark,
-        colorSchemeSeed: Colors.blue,
-        scaffoldBackgroundColor: themeProvider.backgroundColor,
-        // Títulos grandes e em negrito nas telas, e campos e botões
-        // arredondados (estilo do Pocketdex, com as cores do LifeLink).
-        appBarTheme: AppBarTheme(
-          centerTitle: false,
-          titleTextStyle: TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.w800,
-            color: themeProvider.backgroundColor.computeLuminance() > 0.5 ? Colors.black87 : Colors.white,
-          ),
-        ),
-        inputDecorationTheme: InputDecorationTheme(
-          filled: true,
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(18), borderSide: BorderSide.none),
-        ),
-        elevatedButtonTheme: ElevatedButtonThemeData(
-          style: ElevatedButton.styleFrom(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18))),
-        ),
-        filledButtonTheme: FilledButtonThemeData(
-          style: FilledButton.styleFrom(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18))),
-        ),
-        outlinedButtonTheme: OutlinedButtonThemeData(
-          style: OutlinedButton.styleFrom(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18))),
-        ),
-        // Janelas, avisos e painéis com os mesmos cantos arredondados.
-        dialogTheme: DialogThemeData(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24))),
-        bottomSheetTheme: const BottomSheetThemeData(
-          showDragHandle: true,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(28))),
-        ),
-        snackBarTheme: SnackBarThemeData(
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        ),
-        // Troca de tela suave (a do Android mais novo), em todo o app.
-        pageTransitionsTheme: const PageTransitionsTheme(builders: {
-          TargetPlatform.android: FadeForwardsPageTransitionsBuilder(),
-        }),
-      ),
+      // O desenho novo (as mesmas cores e fontes do site); o contador de vida
+      // continua com o tema de antes (LegacyTheme).
+      theme: appTheme(themeProvider.backgroundColor),
       // Sem estar logado, a primeira tela é sempre a de login (a mesma conta
       // do site). Sem Firebase configurado, o login fica desligado e o app
       // abre direto. Confere uma vez se saiu versão nova (GitHub Releases).
@@ -263,7 +224,7 @@ class MyApp extends StatelessWidget {
           }
         },
       ),
-      routes: {'/home': (context) => const HomeScreen(), '/life_counter': (context) => const LifeCounterScreen()},
+      routes: {'/home': (context) => const HomeScreen(), '/life_counter': (context) => const LegacyTheme(child: LifeCounterScreen())},
     );
   }
 }

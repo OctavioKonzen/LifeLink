@@ -17,6 +17,7 @@ import 'package:http/http.dart' as http;
 import 'package:ota_update/ota_update.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
+import '../../presentation/theme/app_theme.dart';
 
 class AppRelease {
   final String version; // "1.2.0"
@@ -198,10 +199,10 @@ class _UpdateDialogState extends State<_UpdateDialog> {
   Widget build(BuildContext context) {
     final downloading = _progress != null;
     return AlertDialog(
-      backgroundColor: const Color(0xFF1E1E24),
+      backgroundColor: LL.surface,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       title: const Row(children: [
-        Icon(Icons.system_update, color: Colors.blueAccent),
+        Icon(Icons.system_update, color: LL.gold),
         SizedBox(width: 10),
         Expanded(child: Text('Nova versão disponível!', style: TextStyle(color: Colors.white))),
       ]),
@@ -219,7 +220,7 @@ class _UpdateDialogState extends State<_UpdateDialog> {
           ],
           if (downloading) ...[
             const SizedBox(height: 16),
-            LinearProgressIndicator(value: _progress == 0 ? null : _progress, color: Colors.blueAccent),
+            LinearProgressIndicator(value: _progress == 0 ? null : _progress, color: LL.gold),
             const SizedBox(height: 6),
             Text(_progress! >= 1 ? 'Abrindo o instalador...' : 'Baixando... ${(_progress! * 100).round()}%',
                 style: const TextStyle(fontSize: 12, color: Colors.white60)),

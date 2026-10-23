@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../../data/account/account_sync.dart';
 import '../../../data/account/auth_service.dart';
 import '../../../data/providers/theme_provider.dart';
+import '../../theme/app_theme.dart';
 
 /// Conta (a mesma do site): entrar, criar conta (com nick), sair e excluir.
 /// Com [start], é a primeira tela do app para quem não está logado.
@@ -100,9 +101,9 @@ class _AccountScreenState extends State<AccountScreen> {
         body = Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           CircleAvatar(
             radius: 36,
-            backgroundColor: Colors.blueAccent,
+            backgroundColor: LL.gold,
             backgroundImage: u.photo != null ? NetworkImage(u.photo!) : null,
-            child: u.photo == null ? Text((u.name ?? u.email ?? '?').substring(0, 1).toUpperCase(), style: const TextStyle(fontSize: 28, color: Colors.white)) : null,
+            child: u.photo == null ? Text((u.name ?? u.email ?? '?').substring(0, 1).toUpperCase(), style: const TextStyle(fontSize: 28, color: LL.onGold)) : null,
           ),
           const SizedBox(height: 12),
           Text(u.name ?? '', textAlign: TextAlign.center, style: TextStyle(color: textColor, fontSize: 20, fontWeight: FontWeight.bold)),
@@ -174,7 +175,7 @@ class _AccountScreenState extends State<AccountScreen> {
           TextField(controller: _password, style: TextStyle(color: textColor), obscureText: true, decoration: field(_creating ? "Senha (pelo menos 6 letras)" : "Senha", Icons.lock)),
           const SizedBox(height: 16),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.blueAccent, foregroundColor: Colors.white, minimumSize: const Size(0, 50)),
+            style: ElevatedButton.styleFrom(backgroundColor: LL.gold, foregroundColor: LL.onGold, minimumSize: const Size(0, 50)),
             onPressed: _busy
                 ? null
                 : () => _run(() => _creating
@@ -309,7 +310,7 @@ class _NickScreenState extends State<NickScreen> {
               ),
               const SizedBox(height: 8),
               ElevatedButton(
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.blueAccent, foregroundColor: Colors.white, minimumSize: const Size(0, 50)),
+                style: ElevatedButton.styleFrom(backgroundColor: LL.gold, foregroundColor: LL.onGold, minimumSize: const Size(0, 50)),
                 onPressed: _busy ? null : _save,
                 child: const Text("Continuar", style: TextStyle(fontWeight: FontWeight.bold)),
               ),

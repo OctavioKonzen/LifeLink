@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../../data/providers/game_provider.dart';
 import '../../../data/providers/match_provider.dart';
 import '../../../data/providers/theme_provider.dart';
+import '../../theme/app_theme.dart';
 
 /// Histórico de partidas (vai para a conta) e as estatísticas do grupo:
 /// vitórias por jogador e por deck, duração média e a partida mais longa.
@@ -44,7 +45,7 @@ class MatchHistoryScreen extends StatelessWidget {
           bottom: TabBar(
             labelColor: text,
             unselectedLabelColor: text.withValues(alpha: 0.5),
-            indicatorColor: Colors.amber,
+            indicatorColor: LL.gold,
             tabs: const [Tab(text: 'Histórico'), Tab(text: 'Estatísticas')],
           ),
           actions: [
@@ -106,9 +107,9 @@ class _MatchTile extends StatelessWidget {
       'vida ${m.startingLife}',
     ].join(' · ');
     return Card(
-      color: light ? Colors.black.withValues(alpha: 0.05) : const Color(0xFF1E1E24),
+      color: light ? Colors.black.withValues(alpha: 0.05) : LL.surface,
       margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: BorderSide(color: Colors.amber.withValues(alpha: winner != null ? 0.3 : 0))),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: BorderSide(color: LL.gold.withValues(alpha: winner != null ? 0.3 : 0))),
       child: ExpansionTile(
         shape: const Border(),
         leading: CircleAvatar(
@@ -190,7 +191,7 @@ class _Stats extends StatelessWidget {
   const _Stats(this.matches, {required this.text, required this.light});
 
   Widget _card(String title, List<Widget> children) => Card(
-        color: light ? Colors.black.withValues(alpha: 0.05) : const Color(0xFF1E1E24),
+        color: light ? Colors.black.withValues(alpha: 0.05) : LL.surface,
         margin: const EdgeInsets.only(bottom: 14),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         child: Padding(
@@ -216,7 +217,7 @@ class _Stats extends StatelessWidget {
         const SizedBox(height: 4),
         ClipRRect(
           borderRadius: BorderRadius.circular(4),
-          child: LinearProgressIndicator(value: s.rate, minHeight: 6, backgroundColor: text.withValues(alpha: 0.08), color: Colors.amber),
+          child: LinearProgressIndicator(value: s.rate, minHeight: 6, backgroundColor: text.withValues(alpha: 0.08), color: LL.gold),
         ),
       ]),
     );

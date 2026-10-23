@@ -11,6 +11,7 @@ import 'deck_tools_screens.dart';
 import '../../../data/services/deck_tools.dart';
 import '../../../data/services/scryfall_service.dart';
 import '../../widgets/neon.dart';
+import '../../theme/app_theme.dart';
 
 class MyDecksScreen extends StatefulWidget {
   const MyDecksScreen({super.key});
@@ -25,7 +26,7 @@ class _MyDecksScreenState extends State<MyDecksScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF1E1E24),
+        backgroundColor: LL.surface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Text("Apagar deck", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         content: Text("Deseja realmente apagar o deck '$deckName'?", style: const TextStyle(color: Colors.white70)),
@@ -57,7 +58,7 @@ class _MyDecksScreenState extends State<MyDecksScreen> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          backgroundColor: const Color(0xFF1E1E24),
+          backgroundColor: LL.surface,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           title: const Text("Novo deck", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
           content: Column(
@@ -75,7 +76,7 @@ class _MyDecksScreenState extends State<MyDecksScreen> {
               const SizedBox(height: 20),
               DropdownButton<String>(
                 value: selectedType,
-                dropdownColor: const Color(0xFF1E1E24),
+                dropdownColor: LL.surface,
                 isExpanded: true,
                 items: ['Commander', 'Challenger', 'Normal'].map((t) => DropdownMenuItem(value: t, child: Text(t, style: const TextStyle(color: Colors.white)))).toList(),
                 onChanged: (val) => setDialogState(() => selectedType = val!),
