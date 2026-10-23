@@ -159,6 +159,9 @@ class _TodayPricesScreenState extends State<TodayPricesScreen> {
   }
 
   Widget _buildCardTile(CardModel card, int index, Color textColor, bool isLight) {
+    // Versões que só saem em foil (serializadas, sem moldura...): o preço é o do foil.
+    final prices = (index < _raw.length ? _raw[index]['prices'] : null) as Map?;
+    final foilOnly = prices != null && prices['usd'] == null && (prices['usd_foil'] ?? prices['usd_etched']) != null;
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: neonDecoration(AreaColors.prices, neonSurface(context, context.read<ThemeProvider>().backgroundColor), radius: 16, glow: 0.12),
@@ -214,7 +217,7 @@ class _TodayPricesScreenState extends State<TodayPricesScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
-            Text("US\$ ${card.price}", style: TextStyle(color: isLight ? Colors.green.shade800 : Colors.greenAccent, fontWeight: FontWeight.bold, fontSize: 15)),
+            Text("US\$ ${card.price}${foilOnly ? ' foil' : ''}", style: TextStyle(color: isLight ? Colors.green.shade800 : Colors.greenAccent, fontWeight: FontWeight.bold, fontSize: 15)),
             if (_brl != null && double.tryParse('${card.price}') != null)
               Text("≈ R\$ ${(double.parse('${card.price}') * _brl!).toStringAsFixed(2)}", style: TextStyle(color: textColor.withValues(alpha: 0.6), fontSize: 11)),
             if (_searchController.text.isEmpty) Text("#${index + 1}", style: TextStyle(color: textColor.withValues(alpha: 0.2), fontSize: 10)),

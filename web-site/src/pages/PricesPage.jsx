@@ -82,7 +82,10 @@ export default function PricesPage() {
                 </div>
               </div>
               <div className="text-right">
-                <div className="font-black text-emerald-400">US$ {c.prices.usd ?? c.prices.usd_foil}</div>
+                <div className="font-black text-emerald-400">
+                  US$ {c.prices.usd ?? c.prices.usd_foil ?? c.prices.usd_etched}
+                  {c.prices.usd == null && ' foil'}
+                </div>
                 {!query && <div className="text-[10px] text-text/30">#{i + 1}</div>}
               </div>
             </button>

@@ -197,7 +197,7 @@ class DeckTools {
         'setName': data['set_name'] ?? '',
         'collectorNumber': data['collector_number'] ?? '',
         'oracle_id': data['oracle_id'],
-        'usdPrice': data['prices']?['usd'] ?? data['prices']?['usd_foil'] ?? '0.00',
+        'usdPrice': data['prices']?['usd'] ?? data['prices']?['usd_foil'] ?? data['prices']?['usd_etched'] ?? '0.00',
         'eurPrice': data['prices']?['eur'],
       };
 

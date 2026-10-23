@@ -82,7 +82,7 @@ class CardRepository {
             'rarity': c['rarity'],
             'collectorNumber': c['collector_number'],
             'setName': c['set_name'],
-            'usdPrice': c['prices']?['usd'] ?? '0.00',
+            'usdPrice': c['prices']?['usd'] ?? c['prices']?['usd_foil'] ?? c['prices']?['usd_etched'] ?? '0.00',
             'usdFoil': c['prices']?['usd_foil'],
             'eurPrice': c['prices']?['eur'],
             'tixPrice': c['prices']?['tix'],

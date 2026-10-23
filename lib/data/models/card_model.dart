@@ -37,7 +37,7 @@ class CardModel {
       typeLine: json['type_line'] ?? '',
       oracleText: json['oracle_text'] ?? '',
       setName: json['set_name'] ?? '',
-      price: json['prices']?['usd'] ?? '0.00', // Captura o preço em USD
+      price: json['prices']?['usd'] ?? json['prices']?['usd_foil'] ?? json['prices']?['usd_etched'] ?? '0.00', // em USD (só foil/etched quando não há o normal)
     );
   }
 }
