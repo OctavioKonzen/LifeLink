@@ -4,7 +4,7 @@
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 
-const TOP_BAR = 72
+const TOP_BAR = 64
 
 function useWidth(ref) {
   const [width, setWidth] = useState(0)

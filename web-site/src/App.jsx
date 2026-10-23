@@ -12,87 +12,70 @@ import MyDecksPage from './pages/MyDecksPage'
 import ProfilePage from './pages/ProfilePage'
 import AccountPage from './pages/AccountPage'
 import LoginPage from './pages/LoginPage'
-import Icon from './components/Icon'
+import { BookOpen, Box, Heart, Layers, LogOut, Menu, Moon, Search, Smartphone, Sun, TrendingUp, Trophy, User, X } from 'lucide-react'
+import Logo from './components/Logo'
 import { useAuth } from './lib/auth'
 import { logout } from './lib/sync'
 import { APK_URL } from './lib/appRelease'
 import { setTheme, useTheme } from './lib/theme'
 
-// Mesmas áreas do menu do app (home_screen.dart), com as cores dos botões.
+// Mesmas áreas do menu do app (home_screen.dart).
 const SECTIONS = [
-  { path: '/', label: 'Cartas', color: '#448aff', icon: 'search' },
-  { path: '/meus-decks', label: 'Meus decks', color: '#7c4dff', icon: 'layers' },
-  { path: '/colecao', label: 'Coleção', color: '#ffd54f', icon: 'box' },
-  { path: '/precos', label: 'Preços de hoje', color: '#ffa000', icon: 'money' },
-  { path: '/decks', label: 'Decks oficiais', color: '#00c853', icon: 'book' },
-  { path: '/contador', label: 'Contador de vida', color: '#ff5252', icon: 'heart' },
-  { path: '/perfil', label: 'Perfil', color: '#00b0ff', icon: 'trophy' },
+  { path: '/', label: 'Cartas', icon: Search },
+  { path: '/meus-decks', label: 'Meus decks', icon: Layers },
+  { path: '/colecao', label: 'Coleção', icon: Box },
+  { path: '/precos', label: 'Preços', icon: TrendingUp },
+  { path: '/decks', label: 'Decks oficiais', icon: BookOpen },
+  { path: '/contador', label: 'Contador', icon: Heart },
+  { path: '/perfil', label: 'Perfil', icon: Trophy },
 ]
 
-function NavButton({ section }) {
-  return (
-    <NavLink
-      to={section.path}
-      end={section.path === '/'}
-      title={section.label}
-      className="group flex shrink-0 items-center gap-2 rounded-full px-3 py-2 text-[15px] font-semibold whitespace-nowrap transition duration-200 hover:scale-105 active:scale-95 md:px-4"
-      style={({ isActive }) =>
-        isActive
-          ? { background: section.color, color: '#fff', boxShadow: `0 4px 12px ${section.color}70` }
-          : { color: 'var(--text)' }
-      }
-    >
-      {({ isActive }) => (
-        <>
-          <Icon name={section.icon} size={20} style={{ color: isActive ? undefined : section.color }} />
-          {/* Em telas menores aparecem só os ícones. */}
-          <span className="hidden xl:inline">{section.label}</span>
-        </>
-      )}
-    </NavLink>
-  )
-}
+const navClass = ({ isActive }) =>
+  `flex shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+    isActive ? 'bg-card text-text' : 'text-muted hover:text-text'
+  }`
 
-/** Botão de tema claro/escuro no menu (sol ↔ lua). */
+/** Botão de tema claro/escuro (sol ↔ lua). */
 function ThemeToggle() {
   const theme = useTheme()
   const dark = theme === 'dark'
+  const ThemeIcon = dark ? Sun : Moon
   return (
     <button
       type="button"
       onClick={() => setTheme(dark ? 'light' : 'dark')}
       aria-label={dark ? 'Mudar para tema claro' : 'Mudar para tema escuro'}
       title={dark ? 'Tema claro' : 'Tema escuro'}
-      className="grid h-10 w-10 shrink-0 cursor-pointer place-items-center rounded-full bg-bg transition hover:scale-110 active:scale-90"
+      className="grid size-9 shrink-0 cursor-pointer place-items-center rounded-full text-muted transition hover:bg-card hover:text-text"
     >
-      <Icon name={dark ? 'sun' : 'moon'} size={22} className={dark ? 'text-yellow-300' : 'text-indigo-500'} />
+      <ThemeIcon className="size-4" aria-hidden="true" />
     </button>
   )
 }
 
-export function Avatar({ user, size = 36 }) {
+export function Avatar({ user, size = 28 }) {
   if (user?.photo) return <img src={user.photo} alt="" width={size} height={size} className="rounded-full" referrerPolicy="no-referrer" />
   return (
-    <span className="grid place-items-center rounded-full bg-accent font-black text-white" style={{ width: size, height: size, fontSize: size * 0.45 }}>
+    <span className="grid place-items-center rounded-full bg-accent font-bold text-on-accent" style={{ width: size, height: size, fontSize: size * 0.42 }}>
       {(user?.name || user?.email || '?')[0].toUpperCase()}
     </span>
   )
 }
 
-function MenuItem({ icon, danger = false, onClick, children }) {
+function MenuItem({ icon: ItemIcon, danger = false, onClick, children }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`flex w-full cursor-pointer items-center gap-3 rounded-xl px-3 py-2.5 text-left font-semibold transition hover:bg-surface ${danger ? 'text-red-500' : 'text-text'}`}
+      className={`flex w-full cursor-pointer items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium transition hover:bg-card ${danger ? 'text-danger' : 'text-text'}`}
     >
-      <Icon name={icon} size={20} className={danger ? '' : 'text-muted'} />
+      <ItemIcon className={`size-4 ${danger ? '' : 'text-muted'}`} aria-hidden="true" />
       {children}
     </button>
   )
 }
 
-/** Pessoa logada: foto de perfil; o menu tem o perfil, a conta e sair. */
+/** Pessoa logada: o nome; o menu tem o perfil, a conta e sair. */
 function UserMenu() {
   const { status, user } = useAuth()
   const [open, setOpen] = useState(false)
@@ -118,28 +101,28 @@ function UserMenu() {
         }}
         title={user.name || user.email}
         aria-label="Menu da conta"
-        className="flex cursor-pointer items-center gap-2 rounded-full bg-bg p-1 transition hover:scale-105 xl:pr-4"
+        className="flex cursor-pointer items-center gap-2 rounded-full bg-card py-1 pl-1 pr-3 text-sm font-medium transition hover:brightness-125"
       >
         <Avatar user={user} />
-        <span className="hidden max-w-[140px] truncate font-semibold xl:inline">{(user.name || 'Conta').split(' ')[0]}</span>
+        <span className="hidden max-w-[120px] truncate sm:inline">{(user.name || 'Conta').split(' ')[0]}</span>
       </button>
       {open && (
-        <div onClick={(e) => e.stopPropagation()} className="page-in absolute right-0 mt-2 w-64 rounded-2xl bg-card p-4 shadow-2xl ring-1 ring-line">
-          <div className="mb-4 flex items-center gap-3">
-            <Avatar user={user} size={56} />
+        <div onClick={(e) => e.stopPropagation()} className="page-in absolute right-0 mt-2 w-64 rounded-2xl border border-line bg-surface p-3 shadow-2xl">
+          <div className="mb-3 flex items-center gap-3 px-1">
+            <Avatar user={user} size={44} />
             <div className="min-w-0">
-              <div className="truncate text-lg font-bold">{user.name}</div>
-              <div className="truncate text-sm text-muted">{user.email}</div>
+              <div className="truncate font-semibold">{user.name}</div>
+              <div className="truncate text-xs text-muted">{user.email}</div>
             </div>
           </div>
-          <MenuItem icon="trophy" onClick={() => go('/perfil')}>
+          <MenuItem icon={Trophy} onClick={() => go('/perfil')}>
             Perfil e nível
           </MenuItem>
-          <MenuItem icon="person" onClick={() => go('/conta')}>
+          <MenuItem icon={User} onClick={() => go('/conta')}>
             Conta
           </MenuItem>
           <div className="my-2 h-px bg-line" />
-          <MenuItem icon="logout" danger onClick={logout}>
+          <MenuItem icon={LogOut} danger onClick={logout}>
             Sair da conta
           </MenuItem>
         </div>
@@ -149,50 +132,98 @@ function UserMenu() {
 }
 
 function TopBar() {
-  const navigate = useNavigate()
+  const [open, setOpen] = useState(false)
+  const { pathname } = useLocation()
+  useEffect(() => setOpen(false), [pathname])
   return (
-    <header className="sticky top-0 z-40 bg-surface shadow-lg">
-      <div className="mx-auto flex h-[72px] max-w-[1920px] items-center gap-2 px-3 sm:gap-4 sm:px-6">
-        <button type="button" onClick={() => navigate('/')} className="flex shrink-0 cursor-pointer items-center gap-2 transition hover:scale-105" aria-label="LifeLink">
-          <img src="./logo.svg" alt="" className="h-10 w-10 md:h-12 md:w-12" />
-          <span className="hidden text-xl font-black tracking-wide sm:inline">LIFELINK</span>
+    <header className="sticky top-0 z-40 border-b border-line/60 bg-bg/80 backdrop-blur-xl">
+      <div className="mx-auto flex h-16 max-w-7xl items-center gap-3 px-4 sm:gap-4 sm:px-6">
+        {/* No celular, o menu abre pelo botão (sem abas embaixo). */}
+        <button
+          type="button"
+          onClick={() => setOpen(!open)}
+          aria-label={open ? 'Fechar o menu' : 'Abrir o menu'}
+          aria-expanded={open}
+          className="grid size-9 shrink-0 cursor-pointer place-items-center rounded-lg text-muted hover:bg-card hover:text-text md:hidden"
+        >
+          {open ? <X className="size-5" aria-hidden="true" /> : <Menu className="size-5" aria-hidden="true" />}
         </button>
-        <nav className="flex min-w-0 flex-1 gap-1 overflow-x-auto py-2">
-          {SECTIONS.map((s) => (
-            <NavButton key={s.path} section={s} />
+        <NavLink to="/" aria-label="LifeLink, início" className="shrink-0">
+          <Logo />
+        </NavLink>
+        <nav aria-label="Principal" className="hidden min-w-0 flex-1 items-center gap-1 overflow-x-auto md:flex">
+          {SECTIONS.map(({ path, label, icon: NavIcon }) => (
+            <NavLink key={path} to={path} end={path === '/'} className={navClass}>
+              {({ isActive }) => (
+                <>
+                  <NavIcon className={`size-4 ${isActive ? 'text-accent' : ''}`} aria-hidden="true" />
+                  <span className="hidden lg:inline">{label}</span>
+                </>
+              )}
+            </NavLink>
           ))}
         </nav>
-        <a
-          href={APK_URL}
-          title="Baixar o app para Android"
-          className="flex shrink-0 items-center gap-1.5 rounded-full bg-[#3DDC84] px-2.5 py-2 text-sm font-bold text-[#073042] transition hover:scale-105 active:scale-95 2xl:px-4"
-        >
-          <Icon name="android" size={20} />
-          <span className="hidden 2xl:inline">Baixar app</span>
-        </a>
-        <ThemeToggle />
-        <UserMenu />
+        <div className="ml-auto flex items-center gap-1.5">
+          <a
+            href={APK_URL}
+            title="Baixar o app para Android"
+            className="hidden items-center gap-2 rounded-full bg-card px-3 py-1.5 text-sm font-medium text-muted transition hover:text-text sm:flex"
+          >
+            <Smartphone className="size-4 text-success" aria-hidden="true" />
+            <span className="hidden xl:inline">Baixar app</span>
+          </a>
+          <ThemeToggle />
+          <UserMenu />
+        </div>
       </div>
+      {open && (
+        <nav aria-label="Principal" className="page-in border-t border-line/60 px-4 pb-4 pt-2 md:hidden">
+          <ul className="flex flex-col gap-1">
+            {SECTIONS.map(({ path, label, icon: NavIcon }) => (
+              <li key={path}>
+                <NavLink
+                  to={path}
+                  end={path === '/'}
+                  className={({ isActive }) =>
+                    `flex items-center gap-3 rounded-xl px-3 py-3 font-medium ${isActive ? 'bg-card text-text' : 'text-muted hover:bg-card hover:text-text'}`
+                  }
+                >
+                  {({ isActive }) => (
+                    <>
+                      <NavIcon className={`size-5 ${isActive ? 'text-accent' : ''}`} aria-hidden="true" />
+                      {label}
+                    </>
+                  )}
+                </NavLink>
+              </li>
+            ))}
+            <li>
+              <a href={APK_URL} className="flex items-center gap-3 rounded-xl px-3 py-3 font-medium text-muted hover:bg-card hover:text-text">
+                <Smartphone className="size-5 text-success" aria-hidden="true" /> Baixar o app para Android
+              </a>
+            </li>
+          </ul>
+        </nav>
+      )}
     </header>
   )
 }
 
-/** O conteúdo da página, com a largura toda da tela (o contador sem rodapé). */
+/** O conteúdo da página (o contador ocupa a tela toda, sem rodapé nem abas). */
 function Main({ children }) {
   const { pathname } = useLocation()
-  const mode = pathname === '/contador' ? 'counter' : 'wide'
-  const mainClass = mode === 'counter' ? 'px-3 py-3 sm:px-6' : 'px-4 py-5 sm:px-6'
+  const counter = pathname === '/contador'
   return (
     <>
-      <main className={mainClass}>{children}</main>
-      {mode !== 'counter' && (
-        <footer className="px-4 pb-8 pt-4 text-xs text-muted sm:px-6">
+      <main className={counter ? 'px-3 py-3 sm:px-6' : 'mx-auto max-w-7xl px-4 pb-12 pt-8 sm:px-6'}>{children}</main>
+      {!counter && (
+        <footer className="mx-auto max-w-7xl px-4 pb-8 text-xs text-muted sm:px-6">
           Dados e imagens das cartas:{' '}
-          <a className="underline" href="https://scryfall.com" target="_blank" rel="noreferrer">
+          <a className="underline hover:text-text" href="https://scryfall.com" target="_blank" rel="noreferrer">
             Scryfall
           </a>
           . Decks oficiais:{' '}
-          <a className="underline" href="https://mtgjson.com" target="_blank" rel="noreferrer">
+          <a className="underline hover:text-text" href="https://mtgjson.com" target="_blank" rel="noreferrer">
             MTGJSON
           </a>
           . Magic: The Gathering é marca da Wizards of the Coast; este site não tem ligação com ela.
@@ -202,7 +233,7 @@ function Main({ children }) {
   )
 }
 
-/** A troca de página: um fade curto (sem corte seco). */
+/** A troca de página: sobe e aparece (sem corte seco). */
 function PageFade({ children }) {
   const { pathname } = useLocation()
   useEffect(() => {
@@ -220,8 +251,10 @@ function Splash() {
   return (
     <div className="grid min-h-screen place-items-center bg-bg">
       <div className="flex flex-col items-center gap-6">
-        <img src="./logo.svg" alt="LifeLink" className="login-float h-24 w-24" />
-        <div className="h-9 w-9 animate-spin rounded-full border-4 border-text/15 border-t-gold" />
+        <div className="login-float">
+          <Logo size="lg" />
+        </div>
+        <div className="h-9 w-9 animate-spin rounded-full border-4 border-text/15 border-t-accent" />
       </div>
     </div>
   )

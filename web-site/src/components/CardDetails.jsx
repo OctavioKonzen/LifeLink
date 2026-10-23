@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Spinner } from './ui'
+import { Box, ChevronLeft, ChevronRight, ExternalLink, Heart, Minus, Plus, RotateCw, X } from 'lucide-react'
+import { btnOutline, btnPrimary, inputClass } from './ui'
 import { ManaText } from './Mana'
 import CardImage from './CardImage'
 import {
@@ -41,10 +43,10 @@ const FORMATS = [
 ]
 
 const LEGALITY = {
-  legal: ['Legal', 'bg-emerald-600'],
+  legal: ['Legal', 'bg-success'],
   restricted: ['Restrita', 'bg-sky-600'],
   banned: ['Banida', 'bg-red-600'],
-  not_legal: ['Não', 'bg-text/10 text-text/50'],
+  not_legal: ['Não', 'bg-card text-text/50'],
 }
 
 /**
@@ -73,9 +75,9 @@ function BestImage({ card, back }) {
 function Price({ label, value, prefix }) {
   if (!value) return null
   return (
-    <div className="rounded-xl bg-text/5 px-3 py-2">
+    <div className="rounded-xl bg-bg p-3">
       <div className="text-xs text-muted">{label}</div>
-      <div className="text-lg font-black text-emerald-400">
+      <div className="mt-1 font-semibold text-success">
         {prefix} {value}
       </div>
     </div>
@@ -115,11 +117,11 @@ function Versions({ card, onPick }) {
   return (
     <section className="mt-6 xl:mt-0">
       <div className="mb-3 flex items-center justify-between gap-3">
-        <h3 className="text-lg font-bold">Outras versões</h3>
+        <h3 className="text-lg font-semibold">Outras versões</h3>
         <select
           value={lang}
           onChange={(e) => setLang(e.target.value)}
-          className="rounded-lg border border-line bg-card px-2 py-1 text-sm"
+          className="h-9 rounded-lg border border-line bg-bg px-2 text-sm"
         >
           {LANGS.map(([code, name]) => (
             <option key={code} value={code}>
@@ -131,7 +133,7 @@ function Versions({ card, onPick }) {
       {state.loading ? (
         <Spinner className="py-4" />
       ) : state.error ? (
-        <p className="text-sm text-red-400">{state.error}</p>
+        <p className="text-sm text-danger">{state.error}</p>
       ) : state.cards.length === 0 ? (
         <p className="text-sm text-muted">Nada encontrado neste idioma.</p>
       ) : (
@@ -170,7 +172,7 @@ function AddToDeck({ card }) {
           setDeckId(e.target.value)
           setDone(null)
         }}
-        className="min-w-0 flex-1 rounded-lg border border-line bg-card px-2 py-2 text-sm"
+        className={`${inputClass} h-10 min-w-0 flex-1`}
       >
         {decks.map((d) => (
           <option key={d.id} value={d.id}>
@@ -185,11 +187,11 @@ function AddToDeck({ card }) {
           incrementCardsAdded(1)
           setDone(target.name)
         }}
-        className="rounded-full bg-accent px-4 py-2 text-sm font-bold hover:brightness-110"
+        className={btnPrimary}
       >
-        + Adicionar ao deck
+        <Plus className="size-4" aria-hidden="true" /> Adicionar ao deck
       </button>
-      {done && <span className="w-full text-sm font-bold text-emerald-400">Adicionada em {done}!</span>}
+      {done && <span className="w-full text-sm font-bold text-success">Adicionada em {done}!</span>}
     </div>
   )
 }
@@ -203,20 +205,16 @@ function CollectionButtons({ card }) {
   const wish = wished(wishlist, card.id)
   return (
     <div className="mt-3 flex flex-wrap items-center gap-2">
-      <button type="button" onClick={() => addToCollection(deckCard)} className="rounded-full bg-amber-400 px-4 py-2 text-sm font-bold text-black hover:brightness-110">
-        📦 Guardar na coleção{qty > 0 ? ` (${qty})` : ''}
+      <button type="button" onClick={() => addToCollection(deckCard)} className={btnOutline}>
+        <Box className="size-4" aria-hidden="true" /> Adicionar à coleção{qty > 0 ? ` (${qty})` : ''}
       </button>
       {qty > 0 && (
-        <button type="button" onClick={() => setQty(card.id, qty - 1)} className="rounded-full bg-text/10 px-3 py-2 text-sm font-bold hover:bg-text/20" aria-label="Tirar uma da coleção">
-          −1
+        <button type="button" onClick={() => setQty(card.id, qty - 1)} className={`${btnOutline} px-3`} aria-label="Tirar uma da coleção">
+          <Minus className="size-4" aria-hidden="true" />
         </button>
       )}
-      <button
-        type="button"
-        onClick={() => toggleWish(deckCard)}
-        className={`rounded-full px-4 py-2 text-sm font-bold ${wish ? 'bg-pink-500 text-white' : 'bg-text/10 hover:bg-text/20'}`}
-      >
-        {wish ? '♥ Na lista de desejos' : '♡ Lista de desejos'}
+      <button type="button" onClick={() => toggleWish(deckCard)} className={`${btnOutline} ${wish ? 'border-pink-500/60 text-pink-400' : ''}`}>
+        <Heart className="size-4" fill={wish ? 'currentColor' : 'none'} aria-hidden="true" /> {wish ? 'Na lista de desejos' : 'Lista de desejos'}
       </button>
     </div>
   )
@@ -229,7 +227,7 @@ function NavButton({ onClick, label, children }) {
       onClick={onClick}
       disabled={!onClick}
       aria-label={label}
-      className="grid h-9 w-9 place-items-center rounded-full bg-text/10 text-lg hover:bg-text/20 disabled:opacity-30"
+      className="grid size-9 cursor-pointer place-items-center rounded-full bg-card hover:brightness-125 disabled:opacity-30"
     >
       {children}
     </button>
@@ -258,7 +256,7 @@ function Rulings({ card }) {
   if (!list.length) return null
   return (
     <details className="mt-5">
-      <summary className="cursor-pointer text-lg font-bold">
+      <summary className="cursor-pointer text-lg font-semibold">
         Regras da carta ({list.length}) <span className="text-xs font-normal text-muted">esclarecimentos oficiais, em inglês</span>
       </summary>
       <ul className="mt-2 space-y-3">
@@ -311,14 +309,20 @@ export default function CardDetails({ card: initial, id, onClose, onPrevious, on
   }
 
   return (
-    <div className="relative rounded-2xl bg-surface p-4 shadow-2xl ring-1 ring-line sm:p-6">
+    <div className="relative rounded-2xl border border-line bg-surface p-5 shadow-2xl sm:p-7">
       <div className="absolute right-3 top-3 z-10 flex gap-2">
-        <NavButton onClick={onPrevious} label="Carta anterior">‹</NavButton>
-        <NavButton onClick={onNext} label="Próxima carta">›</NavButton>
-        <NavButton onClick={onClose} label="Fechar">✕</NavButton>
+        <NavButton onClick={onPrevious} label="Carta anterior">
+          <ChevronLeft className="size-4" aria-hidden="true" />
+        </NavButton>
+        <NavButton onClick={onNext} label="Próxima carta">
+          <ChevronRight className="size-4" aria-hidden="true" />
+        </NavButton>
+        <NavButton onClick={onClose} label="Fechar">
+          <X className="size-4" aria-hidden="true" />
+        </NavButton>
       </div>
       {!card ? (
-        error ? <p className="py-10 text-center text-red-400">{error}</p> : <Spinner />
+        error ? <p className="py-10 text-center text-danger">{error}</p> : <Spinner />
       ) : (
         <div className="grid gap-6 md:grid-cols-[minmax(0,340px)_1fr] xl:grid-cols-[minmax(0,340px)_1fr_minmax(0,1fr)]">
           <div className="pt-10 md:pt-0">
@@ -327,20 +331,20 @@ export default function CardDetails({ card: initial, id, onClose, onPrevious, on
               <button
                 type="button"
                 onClick={() => setBack((b) => !b)}
-                className="mt-3 w-full rounded-full bg-text/10 py-2 text-sm font-bold hover:bg-text/20"
+                className="mt-3 w-full rounded-lg bg-card py-2 text-sm font-bold hover:brightness-125"
               >
-                ↻ Ver o outro lado
+                <RotateCw className="mr-1.5 inline size-4" aria-hidden="true" /> Ver o outro lado
               </button>
             )}
           </div>
           <div className="min-w-0 md:pr-32 xl:pr-0">
             <div className="flex flex-wrap items-start justify-between gap-2">
-              <h2 className="text-2xl font-black">{displayName(card)}</h2>
+              <h2 className="font-display text-2xl font-bold">{displayName(card)}</h2>
               <ManaText text={manaCost(card)} size={22} />
             </div>
             {card.printed_name && card.printed_name !== card.name && <p className="text-sm text-muted">{card.name}</p>}
-            <p className="mt-2 font-semibold text-text/80">{typeLine(card)}</p>
-            <div className="oracle mt-3 rounded-xl bg-text/5 p-3 leading-relaxed">
+            <p className="mt-2 text-sm text-muted">{typeLine(card)}</p>
+            <div className="oracle mt-4 rounded-xl bg-bg p-4 leading-relaxed text-pretty">
               <ManaText text={oracleText(card)} size={15} />
               {card.flavor_text && <p className="mt-3 italic text-muted">{card.flavor_text}</p>}
             </div>
@@ -360,7 +364,7 @@ export default function CardDetails({ card: initial, id, onClose, onPrevious, on
             </p>
 
             <section className="mt-5">
-              <h3 className="mb-2 text-lg font-bold">Preços</h3>
+              <h3 className="mb-2 text-lg font-semibold">Preços</h3>
               {card.prices && Object.values(card.prices).some(Boolean) ? (
                 <div className="grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-2">
                   <Price label="Normal" value={card.prices.usd} prefix="US$" />
@@ -375,12 +379,12 @@ export default function CardDetails({ card: initial, id, onClose, onPrevious, on
 
             {card.legalities && (
               <section className="mt-5">
-                <h3 className="mb-2 text-lg font-bold">Formatos</h3>
+                <h3 className="mb-2 text-lg font-semibold">Formatos</h3>
                 <div className="flex flex-wrap gap-2">
                   {FORMATS.map(([key, name]) => {
                     const [label, cls] = LEGALITY[card.legalities[key]] || LEGALITY.not_legal
                     return (
-                      <span key={key} className={`rounded-full px-3 py-1 text-xs font-bold ${cls}`}>
+                      <span key={key} className={`rounded-lg px-3 py-1 text-xs font-bold ${cls}`}>
                         {name}: {label}
                       </span>
                     )
@@ -394,8 +398,8 @@ export default function CardDetails({ card: initial, id, onClose, onPrevious, on
             <AddToDeck card={card} />
             <CollectionButtons card={card} />
 
-            <a href={card.scryfall_uri} target="_blank" rel="noreferrer" className="mt-5 inline-block text-sm text-accent underline">
-              Ver no Scryfall
+            <a href={card.scryfall_uri} target="_blank" rel="noreferrer" className="mt-5 inline-flex items-center gap-1.5 text-sm text-accent hover:underline">
+              Ver no Scryfall <ExternalLink className="size-3.5" aria-hidden="true" />
             </a>
           </div>
           <div className="min-w-0 md:col-span-2 xl:col-span-1 xl:max-h-[640px] xl:overflow-y-auto xl:pt-10">

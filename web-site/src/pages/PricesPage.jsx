@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
 import CardDetails from '../components/CardDetails'
 import ExpandingGrid from '../components/ExpandingGrid'
-import { ErrorBox, Spinner } from '../components/ui'
-import { buildTextQuery, displayName, imageOf, search } from '../lib/scryfall'
+import { ErrorBox, PageHeader, Spinner, panel } from '../components/ui'
+import { ManaText } from '../components/Mana'
+import { Search, Trophy } from 'lucide-react'
+import { buildTextQuery, displayName, imageOf, manaCost, search } from '../lib/scryfall'
 import { plainText, search as ownSearch, topPrices } from '../lib/lifelinkCards'
 
 /** As cartas mais caras do momento, igual à tela "Preços de hoje" do app. */
@@ -44,54 +46,96 @@ export default function PricesPage() {
     }
   }, [query, retry])
 
+  const priceOf = (c) => c.prices.usd ?? c.prices.usd_foil ?? c.prices.usd_etched
+  const foilOnly = (c) => c.prices.usd == null
+  const podium = !query && state.cards.length >= 2 ? state.cards.slice(0, 2) : []
+
   return (
     <div>
-      <h1 className="mb-1 text-2xl font-black">Preços de hoje</h1>
-      <p className="mb-4 text-sm text-muted">Valores do TCGplayer em dólar, atualizados pelo Scryfall uma vez por dia.</p>
-      <input
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        placeholder="Pesquisar carta por preço..."
-        type="search"
-        className="mb-4 w-full rounded-2xl border border-line bg-surface px-4 py-3 outline-none focus:border-accent"
-      />
+      <PageHeader title="Preços de hoje" description="As cartas mais caras do dia, em dólar (TCGplayer), atualizadas uma vez por dia." />
+      <label className={`${panel} relative mb-6 block p-3`}>
+        <span className="sr-only">Pesquisar carta por preço</span>
+        <Search className="pointer-events-none absolute left-6.5 top-1/2 size-4 -translate-y-1/2 text-muted" aria-hidden="true" />
+        <input
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder="Pesquisar carta por preço..."
+          type="search"
+          className="h-11 w-full rounded-xl bg-bg pl-10 pr-3 text-sm placeholder:text-muted/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+        />
+      </label>
+
+      {podium.length > 0 && !state.loading && (
+        <div className="mb-8 grid gap-4 md:grid-cols-2">
+          {podium.map((c, i) => (
+            <div key={c.id} className={`${panel} relative flex items-center gap-5 overflow-hidden p-5`}>
+              <img src={imageOf(c, 'normal')} alt="" className="h-28 w-20 shrink-0 rounded-lg object-cover shadow-lg shadow-black/40" />
+              <div className="flex min-w-0 flex-col gap-1">
+                <span className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-widest text-muted">
+                  <Trophy className={`size-3.5 ${i === 0 ? 'text-accent' : ''}`} aria-hidden="true" /> {i === 0 ? 'A mais cara de hoje' : 'Em segundo'}
+                </span>
+                <span className="truncate text-lg font-semibold">{displayName(c)}</span>
+                <span className="truncate text-sm text-muted">{c.set_name}</span>
+                <span className="text-xl font-semibold text-success">
+                  US$ {priceOf(c)}
+                  {foilOnly(c) && <span className="ml-1 text-sm text-muted">foil</span>}
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
       {state.loading ? (
         <Spinner />
       ) : state.error ? (
         <ErrorBox message={state.error} onRetry={() => setRetry((r) => r + 1)} />
       ) : state.cards.length === 0 ? (
-        <p className="py-12 text-center text-muted">Nenhuma carta com preço encontrada.</p>
+        <p className="rounded-2xl border border-dashed border-line py-16 text-center text-muted">Nenhuma carta com preço encontrada.</p>
       ) : (
-        <ExpandingGrid
-          items={state.cards}
-          keyOf={(c) => c.id}
-          minWidth={380}
-          gap={8}
-          renderItem={(c, i, open, selected) => (
-            <button
-              type="button"
-              onClick={open}
-              className={`flex w-full items-center gap-3 rounded-xl p-2 text-left ${selected ? 'bg-accent/25 ring-2 ring-accent' : 'bg-text/5 hover:bg-text/10'}`}
-            >
-              <img src={imageOf(c, 'small')} alt="" loading="lazy" className="h-[70px] w-[50px] shrink-0 rounded object-cover" />
-              <div className="min-w-0 flex-1">
-                <div className="truncate font-bold">{displayName(c)}</div>
-                <div className="truncate text-xs text-muted">
-                  {c.set_name} · {c.lang.toUpperCase()}
-                  {c.finishes?.includes('foil') && !c.finishes.includes('nonfoil') ? ' · Foil' : ''}
-                </div>
+        <div className={`${panel} overflow-hidden`}>
+          <div className="flex items-center gap-3 border-b border-line px-5 py-3 text-sm text-muted">
+            <span className="flex-1">Carta</span>
+            <span className="hidden w-28 sm:block">Custo</span>
+            <span className="w-32 text-right">Preço</span>
+            {!query && <span className="hidden w-10 text-right sm:block">#</span>}
+          </div>
+          <ExpandingGrid
+            items={state.cards}
+            keyOf={(c) => c.id}
+            minWidth={100000}
+            gap={0}
+            renderItem={(c, i, open, selected) => (
+              <button
+                type="button"
+                onClick={open}
+                className={`flex w-full cursor-pointer items-center gap-3 border-b border-line/60 px-5 py-3 text-left text-sm ${selected ? 'bg-card' : 'hover:bg-card/50'}`}
+              >
+                <img src={imageOf(c, 'small')} alt="" loading="lazy" className="h-12 w-9 shrink-0 rounded-md object-cover" />
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate font-medium">{displayName(c)}</span>
+                  <span className="block truncate text-xs text-muted">
+                    {c.set_name} · {c.lang.toUpperCase()}
+                    {c.finishes?.includes('foil') && !c.finishes.includes('nonfoil') ? ' · Foil' : ''}
+                  </span>
+                </span>
+                <span className="hidden w-28 sm:block">
+                  <ManaText text={manaCost(c)} size={14} />
+                </span>
+                <span className="w-32 whitespace-nowrap text-right font-semibold text-success">
+                  US$ {priceOf(c)}
+                  {foilOnly(c) && <span className="block text-[10px] font-normal text-muted">foil</span>}
+                </span>
+                {!query && <span className="hidden w-10 text-right text-xs text-muted sm:block">{i + 1}</span>}
+              </button>
+            )}
+            renderPanel={(c, { close, previous, next }) => (
+              <div className="p-3">
+                <CardDetails card={c} onClose={close} onPrevious={previous} onNext={next} />
               </div>
-              <div className="text-right">
-                <div className="font-black text-emerald-400">
-                  US$ {c.prices.usd ?? c.prices.usd_foil ?? c.prices.usd_etched}
-                  {c.prices.usd == null && ' foil'}
-                </div>
-                {!query && <div className="text-[10px] text-text/30">#{i + 1}</div>}
-              </div>
-            </button>
-          )}
-          renderPanel={(c, { close, previous, next }) => <CardDetails card={c} onClose={close} onPrevious={previous} onNext={next} />}
-        />
+            )}
+          />
+        </div>
       )}
     </div>
   )

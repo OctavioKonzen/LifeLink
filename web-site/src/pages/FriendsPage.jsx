@@ -29,12 +29,12 @@ function TradeWith({ friend }) {
   const nick = friend.nick || ''
   const list = (title, cards, empty) => (
     <div className="mb-3">
-      <p className="mb-1 text-xs font-black uppercase tracking-wide text-muted">{title}</p>
+      <p className="mb-1 text-xs font-medium uppercase tracking-widest text-muted">{title}</p>
       {!cards.length && <p className="text-sm text-muted">{empty}</p>}
       <ul className="space-y-1">
         {cards.map((c, k) => (
           <li key={`${c.id}-${k}`} className="flex items-center gap-2">
-            {c.img ? <img src={c.img} alt="" loading="lazy" className="h-10 w-7 shrink-0 rounded-sm object-cover" /> : <div className="h-10 w-7 shrink-0 rounded-sm bg-text/10" />}
+            {c.img ? <img src={c.img} alt="" loading="lazy" className="h-10 w-7 shrink-0 rounded-sm object-cover" /> : <div className="h-10 w-7 shrink-0 rounded-sm bg-card" />}
             <span className="min-w-0">
               <span className="block truncate text-sm font-bold">{c.name}</span>
               <span className="block truncate text-xs text-muted">
@@ -47,8 +47,8 @@ function TradeWith({ friend }) {
     </div>
   )
   return (
-    <div className="mt-3 rounded-xl bg-text/5 p-3">
-      <p className="mb-2 font-black">🔁 Trocas com {nick}</p>
+    <div className="mt-3 rounded-xl bg-bg p-3">
+      <p className="mb-2 font-semibold">Trocas com {nick}</p>
       {list(`${nick.toUpperCase()} tem para troca e você quer`, m.theyHave, 'Nada da sua lista de desejos.')}
       {list(`Você tem para troca e ${nick.toUpperCase()} quer`, m.iHave, `Nada da lista de desejos de ${nick}. Marque cartas "para troca" na sua coleção.`)}
       <p className="text-xs text-muted">
@@ -65,13 +65,13 @@ function FriendDecks({ friend }) {
   useEffect(() => {
     friendDecks(friend).then(setDecks, (e) => setError(messageOf(e)))
   }, [friend])
-  if (error) return <p className="text-sm text-red-400">{error}</p>
+  if (error) return <p className="text-sm text-danger">{error}</p>
   if (!decks) return <p className="text-sm text-muted">Carregando...</p>
   if (!decks.length) return <p className="text-sm text-muted">{friend.nick} ainda não tem decks.</p>
   return (
     <ul className="mt-2 grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-3">
       {decks.map((d) => (
-        <li key={d.id} className="rounded-xl bg-text/5 p-2">
+        <li key={d.id} className="rounded-xl bg-bg p-2">
           <div className="mx-auto w-20">
             <CardImage src={d.cards?.[0]?.imageUrl} alt="" />
           </div>
@@ -85,7 +85,7 @@ function FriendDecks({ friend }) {
               saveDeck({ id: String(Date.now()), name: `${d.name} (de ${friend.nick})`, type: d.type || 'Normal', cards: d.cards || [] })
               setCopied(d.id)
             }}
-            className="mt-2 w-full rounded-full bg-accent py-1 text-xs font-bold text-white"
+            className="mt-2 w-full rounded-lg bg-accent py-1 text-xs font-bold text-on-accent"
           >
             {copied === d.id ? 'Copiado ✓' : 'Copiar para os meus'}
           </button>
@@ -127,8 +127,8 @@ export default function FriendsPage() {
 
   return (
     <div className="mx-auto max-w-3xl">
-      <h1 className="text-2xl font-black">Amigos</h1>
-      <p className="mb-4 text-sm text-muted">Seu nick: {user?.name}</p>
+      <h1 className="font-display text-3xl font-bold tracking-wide sm:text-4xl">Amigos</h1>
+      <p className="mb-8 mt-1.5 text-muted">Seu nick: {user?.name}. Adicione amigos pelo nick para ver os decks e as trocas.</p>
       <form
         className="flex gap-2"
         onSubmit={async (e) => {
@@ -146,27 +146,27 @@ export default function FriendsPage() {
           value={nick}
           onChange={(e) => setNick(e.target.value)}
           placeholder="Nick do amigo"
-          className="min-w-0 flex-1 rounded-xl border border-line bg-card px-4 py-2.5 outline-none focus:border-accent"
+          className="min-w-0 flex-1 h-11 rounded-lg border border-line bg-surface px-3.5 text-sm outline-none placeholder:text-muted/70 focus:border-accent"
         />
-        <button type="submit" className="rounded-xl bg-accent px-5 font-bold text-white hover:brightness-110">
+        <button type="submit" className="h-11 cursor-pointer rounded-lg bg-accent px-5 text-sm font-semibold text-on-accent hover:brightness-110">
           Adicionar
         </button>
       </form>
-      {msg && <p className={`mt-2 text-sm ${msg.ok ? 'text-emerald-400' : 'text-red-400'}`}>{msg.text}</p>}
+      {msg && <p className={`mt-2 text-sm ${msg.ok ? 'text-success' : 'text-danger'}`}>{msg.text}</p>}
 
       {requests.length > 0 && (
         <section className="mt-6">
-          <h2 className="mb-2 text-xs font-black uppercase tracking-wide text-muted">Pedidos de amizade</h2>
+          <h2 className="mb-2 text-xs font-medium uppercase tracking-widest text-muted">Pedidos de amizade</h2>
           <ul className="space-y-2">
             {requests.map((r) => (
-              <li key={r.uid} className="flex items-center gap-2 rounded-xl bg-card p-3 shadow">
+              <li key={r.uid} className="flex items-center gap-2 rounded-2xl border border-line bg-surface p-4">
                 <span className="flex-1">
                   ✉️ <b>{r.nick}</b> quer ser seu amigo
                 </span>
-                <button type="button" onClick={() => declineFriend(r)} className="rounded-full bg-text/10 px-3 py-1 text-sm font-bold">
+                <button type="button" onClick={() => declineFriend(r)} className="rounded-lg bg-card px-3 py-1 text-sm font-bold">
                   Recusar
                 </button>
-                <button type="button" onClick={() => acceptFriend(r)} className="rounded-full bg-emerald-500 px-3 py-1 text-sm font-bold text-white">
+                <button type="button" onClick={() => acceptFriend(r)} className="rounded-lg bg-success px-3 py-1 text-sm font-bold text-black">
                   Aceitar
                 </button>
               </li>
@@ -176,7 +176,7 @@ export default function FriendsPage() {
       )}
 
       <section className="mt-6">
-        <h2 className="mb-2 text-xs font-black uppercase tracking-wide text-muted">Amigos</h2>
+        <h2 className="mb-2 text-xs font-medium uppercase tracking-widest text-muted">Amigos</h2>
         {friends === null ? (
           <p className="text-sm text-muted">Carregando...</p>
         ) : friends.length === 0 ? (
@@ -184,14 +184,14 @@ export default function FriendsPage() {
         ) : (
           <ul className="space-y-2">
             {friends.map((f) => (
-              <li key={f.uid} className="rounded-xl bg-card p-3 shadow">
+              <li key={f.uid} className="rounded-2xl border border-line bg-surface p-4">
                 <div className="flex items-center gap-3">
-                  <span className="grid h-9 w-9 place-items-center rounded-full bg-accent font-black text-white">{(f.nick || '?')[0].toUpperCase()}</span>
+                  <span className="grid h-9 w-9 place-items-center rounded-full bg-accent font-bold text-on-accent">{(f.nick || '?')[0].toUpperCase()}</span>
                   <button type="button" disabled={!f.accepted} onClick={() => setOpen(open === f.uid ? null : f.uid)} className="flex-1 text-left">
                     <span className="block font-bold">{f.nick}</span>
                     <span className="block text-xs text-muted">{f.accepted ? (open === f.uid ? 'Esconder os decks e as trocas' : 'Ver os decks e as trocas') : 'Esperando aceitar o pedido'}</span>
                   </button>
-                  <button type="button" onClick={() => removeFriend(f)} className="text-sm text-muted hover:text-red-400" title="Tirar dos amigos">
+                  <button type="button" onClick={() => removeFriend(f)} className="text-sm text-muted hover:text-danger" title="Tirar dos amigos">
                     Remover
                   </button>
                 </div>
