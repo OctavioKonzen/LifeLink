@@ -1,5 +1,5 @@
-# Converte as imagens das cartas no R2 para WebP (tool/convert_webp.py).
-# Roda quando pedir; continua de onde parou.
+# Comprime as imagens das cartas no R2 em WebP (tool/convert_webp.py).
+# Roda quando pedir; continua de onde parou. Num push só testa as qualidades.
 name: Imagens em WebP (R2)
 
 on:
@@ -8,6 +8,15 @@ on:
       minutes:
         description: 'Minutos de conversão'
         default: '300'
+      quality:
+        description: 'Qualidade do WebP (vazio = a do build_cards.py)'
+        default: ''
+      width:
+        description: 'Largura em pixels (vazio = a mesma)'
+        default: ''
+      sample:
+        description: 'Só testar com N imagens (vazio = converter de verdade)'
+        default: ''
   push:
     paths:
       - tool/convert_webp.py
@@ -37,4 +46,8 @@ jobs:
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           R2_BUCKET: lifelink
           MAX_MINUTES: ${{ github.event.inputs.minutes || '300' }}
+          QUALITY: ${{ github.event.inputs.quality }}
+          WIDTH: ${{ github.event.inputs.width }}
+          # Quando o script muda (push), só testa; converter é pelo botão.
+          SAMPLE: ${{ github.event_name == 'push' && '600' || github.event.inputs.sample }}
         run: python3 tool/convert_webp.py
