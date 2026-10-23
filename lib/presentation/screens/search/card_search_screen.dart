@@ -8,7 +8,6 @@ import 'card_filters_sheet.dart';
 import '../../../data/providers/theme_provider.dart';
 import '../../../data/providers/xp_provider.dart';
 import '../../../data/services/scryfall_service.dart';
-import '../../../data/services/offline_cards.dart';
 import '../../../data/services/lifelink_cards.dart';
 
 class CardSearchScreen extends StatefulWidget {
@@ -32,7 +31,6 @@ class _CardSearchScreenState extends State<CardSearchScreen> {
   String? _nextPageUrl;
   String? _errorMessage; 
   String _lastText = '';
-  bool _offline = false; // mostrando as cartas salvas no celular
   
   List<Map<String, dynamic>> _searchResults = [];
   List<Map<String, String>> _allSets = []; 
@@ -192,7 +190,6 @@ class _CardSearchScreenState extends State<CardSearchScreen> {
     });
     
     _lastText = queryText;
-    _offline = false;
     _ownPage = null;
     // Busca no banco do LifeLink (Cloudflare). Quem digitar a sintaxe da
     // Scryfall (t:dragon, o:"...") ainda vai direto na Scryfall.
@@ -320,20 +317,6 @@ class _CardSearchScreenState extends State<CardSearchScreen> {
         _errorMessage = null; 
       });
     } catch (e) {
-      // Sem internet: busca nas cartas salvas no celular (se baixou).
-      final notFound = e is ScryfallException && e.notFound;
-      if (!isNextPage && !notFound && await OfflineCards.instance.available) {
-        final cards = await OfflineCards.instance.search(_lastText);
-        if (mounted && id == _searchId && cards.isNotEmpty) {
-          setState(() {
-            _searchResults = cards;
-            _hasMore = false;
-            _isLoading = false;
-            _offline = true;
-          });
-          return;
-        }
-      }
       // Qualquer erro (não só os da Scryfall) para o carregando.
       final message = e is ScryfallException ? e.message : 'Não deu para buscar agora. Tente de novo.';
       if (mounted && id == _searchId) {
@@ -511,13 +494,6 @@ class _CardSearchScreenState extends State<CardSearchScreen> {
                     ),
                   ))
                 : Column(children: [
-                  if (_offline)
-                    Container(
-                      width: double.infinity,
-                      color: Colors.orange.withValues(alpha: 0.2),
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      child: Text('Sem internet: cartas salvas no celular (em inglês).', textAlign: TextAlign.center, style: TextStyle(color: textColor, fontSize: 12)),
-                    ),
                   Expanded(child: GridView.builder(
                     controller: _scrollController,
                     padding: const EdgeInsets.all(12),

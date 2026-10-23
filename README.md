@@ -4,7 +4,7 @@
   <img src="https://img.shields.io/badge/Flutter-3.x-blue?logo=flutter&style=for-the-badge" />
   <img src="https://img.shields.io/badge/React-19-61DAFB?logo=react&style=for-the-badge" />
   <img src="https://img.shields.io/badge/Firebase-FFCA28?logo=firebase&style=for-the-badge" />
-  <img src="https://img.shields.io/badge/Android-1.0.26-green?logo=android&style=for-the-badge" />
+  <img src="https://img.shields.io/badge/Android-1.0.27-green?logo=android&style=for-the-badge" />
 </p>
 
 <div align="center">
@@ -32,7 +32,6 @@
 
 **Escanear com a câmera** (app): aponte para a carta e o app acha a mesma versão (coleção e arte) e abre a carta com o texto no idioma escolhido, pronta para adicionar ao deck. Fica na busca do início, na busca de cartas e no deck. Dá também para **tirar a foto** na hora ou **escolher uma foto da galeria**.
 
-**Sem internet** (app): em Configurações, baixe todas as cartas uma vez (uns 25 MB) e a busca continua funcionando offline, em inglês.
 
 A busca procura pelo **nome em português ou inglês** ("Raio" encontra "Lightning Bolt") e também pelo **texto da carta**, em inglês ("flying", "destroy target creature"). Enquanto você digita aparecem **sugestões de nomes**, e as **buscas recentes** ficam guardadas. Os **filtros** separam por cor, tipo, raça de criatura e edição. Quem conhece a sintaxe do Scryfall (`t:dragon c:r`, `o:"draw a card"`) pode usar direto.
 
