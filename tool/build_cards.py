@@ -291,7 +291,7 @@ def fetch(url):
     return None
 
 
-WEBP_QUALITY = 82
+WEBP_QUALITY = 65  # o banco abaixo de 8 GB (testado: 82 → 11 GB, 65 → 7,5 GB)
 
 
 def to_webp(data, quality=None, width=None):
