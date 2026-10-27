@@ -58,4 +58,23 @@ void main() {
     expect(r.number, '410');
     expect(r.lang, 'en');
   });
+
+  test('nome da busca igual ao lido, com erro de leitura', () {
+    expect(nameMatches('Lightnirg Bolt', 'Lightning Bolt'), isTrue);
+    expect(nameMatches('Elfos de Llanowar', 'Elfos de Llanowar'), isTrue);
+    expect(nameMatches('Choque', 'Choque Elétrico Duplo'), isFalse);
+    expect(nameMatches('Shock', 'Shockwave'), isFalse);
+  });
+
+  test('só o texto dentro da moldura conta', () {
+    // Foto 1000 × 1800: a moldura vai de ~355 a ~1445 na altura.
+    final lines = [
+      (text: 'Outra Carta Na Mesa', top: 120.0, left: 300.0, height: 30.0),
+      (text: 'Sol Ring', top: 400.0, left: 140.0, height: 30.0),
+      (text: 'CMM • EN', top: 1400.0, left: 140.0, height: 20.0),
+    ];
+    final r = readCard(inFrame(lines, 1000, 1800));
+    expect(r.name, 'Sol Ring');
+    expect(r.set, 'cmm');
+  });
 }
