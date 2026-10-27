@@ -205,47 +205,41 @@ ThemeData appTheme(Color background) {
   );
 }
 
-/// O tema de antes do redesign. O contador de vida continua com ele (pedido:
-/// a mesa fica como era).
-ThemeData legacyTheme(Color background) {
-  final light = _isLight(background);
-  return ThemeData(
-    useMaterial3: true,
-    brightness: light ? Brightness.light : Brightness.dark,
-    colorSchemeSeed: Colors.blue,
-    scaffoldBackgroundColor: background,
-    appBarTheme: AppBarTheme(
-      centerTitle: false,
-      titleTextStyle: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: light ? Colors.black87 : Colors.white),
-    ),
-    inputDecorationTheme: InputDecorationTheme(
-      filled: true,
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(18), borderSide: BorderSide.none),
-    ),
-    elevatedButtonTheme: ElevatedButtonThemeData(style: ElevatedButton.styleFrom(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)))),
-    filledButtonTheme: FilledButtonThemeData(style: FilledButton.styleFrom(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)))),
-    outlinedButtonTheme: OutlinedButtonThemeData(style: OutlinedButton.styleFrom(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)))),
-    dialogTheme: DialogThemeData(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24))),
-    bottomSheetTheme: const BottomSheetThemeData(
-      showDragHandle: true,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(28))),
-    ),
-    snackBarTheme: SnackBarThemeData(behavior: SnackBarBehavior.floating, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
-    pageTransitionsTheme: const PageTransitionsTheme(builders: {
-      TargetPlatform.android: FadeForwardsPageTransitionsBuilder(),
-    }),
-  );
-}
-
-/// Mostra [child] com o tema de antes (o contador de vida e as janelas dele).
+/// O contador de vida com o tema escolhido (as cores de destaque e as janelas
+/// do tema), mas com a letra de sempre nos números (Roboto).
 class LegacyTheme extends StatelessWidget {
   final Widget child;
   const LegacyTheme({super.key, required this.child});
 
   @override
   Widget build(BuildContext context) {
-    // O contador sempre foi escuro com o fundo antigo.
-    final bg = context.watch<ThemeProvider>().backgroundColor;
-    return Theme(data: legacyTheme(bg == LL.bg ? const Color(0xFF1E1E24) : bg), child: child);
+    final t = appTheme(context.watch<ThemeProvider>().backgroundColor);
+    return Theme(data: t.copyWith(textTheme: t.textTheme.apply(fontFamily: 'Roboto')), child: child);
+  }
+}
+
+/// As cores do contador de vida no tema escolhido: o fundo da mesa, as
+/// janelas e o menu, o texto e o destaque (os quadros dos jogadores têm as
+/// cores deles).
+class CounterLook {
+  final bool light;
+  final Color bg; // a mesa (entre os quadros)
+  final Color surface; // janelas e o botão do meio
+  final Color raised; // botões e opções dentro do menu e das janelas
+  final Color text;
+  final Color scrim; // o fundo do menu do meio
+  const CounterLook._(this.light, this.bg, this.surface, this.raised, this.text, this.scrim);
+
+  Color get accent => LL.gold;
+  Color get onAccent => LL.onGold;
+  Color muted(double alpha) => text.withValues(alpha: alpha);
+
+  factory CounterLook.of(BuildContext context) {
+    final background = context.read<ThemeProvider>().backgroundColor;
+    LL.accentFor(background);
+    if (_isLight(background)) {
+      return CounterLook._(true, background, LL.lightSurface, LL.tint, const Color(0xFF141824), background.withValues(alpha: 0.94));
+    }
+    return CounterLook._(false, background == LL.bg ? LL.bg : background, LL.surface, LL.card, Colors.white, Colors.black.withValues(alpha: 0.88));
   }
 }

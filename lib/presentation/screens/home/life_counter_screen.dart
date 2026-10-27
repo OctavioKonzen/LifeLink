@@ -16,6 +16,7 @@ import 'planar_dialogs.dart';
 import 'online_screens.dart';
 import '../../../data/account/online.dart';
 import '../../../data/account/user_data.dart';
+import '../../theme/app_theme.dart';
 
 /// O contador de vida, inspirado nos apps do gênero (Lifetap, MTG Companion):
 /// cada jogador virado para o seu lado da mesa, toque para ±1 e segurar para
@@ -29,6 +30,7 @@ class LifeCounterScreen extends StatefulWidget {
 }
 
 class _LifeCounterScreenState extends State<LifeCounterScreen> {
+  CounterLook get look => CounterLook.of(context);
   bool _menuOpen = false;
   bool _firstPlayer = false; // "Quem começa" aberto (dados em cima de cada um)
   int? _shownWinner; // a vitória já mostrada nesta partida
@@ -199,7 +201,7 @@ class _LifeCounterScreenState extends State<LifeCounterScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: look.bg,
       body: Consumer<GameProvider>(builder: (context, game, _) {
         // A mesa online também redesenha (ex.: escolhi o meu lugar).
         return AnimatedBuilder(animation: OnlineTable.instance, builder: (context, _) => Stack(children: [
@@ -221,12 +223,12 @@ class _LifeCounterScreenState extends State<LifeCounterScreen> {
                   width: 62,
                   height: 62,
                   decoration: BoxDecoration(
-                    color: const Color(0xFF1E1E24),
+                    color: look.surface,
                     shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white24, width: 2),
+                    border: Border.all(color: look.muted(0.24), width: 2),
                     boxShadow: const [BoxShadow(color: Colors.black54, blurRadius: 14, spreadRadius: 2)],
                   ),
-                  child: const Icon(Icons.casino_outlined, color: Colors.white, size: 30),
+                  child: Icon(Icons.casino_outlined, color: look.text, size: 30),
                 ),
               ),
             ),
@@ -300,7 +302,7 @@ class _LifeCounterScreenState extends State<LifeCounterScreen> {
               width: 62,
               height: 62,
               decoration: BoxDecoration(
-                color: const Color(0xFF26262E),
+                color: look.raised,
                 shape: BoxShape.circle,
                 border: Border.all(color: color.withValues(alpha: 0.6), width: 1.5),
                 boxShadow: [BoxShadow(color: color.withValues(alpha: 0.3), blurRadius: 12)],
@@ -308,7 +310,7 @@ class _LifeCounterScreenState extends State<LifeCounterScreen> {
               child: Icon(icon, color: color, size: 28),
             ),
             const SizedBox(height: 6),
-            Text(label, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700)),
+            Text(label, textAlign: TextAlign.center, style: TextStyle(color: look.text, fontSize: 12, fontWeight: FontWeight.w700)),
           ]),
         ),
       ),
@@ -322,11 +324,11 @@ class _LifeCounterScreenState extends State<LifeCounterScreen> {
         margin: const EdgeInsets.symmetric(horizontal: 4),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
         decoration: BoxDecoration(
-          color: selected ? const Color(0xFF448AFF) : const Color(0xFF26262E),
+          color: selected ? look.accent : look.raised,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: const Color(0xFF448AFF).withValues(alpha: 0.6)),
+          border: Border.all(color: look.accent.withValues(alpha: 0.6)),
         ),
-        child: Text(label, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800)),
+        child: Text(label, style: TextStyle(color: selected ? look.onAccent : look.text, fontWeight: FontWeight.w800)),
       ),
     );
   }
@@ -336,18 +338,18 @@ class _LifeCounterScreenState extends State<LifeCounterScreen> {
     return GestureDetector(
       onTap: close,
       child: Container(
-        color: Colors.black.withValues(alpha: 0.88),
+        color: look.scrim,
         child: SafeArea(
           child: Center(
             child: SingleChildScrollView(
               child: GestureDetector(
                 onTap: () {}, // toques dentro do menu não fecham
                 child: Column(mainAxisSize: MainAxisSize.min, children: [
-                  const Text('JOGADORES', style: TextStyle(color: Colors.white54, fontWeight: FontWeight.w800, letterSpacing: 1)),
+                  Text('JOGADORES', style: TextStyle(color: look.muted(0.54), fontWeight: FontWeight.w800, letterSpacing: 1)),
                   const SizedBox(height: 8),
                   Row(mainAxisSize: MainAxisSize.min, children: [for (int n = 2; n <= 6; n++) _chip('$n', game.playerCount == n, () => game.setPlayerCount(n))]),
                   const SizedBox(height: 18),
-                  const Text('VIDA INICIAL', style: TextStyle(color: Colors.white54, fontWeight: FontWeight.w800, letterSpacing: 1)),
+                  Text('VIDA INICIAL', style: TextStyle(color: look.muted(0.54), fontWeight: FontWeight.w800, letterSpacing: 1)),
                   const SizedBox(height: 8),
                   Wrap(alignment: WrapAlignment.center, children: [
                     for (final life in _lifeOptions) _chip('$life', game.startingLife == life, () => _confirmNewGame(game, () => game.setStartingLife(life))),
@@ -360,7 +362,7 @@ class _LifeCounterScreenState extends State<LifeCounterScreen> {
                     _menuButton(Icons.casino, 'Dados', const Color(0xFFFFA000), () => _showDice()),
                     _menuButton(Icons.emoji_people, 'Quem começa', const Color(0xFF69F0AE), () => _showFirstPlayer(game)),
                     _menuButton(Icons.history, 'Histórico', const Color(0xFFB388FF), () => _showHistory(game)),
-                    _menuButton(Icons.timer, game.countingTurns ? 'Turnos' : 'Contar turnos', const Color(0xFFFFFFFF), () => _showTurns(game)),
+                    _menuButton(Icons.timer, game.countingTurns ? 'Turnos' : 'Contar turnos', look.text, () => _showTurns(game)),
                     _menuButton(Icons.wifi_tethering, OnlineTable.instance.active ? 'Mesa ${OnlineTable.instance.code}' : 'Mesa online', const Color(0xFF64FFDA), () {
                       close();
                       showDialog(context: context, builder: (_) => OnlineTableDialog(game: game));
@@ -390,8 +392,8 @@ class _LifeCounterScreenState extends State<LifeCounterScreen> {
                         setState(() {});
                       },
                     ),
-                    _menuButton(Icons.close, 'Fechar', Colors.white70, close),
-                    _menuButton(Icons.logout, 'Sair', Colors.white70, () => Navigator.pop(context)),
+                    _menuButton(Icons.close, 'Fechar', look.muted(0.70), close),
+                    _menuButton(Icons.logout, 'Sair', look.muted(0.70), () => Navigator.pop(context)),
                   ]),
                 ]),
               ),
@@ -410,16 +412,16 @@ class _LifeCounterScreenState extends State<LifeCounterScreen> {
     final life = await showDialog<int>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF1E1E24),
-        title: const Text('Vida inicial', style: TextStyle(color: Colors.white)),
+        backgroundColor: look.surface,
+        title: Text('Vida inicial', style: TextStyle(color: look.text)),
         content: TextField(
           controller: ctrl,
           autofocus: true,
           keyboardType: TextInputType.number,
           inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(3)],
-          style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w900),
+          style: TextStyle(color: look.text, fontSize: 28, fontWeight: FontWeight.w900),
           textAlign: TextAlign.center,
-          decoration: const InputDecoration(helperText: 'De 1 a 999', helperStyle: TextStyle(color: Colors.white38)),
+          decoration: InputDecoration(helperText: 'De 1 a 999', helperStyle: TextStyle(color: look.muted(0.38))),
           onSubmitted: (v) => Navigator.pop(ctx, int.tryParse(v)),
         ),
         actions: [
@@ -442,9 +444,9 @@ class _LifeCounterScreenState extends State<LifeCounterScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF1E1E24),
-        title: const Text('Nova partida?', style: TextStyle(color: Colors.white)),
-        content: const Text('A vida e os contadores de todos voltam ao começo.', style: TextStyle(color: Colors.white70)),
+        backgroundColor: look.surface,
+        title: Text('Nova partida?', style: TextStyle(color: look.text)),
+        content: Text('A vida e os contadores de todos voltam ao começo.', style: TextStyle(color: look.muted(0.70))),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar')),
           ElevatedButton(
@@ -467,7 +469,7 @@ class _LifeCounterScreenState extends State<LifeCounterScreen> {
     return showDialog(
       context: context,
       builder: (ctx) => Dialog(
-        backgroundColor: const Color(0xFF1E1E24),
+        backgroundColor: look.surface,
         insetPadding: const EdgeInsets.all(16),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         child: RotatedBox(quarterTurns: turns, child: builder(ctx)),
@@ -486,19 +488,19 @@ class _LifeCounterScreenState extends State<LifeCounterScreen> {
               child: Row(children: [
                 Icon(icon, color: color, size: 22),
                 const SizedBox(width: 10),
-                Expanded(child: Text(label, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700))),
+                Expanded(child: Text(label, style: TextStyle(color: look.text, fontWeight: FontWeight.w700))),
                 ContinuousActionButton(
                   onTap: () => change(-step),
                   onHoldAction: () => change(-step),
                   padding: const EdgeInsets.all(4),
-                  child: const Icon(Icons.remove_circle, color: Colors.white54, size: 34),
+                  child: Icon(Icons.remove_circle, color: look.muted(0.54), size: 34),
                 ),
                 SizedBox(width: 44, child: Text('$value', textAlign: TextAlign.center, style: TextStyle(color: color, fontSize: 24, fontWeight: FontWeight.w900))),
                 ContinuousActionButton(
                   onTap: () => change(step),
                   onHoldAction: () => change(step),
                   padding: const EdgeInsets.all(4),
-                  child: const Icon(Icons.add_circle, color: Colors.white54, size: 34),
+                  child: Icon(Icons.add_circle, color: look.muted(0.54), size: 34),
                 ),
               ]),
             );
@@ -514,7 +516,7 @@ class _LifeCounterScreenState extends State<LifeCounterScreen> {
                 const SizedBox(height: 12),
                 row('Veneno', Icons.science, const Color(0xFFCE93D8), game.counter(Counter.poison, index), (d) => game.updateCounter(Counter.poison, index, d)),
                 row('Energia', Icons.bolt, const Color(0xFFFFF176), game.counter(Counter.energy, index), (d) => game.updateCounter(Counter.energy, index, d)),
-                row('Experiência', Icons.auto_awesome, Colors.white, game.counter(Counter.experience, index), (d) => game.updateCounter(Counter.experience, index, d)),
+                row('Experiência', Icons.auto_awesome, look.text, game.counter(Counter.experience, index), (d) => game.updateCounter(Counter.experience, index, d)),
                 row('Imposto do comandante', Icons.account_balance, const Color(0xFF80CBC4), game.counter(Counter.tax, index), (d) => game.updateCounter(Counter.tax, index, d), step: 2),
                 row('Tesouro', Icons.paid, const Color(0xFFFFD54F), game.counter(Counter.treasure, index), (d) => game.updateCounter(Counter.treasure, index, d)),
                 row('Tempestade', Icons.thunderstorm, const Color(0xFF90CAF9), game.counter(Counter.storm, index), (d) => game.updateCounter(Counter.storm, index, d)),
@@ -522,7 +524,7 @@ class _LifeCounterScreenState extends State<LifeCounterScreen> {
                 SwitchListTile(
                   contentPadding: EdgeInsets.zero,
                   secondary: const Icon(Icons.location_city, color: Color(0xFFFFF8E1)),
-                  title: const Text('Cidade abençoada', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+                  title: Text('Cidade abençoada', style: TextStyle(color: look.text, fontWeight: FontWeight.w700)),
                   value: game.counter(Counter.blessing, index) > 0,
                   onChanged: (on) => game.updateCounter(Counter.blessing, index, on ? 1 : -1),
                 ),
@@ -545,7 +547,7 @@ class _LifeCounterScreenState extends State<LifeCounterScreen> {
                     ),
                   ),
                 ]),
-                const Divider(color: Colors.white12, height: 24),
+                Divider(color: look.muted(0.12), height: 24),
                 // O comandante deste jogador atacou: o dano vai para o outro.
                 Text('MEU COMANDANTE ATACOU', style: TextStyle(color: game.colorOf(index), fontSize: 12, fontWeight: FontWeight.w900, letterSpacing: 0.5)),
                 const SizedBox(height: 4),
@@ -562,7 +564,7 @@ class _LifeCounterScreenState extends State<LifeCounterScreen> {
                   onSelected: (on) => game.setPartner(index, on),
                 ),
                 const SizedBox(height: 12),
-                const Text('DANO DE COMANDANTE QUE RECEBI', style: TextStyle(color: Colors.white54, fontSize: 12, fontWeight: FontWeight.w800, letterSpacing: 0.5)),
+                Text('DANO DE COMANDANTE QUE RECEBI', style: TextStyle(color: look.muted(0.54), fontSize: 12, fontWeight: FontWeight.w800, letterSpacing: 0.5)),
                 const SizedBox(height: 4),
                 for (final a in others) ...[
                   row('de ${game.commanderName(a)}', Icons.shield, game.colorOf(a), game.commanderDamage[index][a], (d) => game.updateCommanderDamage(index, a, d)),
@@ -571,7 +573,7 @@ class _LifeCounterScreenState extends State<LifeCounterScreen> {
                         (d) => game.updateCommanderDamage(index, a + GameProvider.maxPlayers, d)),
                 ],
                 const SizedBox(height: 8),
-                const Text('O dano de comandante também tira vida de quem recebe. 21 de um mesmo comandante derrota.', style: TextStyle(color: Colors.white38, fontSize: 12)),
+                Text('O dano de comandante também tira vida de quem recebe. 21 de um mesmo comandante derrota.', style: TextStyle(color: look.muted(0.38), fontSize: 12)),
                 const SizedBox(height: 12),
                 ElevatedButton(onPressed: () => Navigator.pop(ctx), child: const Text('Pronto')),
               ]),
@@ -608,9 +610,9 @@ class _LifeCounterScreenState extends State<LifeCounterScreen> {
                 SizedBox(height: 110, child: CustomPaint(painter: _LifeChartPainter(points, Color.lerp(color, Colors.white, 0.25)!))),
                 const SizedBox(height: 8),
                 if (timeline.changes.isEmpty)
-                  const Padding(
+                  Padding(
                     padding: EdgeInsets.symmetric(vertical: 16),
-                    child: Text('Ainda sem mudanças de vida nesta partida.', textAlign: TextAlign.center, style: TextStyle(color: Colors.white54)),
+                    child: Text('Ainda sem mudanças de vida nesta partida.', textAlign: TextAlign.center, style: TextStyle(color: look.muted(0.54))),
                   )
                 else
                   Flexible(
@@ -627,17 +629,17 @@ class _LifeCounterScreenState extends State<LifeCounterScreen> {
                             Expanded(
                               child: Text(
                                 c.kind == 'cmd' ? 'comandante de ${game.commanderName(c.attacker ?? 0)}' : (c.delta < 0 ? 'dano' : 'cura'),
-                                style: const TextStyle(color: Colors.white70),
+                                style: TextStyle(color: look.muted(0.70)),
                               ),
                             ),
-                            Text('${c.life}', style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w900)),
+                            Text('${c.life}', style: TextStyle(color: look.text, fontSize: 18, fontWeight: FontWeight.w900)),
                             const SizedBox(width: 10),
-                            SizedBox(width: 58, child: Text(ago(c.at), textAlign: TextAlign.right, style: const TextStyle(color: Colors.white38, fontSize: 12))),
+                            SizedBox(width: 58, child: Text(ago(c.at), textAlign: TextAlign.right, style: TextStyle(color: look.muted(0.38), fontSize: 12))),
                           ]),
                         ),
                       Padding(
                         padding: const EdgeInsets.symmetric(vertical: 5),
-                        child: Text('Começou com ${timeline.start}', style: const TextStyle(color: Colors.white38)),
+                        child: Text('Começou com ${timeline.start}', style: TextStyle(color: look.muted(0.38))),
                       ),
                     ]),
                   ),
@@ -664,14 +666,14 @@ class _LifeCounterScreenState extends State<LifeCounterScreen> {
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(20),
             child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-              const Text('Jogador', textAlign: TextAlign.center, style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w900)),
+              Text('Jogador', textAlign: TextAlign.center, style: TextStyle(color: look.text, fontSize: 20, fontWeight: FontWeight.w900)),
               const SizedBox(height: 14),
               TextField(
                 controller: ctrl,
                 autofocus: false,
-                style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+                style: TextStyle(color: look.text, fontSize: 20, fontWeight: FontWeight.bold),
                 textAlign: TextAlign.center,
-                decoration: const InputDecoration(hintText: 'Nome', hintStyle: TextStyle(color: Colors.white24)),
+                decoration: InputDecoration(hintText: 'Nome', hintStyle: TextStyle(color: look.muted(0.24))),
                 onChanged: (v) {
                   if (v.trim().isNotEmpty) game.updatePlayerName(index, v.trim());
                 },
@@ -681,11 +683,11 @@ class _LifeCounterScreenState extends State<LifeCounterScreen> {
               () {
                 final myDecks = [for (final d in context.read<DeckProvider>().allDecks) d.name];
                 return Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
-                  const Text('DECK (OPCIONAL, PARA AS ESTATÍSTICAS)', style: TextStyle(color: Colors.white54, fontSize: 12, fontWeight: FontWeight.w800)),
+                  Text('DECK (OPCIONAL, PARA AS ESTATÍSTICAS)', style: TextStyle(color: look.muted(0.54), fontSize: 12, fontWeight: FontWeight.w800)),
                   TextField(
                     controller: deckCtrl,
-                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
-                    decoration: const InputDecoration(hintText: 'Nome do deck ou comandante', hintStyle: TextStyle(color: Colors.white24)),
+                    style: TextStyle(color: look.text, fontWeight: FontWeight.w700),
+                    decoration: InputDecoration(hintText: 'Nome do deck ou comandante', hintStyle: TextStyle(color: look.muted(0.24))),
                     onChanged: (v) => game.setDeck(index, v),
                   ),
                   if (myDecks.isNotEmpty) ...[
@@ -715,9 +717,9 @@ class _LifeCounterScreenState extends State<LifeCounterScreen> {
                       decoration: BoxDecoration(
                         color: color ?? Colors.transparent,
                         shape: BoxShape.circle,
-                        border: Border.all(color: selected ? Colors.white : (color == null ? Colors.white38 : Colors.transparent), width: 3),
+                        border: Border.all(color: selected ? look.text : (color == null ? look.muted(0.38) : Colors.transparent), width: 3),
                       ),
-                      child: color == null ? const Icon(Icons.block, color: Colors.white54, size: 20) : null,
+                      child: color == null ? Icon(Icons.block, color: look.muted(0.54), size: 20) : null,
                     ),
                   );
               final second = game.secondColorOf(index);
@@ -732,14 +734,14 @@ class _LifeCounterScreenState extends State<LifeCounterScreen> {
                   ),
                 ),
                 const SizedBox(height: 14),
-                const Text('COR', style: TextStyle(color: Colors.white54, fontSize: 12, fontWeight: FontWeight.w800)),
+                Text('COR', style: TextStyle(color: look.muted(0.54), fontSize: 12, fontWeight: FontWeight.w800)),
                 const SizedBox(height: 10),
                 Wrap(spacing: 10, runSpacing: 10, alignment: WrapAlignment.center, children: [
                   for (int c = 0; c < GameProvider.palette.length; c++)
                     dot(color: GameProvider.palette[c], selected: game.colorIndexOf(index) == c, onTap: () => game.setPlayerColor(index, c)),
                 ]),
                 const SizedBox(height: 16),
-                const Text('COR 2 (DEGRADÊ, COMO DECK DE DUAS CORES)', style: TextStyle(color: Colors.white54, fontSize: 12, fontWeight: FontWeight.w800)),
+                Text('COR 2 (DEGRADÊ, COMO DECK DE DUAS CORES)', style: TextStyle(color: look.muted(0.54), fontSize: 12, fontWeight: FontWeight.w800)),
                 const SizedBox(height: 10),
                 Wrap(spacing: 10, runSpacing: 10, alignment: WrapAlignment.center, children: [
                   dot(color: null, selected: second == null, onTap: () => game.setSecondColor(index, -1)),
@@ -780,23 +782,23 @@ class _LifeCounterScreenState extends State<LifeCounterScreen> {
         builder: (context, _) {
           final players = [for (int i = 0; i < game.playerCount; i++) i];
           return AlertDialog(
-            backgroundColor: const Color(0xFF1E1E24),
-            title: Text(game.countingTurns ? 'Turnos · rodada ${game.turnRound}' : 'Quem joga primeiro?', style: const TextStyle(color: Colors.white)),
+            backgroundColor: look.surface,
+            title: Text(game.countingTurns ? 'Turnos · rodada ${game.turnRound}' : 'Quem joga primeiro?', style: TextStyle(color: look.text)),
             content: SizedBox(
               width: 340,
               child: Column(mainAxisSize: MainAxisSize.min, children: [
                 if (!game.countingTurns)
-                  const Padding(
+                  Padding(
                     padding: EdgeInsets.only(bottom: 8),
-                    child: Text('A vez passa no sentido horário. No quadro de quem joga aparece o tempo e o botão de passar.', style: TextStyle(color: Colors.white54, fontSize: 13)),
+                    child: Text('A vez passa no sentido horário. No quadro de quem joga aparece o tempo e o botão de passar.', style: TextStyle(color: look.muted(0.54), fontSize: 13)),
                   ),
                 for (final i in players)
                   ListTile(
                     dense: true,
                     leading: CircleAvatar(radius: 8, backgroundColor: game.colorOf(i)),
-                    title: Text(game.playerNames[i], style: TextStyle(color: Colors.white, fontWeight: game.turnPlayer == i ? FontWeight.w900 : FontWeight.w600)),
-                    subtitle: game.countingTurns ? Text('Tempo total: ${_clock(game.turnTotal(i))}', style: const TextStyle(color: Colors.white54)) : null,
-                    trailing: game.turnPlayer == i ? const Icon(Icons.play_arrow, color: Colors.white) : null,
+                    title: Text(game.playerNames[i], style: TextStyle(color: look.text, fontWeight: game.turnPlayer == i ? FontWeight.w900 : FontWeight.w600)),
+                    subtitle: game.countingTurns ? Text('Tempo total: ${_clock(game.turnTotal(i))}', style: TextStyle(color: look.muted(0.54))) : null,
+                    trailing: game.turnPlayer == i ? Icon(Icons.play_arrow, color: look.text) : null,
                     onTap: game.countingTurns
                         ? null
                         : () {
@@ -839,13 +841,13 @@ class _LifeCounterScreenState extends State<LifeCounterScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF1E1E24),
-        title: const Text('Histórico da partida', style: TextStyle(color: Colors.white)),
+        backgroundColor: look.surface,
+        title: Text('Histórico da partida', style: TextStyle(color: look.text)),
         content: SizedBox(
           width: 360,
           height: 380,
           child: events.isEmpty
-              ? const Center(child: Text('Nada ainda nesta partida.', style: TextStyle(color: Colors.white54)))
+              ? Center(child: Text('Nada ainda nesta partida.', style: TextStyle(color: look.muted(0.54))))
               : ListView.builder(
                   itemCount: events.length,
                   itemBuilder: (context, k) {
@@ -855,8 +857,8 @@ class _LifeCounterScreenState extends State<LifeCounterScreen> {
                     return ListTile(
                       dense: true,
                       leading: CircleAvatar(radius: 6, backgroundColor: game.colorOf(e.player)),
-                      title: Text(game.playerNames[e.player], style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
-                      subtitle: Text('$what · $time', style: const TextStyle(color: Colors.white54)),
+                      title: Text(game.playerNames[e.player], style: TextStyle(color: look.text, fontWeight: FontWeight.w700)),
+                      subtitle: Text('$what · $time', style: TextStyle(color: look.muted(0.54))),
                       trailing: Text(
                         e.delta > 0 ? '+${e.delta}' : '${e.delta}',
                         style: TextStyle(
@@ -878,18 +880,18 @@ class _LifeCounterScreenState extends State<LifeCounterScreen> {
     showDialog(
       context: context,
       builder: (ctx) => Dialog(
-        backgroundColor: const Color(0xFF1E1E24),
+        backgroundColor: look.surface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         child: Padding(
           padding: const EdgeInsets.all(28),
           child: Column(mainAxisSize: MainAxisSize.min, children: [
             const Icon(Icons.emoji_events, size: 80, color: Colors.amber),
             const SizedBox(height: 12),
-            const Text('VITÓRIA!', style: TextStyle(color: Colors.white, fontSize: 30, fontWeight: FontWeight.w900, letterSpacing: 2)),
+            Text('VITÓRIA!', style: TextStyle(color: look.text, fontSize: 30, fontWeight: FontWeight.w900, letterSpacing: 2)),
             const SizedBox(height: 8),
             Text('${game.playerNames[winner]} venceu a partida!', textAlign: TextAlign.center, style: TextStyle(color: game.colorOf(winner), fontSize: 20, fontWeight: FontWeight.bold)),
             const SizedBox(height: 6),
-            if (xp) Text(banner == null ? '+50 XP' : '+50 XP · Novo banner: $banner', style: const TextStyle(color: Colors.white54)),
+            if (xp) Text(banner == null ? '+50 XP' : '+50 XP · Novo banner: $banner', style: TextStyle(color: look.muted(0.54))),
             const SizedBox(height: 22),
             Row(children: [
               Expanded(
@@ -932,6 +934,7 @@ class _DiceDialog extends StatefulWidget {
 }
 
 class _DiceDialogState extends State<_DiceDialog> {
+  CounterLook get look => CounterLook.of(context);
   static const _kinds = [
     ('d4', 'D4', Color(0xFF43A047)),
     ('d6', 'D6', Color(0xFF1E88E5)),
@@ -993,12 +996,12 @@ class _DiceDialogState extends State<_DiceDialog> {
   Widget _kindChip(String? kind, String label, Color color) {
     final on = _kind == kind;
     return ChoiceChip(
-      label: Text(label, style: TextStyle(color: on ? Colors.white : Colors.white70, fontWeight: FontWeight.w800)),
+      label: Text(label, style: TextStyle(color: on ? Colors.white : look.muted(0.7), fontWeight: FontWeight.w800)),
       selected: on,
       showCheckmark: false,
       selectedColor: color,
-      backgroundColor: const Color(0xFF26262E),
-      side: BorderSide(color: on ? color : Colors.white12),
+      backgroundColor: look.raised,
+      side: BorderSide(color: on ? color : look.muted(0.12)),
       onSelected: (_) => _select(kind),
     );
   }
@@ -1011,13 +1014,13 @@ class _DiceDialogState extends State<_DiceDialog> {
     final text = _rolling ? '' : (hint ? (kind == null ? 'Toque em Rolar' : 'Toque na mesa para rolar') : _result);
 
     return Dialog(
-      backgroundColor: const Color(0xFF1E1E24),
+      backgroundColor: look.surface,
       insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       child: Padding(
         padding: const EdgeInsets.all(18),
         child: Column(mainAxisSize: MainAxisSize.min, children: [
-          const Text('Dados', style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w900)),
+          Text('Dados', style: TextStyle(color: look.text, fontSize: 22, fontWeight: FontWeight.w900)),
           const SizedBox(height: 12),
           Wrap(spacing: 6, runSpacing: 6, alignment: WrapAlignment.center, children: [
             for (final k in _kinds) _kindChip(k.$1, k.$2, k.$3),
@@ -1069,7 +1072,7 @@ class _DiceDialogState extends State<_DiceDialog> {
                   text,
                   key: ValueKey(text),
                   style: hint
-                      ? const TextStyle(color: Colors.white38, fontSize: 14)
+                      ? TextStyle(color: look.muted(0.38), fontSize: 14)
                       : TextStyle(color: color, fontSize: 40, fontWeight: FontWeight.w900, shadows: [Shadow(color: color.withValues(alpha: 0.6), blurRadius: 16)]),
                 ),
               ),
@@ -1105,6 +1108,7 @@ class _FirstPlayerOverlay extends StatefulWidget {
 }
 
 class _FirstPlayerOverlayState extends State<_FirstPlayerOverlay> {
+  CounterLook get look => CounterLook.of(context);
   final _table = GlobalKey<DiceTableState>();
   final Map<int, int> _rolls = {};
   List<int> _round = [];
@@ -1237,8 +1241,8 @@ class _FirstPlayerOverlayState extends State<_FirstPlayerOverlay> {
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-            decoration: BoxDecoration(color: const Color(0xFF1E1E24), borderRadius: BorderRadius.circular(24), border: Border.all(color: Colors.white24)),
-            child: Text(_status, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 16)),
+            decoration: BoxDecoration(color: look.surface, borderRadius: BorderRadius.circular(24), border: Border.all(color: look.muted(0.24))),
+            child: Text(_status, style: TextStyle(color: look.text, fontWeight: FontWeight.w800, fontSize: 16)),
           ),
           const SizedBox(height: 10),
           if (_winner != null)
@@ -1248,7 +1252,7 @@ class _FirstPlayerOverlayState extends State<_FirstPlayerOverlay> {
               child: const Text('Começar a partida', style: TextStyle(fontWeight: FontWeight.w900)),
             )
           else
-            TextButton(onPressed: widget.onClose, child: const Text('Cancelar', style: TextStyle(color: Colors.white70))),
+            TextButton(onPressed: widget.onClose, child: Text('Cancelar', style: TextStyle(color: look.muted(0.70)))),
         ]),
       ),
     ]);
