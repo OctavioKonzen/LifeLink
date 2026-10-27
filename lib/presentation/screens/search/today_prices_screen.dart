@@ -9,6 +9,7 @@ import '../../../data/repositories/card_repository.dart';
 import '../../../data/models/card_model.dart';
 import 'card_detail_screen.dart';
 import '../../widgets/neon.dart';
+import '../../theme/app_theme.dart';
 
 class TodayPricesScreen extends StatefulWidget {
   const TodayPricesScreen({super.key});
@@ -136,7 +137,7 @@ class _TodayPricesScreenState extends State<TodayPricesScreen> {
             ),
           ),
           body: _isLoading
-              ? const Center(child: CircularProgressIndicator(color: Colors.blueAccent))
+              ? const Center(child: CircularProgressIndicator(color: LL.gold))
               : _cards.isEmpty 
                   ? Center(child: Text("Nenhuma carta encontrada.", style: TextStyle(color: textColor.withValues(alpha: 0.5))))
                   : ListView.builder(

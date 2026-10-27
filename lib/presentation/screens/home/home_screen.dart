@@ -24,6 +24,7 @@ import '../collection/collection_screen.dart';
 import '../../../data/providers/collection_provider.dart';
 import '../../../data/account/auth_service.dart';
 import '../../widgets/neon.dart';
+import '../../theme/app_theme.dart';
 import '../../widgets/player.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -111,11 +112,11 @@ class _HomeScreenState extends State<HomeScreen> {
           Transform.rotate(angle: 0.7, child: Icon(Icons.colorize_rounded, size: 100, color: Colors.grey[400], shadows: [Shadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 10)])),
           Positioned(
             top: 15, left: 80,
-            child: Transform.rotate(angle: -0.15, child: Text('LIFE', style: TextStyle(fontSize: 52, fontWeight: FontWeight.w900, fontStyle: FontStyle.italic, color: textColor, letterSpacing: -2, shadows: [Shadow(color: Colors.blueAccent.withValues(alpha: 0.6), blurRadius: 15)]))),
+            child: Transform.rotate(angle: -0.15, child: Text('LIFE', style: TextStyle(fontFamily: 'Roboto', fontSize: 52, fontWeight: FontWeight.w900, fontStyle: FontStyle.italic, color: textColor, letterSpacing: -2, shadows: [Shadow(color: LL.gold.withValues(alpha: 0.6), blurRadius: 15)]))),
           ),
           Positioned(
             bottom: 15, right: 65,
-            child: Transform.rotate(angle: 0.1, child: Text('LINK', style: TextStyle(fontSize: 60, fontWeight: FontWeight.w900, fontStyle: FontStyle.italic, color: Colors.redAccent, letterSpacing: -4, shadows: [Shadow(color: Colors.redAccent.withValues(alpha: 0.7), blurRadius: 20), const Shadow(color: Colors.orangeAccent, blurRadius: 5)]))),
+            child: Transform.rotate(angle: 0.1, child: Text('LINK', style: TextStyle(fontFamily: 'Roboto', fontSize: 60, fontWeight: FontWeight.w900, fontStyle: FontStyle.italic, color: Colors.redAccent, letterSpacing: -4, shadows: [Shadow(color: Colors.redAccent.withValues(alpha: 0.7), blurRadius: 20), const Shadow(color: Colors.orangeAccent, blurRadius: 5)]))),
           ),
         ],
       ),
@@ -126,19 +127,19 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildSearchBar(BuildContext context, Color cardColor, Color textColor, bool isPt) {
     return Material(
       color: cardColor,
-      borderRadius: BorderRadius.circular(22),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: BorderSide(color: lineOf(cardColor))),
       child: InkWell(
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(16),
         onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const CardSearchScreen())),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
           child: Row(children: [
-            Icon(Icons.search, color: textColor.withValues(alpha: 0.6), size: 28),
-            const SizedBox(width: 16),
-            Expanded(child: Text("Procurar carta", style: TextStyle(color: textColor.withValues(alpha: 0.6), fontSize: 18))),
+            Icon(Icons.search, color: textColor.withValues(alpha: 0.55), size: 24),
+            const SizedBox(width: 14),
+            Expanded(child: Text("Procurar carta", style: TextStyle(color: textColor.withValues(alpha: 0.55), fontSize: 16))),
             // Escanear com a câmera.
             IconButton(
-              icon: Icon(Icons.document_scanner, color: textColor.withValues(alpha: 0.75), size: 26),
+              icon: const Icon(Icons.document_scanner, color: LL.gold, size: 24),
               tooltip: 'Escanear carta com a câmera',
               onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CardScanScreen())),
               padding: EdgeInsets.zero,
@@ -154,9 +155,9 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildMenuGrid(BuildContext context, bool isPt, Color cardColor) {
     void go(Widget screen) => Navigator.push(context, MaterialPageRoute(builder: (context) => screen));
     final tiles = [
-      ("Meus decks", Icons.layers, const Color(0xFF448AFF), () => go(const MyDecksScreen())),
+      ("Meus decks", Icons.layers, LL.gold, () => go(const MyDecksScreen())),
       ("Decks oficiais", Icons.style, const Color(0xFFB388FF), () => go(const CommunityDecksScreen())),
-      ("Contador", Icons.favorite, const Color(0xFFFF5252), () => go(const LifeCounterScreen())),
+      ("Contador", Icons.favorite, const Color(0xFFFF5252), () => go(const LegacyTheme(child: LifeCounterScreen()))),
       ("Preços", Icons.monetization_on, const Color(0xFFFFA000), () => go(const TodayPricesScreen())),
       ("Missões", Icons.auto_awesome, const Color(0xFF26A69A), () => go(const ArenaMissionsScreen())),
       ("Perfil", Icons.emoji_events, const Color(0xFF00B0FF), () => go(const ProfileScreen())),
@@ -178,28 +179,29 @@ class _HomeScreenState extends State<HomeScreen> {
     return Column(children: rows);
   }
 
-  /// Um botão escuro com o brilho neon da cor da área, o ícone grande e
-  /// transparente no canto e o nome em cima (organização do Pocketdex).
+  /// Um botão da área no desenho novo: cartão escuro com borda, o ícone
+  /// dourado num quadrado e o nome embaixo (o menu de sempre).
   Widget _buildMenuTile(String title, IconData icon, Color color, VoidCallback onTap, Color cardColor) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        decoration: BoxDecoration(
-          color: cardColor,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: color.withValues(alpha: 0.45), width: 1.2),
-          boxShadow: [BoxShadow(color: color.withValues(alpha: 0.28), blurRadius: 14)],
-        ),
-        clipBehavior: Clip.antiAlias,
+    final light = cardColor.computeLuminance() > 0.5;
+    return Material(
+      color: cardColor,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: BorderSide(color: lineOf(cardColor))),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
         child: Stack(children: [
-          Positioned(right: -14, bottom: -18, child: Icon(icon, size: 100, color: color.withValues(alpha: 0.22))),
+          Positioned(right: -12, bottom: -16, child: Icon(icon, size: 92, color: LL.gold.withValues(alpha: light ? 0.12 : 0.07))),
           Padding(
-            padding: const EdgeInsets.fromLTRB(18, 16, 12, 12),
+            padding: const EdgeInsets.fromLTRB(16, 14, 12, 12),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Icon(icon, color: color, size: 26, shadows: [Shadow(color: color.withValues(alpha: 0.8), blurRadius: 10)]),
-              const SizedBox(height: 8),
-              // Texto escuro no cartão claro (temas Rosa, Azul, Verde, Branco).
-              Text(title, style: TextStyle(color: cardColor.computeLuminance() > 0.5 ? Colors.black87 : Colors.white, fontSize: 15, fontWeight: FontWeight.w800)),
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(color: LL.gold.withValues(alpha: 0.14), borderRadius: BorderRadius.circular(12)),
+                child: Icon(icon, color: LL.gold, size: 22),
+              ),
+              const Spacer(),
+              Text(title, style: TextStyle(color: light ? const Color(0xFF141824) : LL.text, fontSize: 15, fontWeight: FontWeight.w600)),
             ]),
           ),
         ]),
@@ -215,7 +217,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final bgColor = themeProvider.backgroundColor;
     final bool isLight = bgColor.computeLuminance() > 0.5;
     final Color textColor = isLight ? Colors.black87 : Colors.white;
-    final Color cardColor = isLight ? Colors.black.withValues(alpha: 0.05) : Color.lerp(bgColor, Colors.white, 0.03)!;
+    final Color cardColor = neonSurface(context, bgColor);
     final bool isPt = themeProvider.cardLanguage == 'pt';
 
     // Cada anúncio abre exatamente o que ele mostra: a página da coleção
@@ -293,13 +295,13 @@ class _HomeScreenState extends State<HomeScreen> {
               margin: const EdgeInsets.symmetric(horizontal: 4),
               decoration: BoxDecoration(
                 color: cardColor,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: color.withValues(alpha: 0.45)),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: lineOf(cardColor)),
               ),
               child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                Icon(icon, color: color, size: 18),
+                Icon(icon, color: LL.gold, size: 18),
                 const SizedBox(width: 6),
-                Flexible(child: Text(label, overflow: TextOverflow.ellipsis, style: TextStyle(color: textColor, fontWeight: FontWeight.w700, fontSize: 13))),
+                Flexible(child: Text(label, overflow: TextOverflow.ellipsis, style: TextStyle(color: textColor, fontWeight: FontWeight.w600, fontSize: 13))),
               ]),
             ),
           ),
@@ -327,30 +329,30 @@ class _HomeScreenState extends State<HomeScreen> {
               onTap: () => _scaffoldKey.currentState?.openDrawer(),
               child: Ink(
                 padding: const EdgeInsets.fromLTRB(8, 8, 14, 8),
-                decoration: neonDecoration(AreaColors.profile, cardColor, radius: 20, glow: 0.12),
+                decoration: neonDecoration(AreaColors.profile, cardColor, radius: 16),
                 child: Row(children: [
                   const PlayerAvatar(size: 48),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
                       Text(playerNameOf(context),
-                          maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: textColor, fontWeight: FontWeight.w800, fontSize: 16)),
+                          maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: textColor, fontWeight: FontWeight.w700, fontSize: 16)),
                       const SizedBox(height: 2),
                       Row(children: [
                         Text("Nív. ${xp.level}",
-                            style: const TextStyle(color: AreaColors.profile, fontWeight: FontWeight.bold, fontSize: 12)),
+                            style: const TextStyle(color: LL.gold, fontWeight: FontWeight.w600, fontSize: 12)),
                         if (xp.selectedTitle.isNotEmpty) ...[
                           const SizedBox(width: 6),
                           Flexible(
                             child: Text(xp.selectedTitle,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(color: Colors.amberAccent, fontSize: 11, fontWeight: FontWeight.bold, fontStyle: FontStyle.italic)),
+                                style: const TextStyle(color: LL.gold, fontSize: 11, fontWeight: FontWeight.bold, fontStyle: FontStyle.italic)),
                           ),
                         ],
                       ]),
                       const SizedBox(height: 6),
-                      const LevelBar(color: AreaColors.profile, height: 5),
+                      const LevelBar(color: LL.gold, height: 5),
                     ]),
                   ),
                 ]),
@@ -363,7 +365,11 @@ class _HomeScreenState extends State<HomeScreen> {
           tooltip: "Configurações",
           onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const SettingsScreen())),
           icon: Icon(Icons.settings, color: textColor.withValues(alpha: 0.7)),
-          style: IconButton.styleFrom(backgroundColor: cardColor, fixedSize: const Size(48, 48)),
+          style: IconButton.styleFrom(
+            backgroundColor: cardColor,
+            fixedSize: const Size(48, 48),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14), side: BorderSide(color: lineOf(cardColor))),
+          ),
         ),
       ],
     );
@@ -396,6 +402,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   margin: const EdgeInsets.symmetric(horizontal: 8),
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: lineOf(cardColorOf(context))),
                     // Fundo na cor do anúncio enquanto a arte carrega (ou se falhar).
                     gradient: LinearGradient(
                       begin: Alignment.topLeft,
@@ -431,7 +438,7 @@ class _HomeScreenState extends State<HomeScreen> {
         const SizedBox(height: 8),
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
-          children: List.generate(newsList.length, (index) => Container(width: 7, height: 7, margin: const EdgeInsets.symmetric(horizontal: 4), decoration: BoxDecoration(shape: BoxShape.circle, color: _currentIndex == index ? Colors.blue : Colors.grey.withValues(alpha: 0.5)))),
+          children: List.generate(newsList.length, (index) => Container(width: 7, height: 7, margin: const EdgeInsets.symmetric(horizontal: 4), decoration: BoxDecoration(shape: BoxShape.circle, color: _currentIndex == index ? LL.gold : Colors.grey.withValues(alpha: 0.4)))),
         ),
       ],
     );
@@ -454,14 +461,14 @@ class _HomeScreenState extends State<HomeScreen> {
                 end: Alignment.bottomRight,
               ),
             ),
-            accountName: Text(playerNameOf(context), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 20)),
+            accountName: Text(playerNameOf(context), style: const TextStyle(fontFamily: LL.display, color: Colors.white, fontWeight: FontWeight.w700, fontSize: 20)),
             accountEmail: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text("Nível ${xp.level}", style: const TextStyle(color: Colors.white70)),
                 if (xp.selectedTitle.isNotEmpty)
-                  Text("« ${xp.selectedTitle} »", style: const TextStyle(color: Colors.amberAccent, fontWeight: FontWeight.bold, fontSize: 12, fontStyle: FontStyle.italic)),
+                  Text("« ${xp.selectedTitle} »", style: const TextStyle(color: LL.gold, fontWeight: FontWeight.bold, fontSize: 12, fontStyle: FontStyle.italic)),
               ],
             ),
             currentAccountPicture: GestureDetector(
@@ -473,7 +480,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
           ListTile(
-            leading: Icon(Icons.account_circle, color: textColor),
+            leading: const Icon(Icons.account_circle, color: LL.gold),
             title: Text("Conta (app e site)", style: TextStyle(color: textColor)),
             subtitle: Text(
               AuthService.instance.user?.email ?? "Entrar para sincronizar",
@@ -485,7 +492,7 @@ class _HomeScreenState extends State<HomeScreen> {
             },
           ),
           ListTile(
-            leading: Icon(Icons.person, color: textColor),
+            leading: const Icon(Icons.person, color: LL.gold),
             title: Text("Meu Perfil / Cosméticos", style: TextStyle(color: textColor)),
             onTap: () {
               Navigator.pop(context);
@@ -493,7 +500,7 @@ class _HomeScreenState extends State<HomeScreen> {
             },
           ),
           ListTile(
-            leading: Icon(Icons.group, color: textColor),
+            leading: const Icon(Icons.group, color: LL.gold),
             title: Text("Amigos", style: TextStyle(color: textColor)),
             onTap: () {
               Navigator.pop(context);
@@ -501,7 +508,7 @@ class _HomeScreenState extends State<HomeScreen> {
             },
           ),
           ListTile(
-            leading: Icon(Icons.inventory_2, color: textColor),
+            leading: const Icon(Icons.inventory_2, color: LL.gold),
             title: Text("Minha coleção", style: TextStyle(color: textColor)),
             onTap: () {
               Navigator.pop(context);
@@ -509,7 +516,7 @@ class _HomeScreenState extends State<HomeScreen> {
             },
           ),
           ListTile(
-            leading: Icon(Icons.history, color: textColor),
+            leading: const Icon(Icons.history, color: LL.gold),
             title: Text("Histórico de Partidas", style: TextStyle(color: textColor)),
             onTap: () {
               Navigator.pop(context);
@@ -517,7 +524,7 @@ class _HomeScreenState extends State<HomeScreen> {
             },
           ),
           ListTile(
-            leading: Icon(Icons.settings, color: textColor),
+            leading: const Icon(Icons.settings, color: LL.gold),
             title: Text("Configurações", style: TextStyle(color: textColor)),
             onTap: () {
               Navigator.pop(context);

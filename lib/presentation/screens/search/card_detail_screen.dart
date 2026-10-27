@@ -13,6 +13,7 @@ import '../../../data/providers/collection_provider.dart';
 import '../../../data/providers/theme_provider.dart';
 import '../../../data/services/scryfall_service.dart';
 import '../../../data/repositories/card_repository.dart';
+import '../../theme/app_theme.dart';
 import '../../../data/providers/xp_provider.dart'; 
 
 /// Raridade em português (a Scryfall manda em inglês).
@@ -339,7 +340,7 @@ class _CardDetailScreenState extends State<CardDetailScreen> with SingleTickerPr
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF1E1E24),
+        backgroundColor: LL.surface,
         title: Text("Adicionar a qual deck?", style: TextStyle(color: Colors.white)),
         content: SizedBox(
           width: double.maxFinite,
@@ -349,7 +350,7 @@ class _CardDetailScreenState extends State<CardDetailScreen> with SingleTickerPr
             itemBuilder: (context, index) {
               final deck = provider.allDecks[index];
               return ListTile(
-                leading: const Icon(Icons.layers, color: Colors.blueAccent),
+                leading: const Icon(Icons.layers, color: LL.gold),
                 title: Text(deck.name, style: const TextStyle(color: Colors.white)),
                 subtitle: Text("${deck.cards.length} cartas", style: const TextStyle(color: Colors.white54, fontSize: 12)),
                 onTap: () {
@@ -523,14 +524,14 @@ class _CardDetailScreenState extends State<CardDetailScreen> with SingleTickerPr
                         style: OutlinedButton.styleFrom(
                           minimumSize: const Size(0, 48),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                          side: BorderSide(color: Colors.blueAccent.withValues(alpha: 0.5)),
+                          side: BorderSide(color: LL.gold.withValues(alpha: 0.5)),
                         ),
-                        icon: const Icon(Icons.style, color: Colors.blueAccent, size: 20),
+                        icon: const Icon(Icons.style, color: LL.gold, size: 20),
                         onPressed: () => _showVersionsModal(bgColor, textColor, isPt, themeProvider.cardLanguage),
                         label: FittedBox(
                           child: Text(
                             isEditingExistingCard ? "TROCAR ARTE" : "OUTRAS ARTES",
-                            style: const TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold),
+                            style: const TextStyle(color: LL.gold, fontWeight: FontWeight.bold),
                           ),
                         ),
                       ),
@@ -540,7 +541,7 @@ class _CardDetailScreenState extends State<CardDetailScreen> with SingleTickerPr
                       Expanded(
                         child: ElevatedButton.icon(
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: isReplacingCard ? Colors.orangeAccent : Colors.blueAccent,
+                            backgroundColor: isReplacingCard ? Colors.orangeAccent : LL.gold,
                             minimumSize: const Size(0, 48),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                           ),
@@ -596,7 +597,7 @@ class _CardDetailScreenState extends State<CardDetailScreen> with SingleTickerPr
             margin: const EdgeInsets.only(top: 4),
             width: active ? 24 : 0,
             height: 3,
-            decoration: BoxDecoration(color: Colors.blueAccent, borderRadius: BorderRadius.circular(2)),
+            decoration: BoxDecoration(color: LL.gold, borderRadius: BorderRadius.circular(2)),
           ),
         ],
       ),

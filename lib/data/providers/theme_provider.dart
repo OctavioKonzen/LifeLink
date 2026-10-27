@@ -3,7 +3,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../account/user_data.dart';
 
 class ThemeProvider with ChangeNotifier {
-  Color _backgroundColor = const Color(0xFF1E1E24); 
+  // A noite azul do redesign (antes era 0xFF1E1E24, que vira esta).
+  static const night = Color(0xFF0A0D17);
+  static const _oldDark = 0xFF1E1E24;
+  Color _backgroundColor = night;
   String _playerName = "Jogador 1";
   String _cardLanguage = "pt"; 
 
@@ -12,7 +15,7 @@ class ThemeProvider with ChangeNotifier {
     "Rosa Claro": const Color(0xFFF8BBD0),
     "Azul Claro": const Color(0xFFB3E5FC),
     "Verde Claro": const Color(0xFFC8E6C9),
-    "Preto": const Color(0xFF1E1E24), 
+    "Noite": night,
     "Branco": const Color(0xFFF5F5F5), 
   };
 
@@ -32,12 +35,15 @@ class ThemeProvider with ChangeNotifier {
   Map<String, dynamic> toSync() => {'bgColor': _backgroundColor.value, 'playerName': _playerName, 'cardLanguage': _cardLanguage};
 
   Future<void> applySync(Map<String, dynamic>? v) async {
-    _backgroundColor = Color((v?['bgColor'] as num?)?.toInt() ?? 0xFF1E1E24);
+    _backgroundColor = _fromSaved((v?['bgColor'] as num?)?.toInt());
     _playerName = v?['playerName'] ?? "Jogador 1";
     _cardLanguage = v?['cardLanguage'] ?? "pt";
     await _savePreferences();
     notifyListeners();
   }
+
+  /// A cor salva; o preto antigo vira a noite azul do redesign.
+  static Color _fromSaved(int? value) => value == null || value == _oldDark ? night : Color(value);
 
   void setBackgroundColor(Color color) {
     _backgroundColor = color;
@@ -69,7 +75,7 @@ class ThemeProvider with ChangeNotifier {
   Future<void> _loadPreferences() async {
     final prefs = await SharedPreferences.getInstance();
     if (prefs.containsKey('bgColor')) {
-      _backgroundColor = Color(prefs.getInt('bgColor')!);
+      _backgroundColor = _fromSaved(prefs.getInt('bgColor'));
     }
     _playerName = prefs.getString('playerName') ?? "Jogador 1";
     _cardLanguage = prefs.getString('cardLanguage') ?? "pt";

@@ -9,6 +9,7 @@ import '../../../data/providers/theme_provider.dart';
 import '../../../data/providers/xp_provider.dart';
 import '../../../data/services/scryfall_service.dart';
 import '../../../data/services/lifelink_cards.dart';
+import '../../theme/app_theme.dart';
 
 class CardSearchScreen extends StatefulWidget {
   final String? targetDeckId; // adicionando cartas a este deck
@@ -414,9 +415,9 @@ class _CardSearchScreenState extends State<CardSearchScreen> {
             ],
           ),
           floatingActionButton: FloatingActionButton(
-            backgroundColor: Colors.blueAccent,
+            backgroundColor: LL.gold,
             onPressed: () => _showFilters(context, theme.backgroundColor, textColor),
-            child: const Icon(Icons.filter_list, color: Colors.white),
+            child: const Icon(Icons.filter_list, color: LL.onGold),
           ),
         ),
       ],

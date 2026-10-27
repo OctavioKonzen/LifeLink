@@ -7,6 +7,7 @@ import '../../../data/providers/theme_provider.dart';
 import '../../../data/providers/deck_provider.dart';
 import '../../../data/providers/xp_provider.dart';
 import '../../../data/services/pdf_service.dart';
+import '../../theme/app_theme.dart';
 import '../search/card_detail_screen.dart'; 
 
 class CommunityDeckDetailScreen extends StatefulWidget {
@@ -174,7 +175,7 @@ class _CommunityDeckDetailScreenState extends State<CommunityDeckDetailScreen> {
                 onPressed: _isLoading || _saved ? null : _handleSaveDeck,
               ),
               IconButton(
-                icon: const Icon(Icons.picture_as_pdf, color: Colors.blueAccent),
+                icon: const Icon(Icons.picture_as_pdf, color: LL.gold),
                 tooltip: "Baixar PDF para imprimir",
                 onPressed: _isLoading ? null : _handleDownloadPdf,
               ),

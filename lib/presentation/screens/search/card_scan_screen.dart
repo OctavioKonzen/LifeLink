@@ -14,6 +14,7 @@ import '../../../data/providers/theme_provider.dart';
 import '../../../data/services/lifelink_cards.dart';
 import '../../../data/services/scryfall_service.dart';
 import 'card_detail_screen.dart';
+import '../../theme/app_theme.dart';
 
 /// O que foi lido da carta na câmera: o nome (a linha de cima) e, nas cartas
 /// novas, a coleção e o número no canto de baixo (ex.: "MH3 • EN" e "0123").
@@ -377,7 +378,7 @@ class _CardScanScreenState extends State<CardScanScreen> {
         actions: [
           Row(children: [
             const Text('Coleção', style: TextStyle(fontSize: 13)),
-            Switch(value: _collect, activeThumbColor: Colors.amber, onChanged: (v) => setState(() => _collect = v)),
+            Switch(value: _collect, activeThumbColor: LL.gold, onChanged: (v) => setState(() => _collect = v)),
           ]),
         ],
       ),

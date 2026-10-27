@@ -1,7 +1,7 @@
 name: magic
 description: "LifeLink: contador de vida, busca de cartas, decks e preços de Magic: The Gathering."
 publish_to: 'none'
-version: 1.0.29+30
+version: 1.0.30+31
 
 environment:
   sdk: ^3.13.5
@@ -46,3 +46,23 @@ flutter:
     - assets/dice/
     # Sons do contador (gerados com: python3 tool/make_sounds.py)
     - assets/sounds/
+  # As fontes do redesign (as mesmas do site): Inter no texto, Cinzel nos
+  # títulos. Só as letras latinas (gerado com o fonttools a partir do Google Fonts).
+  fonts:
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/Inter-400.ttf
+        - asset: assets/fonts/Inter-500.ttf
+          weight: 500
+        - asset: assets/fonts/Inter-600.ttf
+          weight: 600
+        - asset: assets/fonts/Inter-700.ttf
+          weight: 700
+        - asset: assets/fonts/Inter-800.ttf
+          weight: 800
+    - family: Cinzel
+      fonts:
+        - asset: assets/fonts/Cinzel-600.ttf
+          weight: 600
+        - asset: assets/fonts/Cinzel-700.ttf
+          weight: 700

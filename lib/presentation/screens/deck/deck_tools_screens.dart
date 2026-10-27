@@ -9,6 +9,7 @@ import '../../../data/providers/theme_provider.dart';
 import '../../../data/services/deck_tools.dart';
 import '../../../data/services/scryfall_service.dart';
 import '../search/card_detail_screen.dart';
+import '../../theme/app_theme.dart';
 
 /// Preço de hoje (dólar, euro e real) e legalidade do deck em cada formato,
 /// com as cartas atualizadas na Scryfall.
@@ -83,7 +84,7 @@ class _DeckAnalysisScreenState extends State<DeckAnalysisScreen> {
           ]),
         ),
       ]),
-      list('Game Changers', b.gameChangers, Colors.amber),
+      list('Game Changers', b.gameChangers, LL.gold),
       list('Turnos extras', b.extraTurns, Colors.lightBlueAccent),
       list('Destruição de terrenos em massa', b.landDestruction, Colors.redAccent),
       const SizedBox(height: 8),
@@ -96,7 +97,7 @@ class _DeckAnalysisScreenState extends State<DeckAnalysisScreen> {
     final theme = context.watch<ThemeProvider>();
     final light = theme.backgroundColor.computeLuminance() > 0.5;
     final text = light ? Colors.black87 : Colors.white;
-    final cardColor = light ? Colors.black.withValues(alpha: 0.05) : const Color(0xFF1E1E24);
+    final cardColor = light ? Colors.black.withValues(alpha: 0.05) : LL.surface;
 
     Widget section(String title, List<Widget> children) => Card(
           color: cardColor,
@@ -333,7 +334,7 @@ class _TestHandScreenState extends State<TestHandScreen> {
                       ? 'Mulligan $_mulligans: toque em $_toBottom carta${_toBottom > 1 ? 's' : ''} para pôr no fundo do grimório.'
                       : 'Turno $_turn · ${_hand.length} na mão ($lands terreno${lands == 1 ? '' : 's'}) · $mana de mana em jogo · ${_library.length} no grimório\nToque numa carta da mão para jogar (um terreno por turno).',
                   textAlign: TextAlign.center,
-                  style: TextStyle(color: _toBottom > 0 ? Colors.amber : text.withValues(alpha: 0.7), fontWeight: FontWeight.w700, fontSize: 13),
+                  style: TextStyle(color: _toBottom > 0 ? LL.gold : text.withValues(alpha: 0.7), fontWeight: FontWeight.w700, fontSize: 13),
                 ),
               ),
               if (_command.isNotEmpty)
@@ -363,7 +364,7 @@ class _TestHandScreenState extends State<TestHandScreen> {
                     child: Container(
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(8),
-                        border: _toBottom > 0 ? Border.all(color: Colors.amber, width: 2) : null,
+                        border: _toBottom > 0 ? Border.all(color: LL.gold, width: 2) : null,
                       ),
                       child: _image(_hand[i]),
                     ),
@@ -404,7 +405,7 @@ Future<({List<DeckLine> lines, String name, String type})?> importListDialog(Bui
     context: context,
     builder: (ctx) => StatefulBuilder(
       builder: (ctx, setDialog) => AlertDialog(
-        backgroundColor: const Color(0xFF1E1E24),
+        backgroundColor: LL.surface,
         title: const Text('Importar lista', style: TextStyle(color: Colors.white)),
         content: SingleChildScrollView(
           child: Column(mainAxisSize: MainAxisSize.min, children: [
@@ -417,7 +418,7 @@ Future<({List<DeckLine> lines, String name, String type})?> importListDialog(Bui
               DropdownButton<String>(
                 value: type,
                 isExpanded: true,
-                dropdownColor: const Color(0xFF1E1E24),
+                dropdownColor: LL.surface,
                 items: [for (final t in const ['Commander', 'Challenger', 'Normal']) DropdownMenuItem(value: t, child: Text(t, style: const TextStyle(color: Colors.white)))],
                 onChanged: (v) => setDialog(() => type = v!),
               ),
@@ -500,7 +501,7 @@ class _ManaCurve extends StatelessWidget {
                 child: Column(mainAxisAlignment: MainAxisAlignment.end, children: [
                   Text('${curve[i]}', style: TextStyle(color: text.withValues(alpha: 0.7), fontSize: 11, fontWeight: FontWeight.w700)),
                   const SizedBox(height: 2),
-                  Container(height: 70.0 * curve[i] / top, decoration: BoxDecoration(color: Colors.blueAccent, borderRadius: BorderRadius.circular(4))),
+                  Container(height: 70.0 * curve[i] / top, decoration: BoxDecoration(color: LL.gold, borderRadius: BorderRadius.circular(4))),
                   const SizedBox(height: 4),
                   Text(i == 7 ? '7+' : '$i', style: TextStyle(color: text, fontWeight: FontWeight.w800, fontSize: 12)),
                 ]),
@@ -535,7 +536,7 @@ class _ManaCurve extends StatelessWidget {
 Future<void> exportDeckSheet(BuildContext context, DeckModel deck) async {
   await showModalBottomSheet(
     context: context,
-    backgroundColor: const Color(0xFF1E1E24),
+    backgroundColor: LL.surface,
     isScrollControlled: true,
     builder: (ctx) => FutureBuilder<Map<String, String>>(
       future: DeckTools.englishNames(deck.cards),
@@ -717,7 +718,7 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
                               visualDensity: VisualDensity.compact,
                               tooltip: 'Pôr no deck',
                               onPressed: added ? null : () => _add(c),
-                              icon: Icon(added ? Icons.check_circle : Icons.add_circle, color: added ? Colors.green : Colors.amber),
+                              icon: Icon(added ? Icons.check_circle : Icons.add_circle, color: added ? Colors.green : LL.gold),
                             ),
                           ]),
                         ]);

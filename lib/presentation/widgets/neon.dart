@@ -1,26 +1,41 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
-/// Cores das áreas do app (as mesmas dos botões da tela inicial).
+import '../../data/providers/theme_provider.dart';
+import '../theme/app_theme.dart';
+
+/// Cores das áreas do app. No redesign todas usam o dourado (o contador de
+/// vida tem as cores dele).
 class AreaColors {
-  static const decks = Color(0xFF448AFF);
-  static const official = Color(0xFFB388FF);
+  static const decks = LL.gold;
+  static const official = LL.gold;
   static const life = Color(0xFFFF5252);
-  static const prices = Color(0xFFFFA000);
-  static const missions = Color(0xFF26A69A);
-  static const profile = Color(0xFF00B0FF);
-  static const settings = Color(0xFF9E9E9E);
+  static const prices = LL.gold;
+  static const missions = LL.gold;
+  static const profile = LL.gold;
+  static const settings = LL.muted;
 }
 
-/// Fundo dos cartões no tema escuro: um pouco mais claro que o fundo da tela.
-Color neonSurface(BuildContext context, Color background) =>
-    background.computeLuminance() > 0.5 ? Colors.white : Color.lerp(background, Colors.white, 0.04)!;
+/// Fundo dos cartões (o "surface" do redesign): no tema escuro, o azul
+/// do cartão (#121727) puxado para a cor de fundo escolhida.
+Color neonSurface(BuildContext context, Color background) => background.computeLuminance() > 0.5
+    ? Colors.white
+    : background == LL.bg
+        ? LL.surface
+        : Color.lerp(background, Colors.white, 0.05)!;
 
-/// O cartão escuro com borda e brilho neon da cor da área (estilo da tela inicial).
-BoxDecoration neonDecoration(Color color, Color surface, {double radius = 20, double glow = 0.22}) => BoxDecoration(
+/// O fundo do cartão desta tela (a cor escolhida nas configurações).
+Color cardColorOf(BuildContext context) => neonSurface(context, context.read<ThemeProvider>().backgroundColor);
+
+/// A borda dos cartões (#232A42 no escuro).
+Color lineOf(Color surface) => surface.computeLuminance() > 0.5 ? const Color(0xFFE1DCCF) : LL.line;
+
+/// O cartão do redesign: fundo escuro, borda fina e cantos de 16. A cor da
+/// área só tinge a borda de leve ([glow] fica para compatibilidade).
+BoxDecoration neonDecoration(Color color, Color surface, {double radius = 16, double glow = 0}) => BoxDecoration(
       color: surface,
-      borderRadius: BorderRadius.circular(radius),
-      border: Border.all(color: color.withValues(alpha: 0.45), width: 1.2),
-      boxShadow: [BoxShadow(color: color.withValues(alpha: glow), blurRadius: 14)],
+      borderRadius: BorderRadius.circular(radius > 18 ? 16 : radius),
+      border: Border.all(color: Color.lerp(lineOf(surface), color, 0.18)!),
     );
 
 /// Aviso no meio da tela (lista vazia, erro...), com um botão opcional.
@@ -59,7 +74,7 @@ class StatusMessage extends StatelessWidget {
             child: Icon(icon, size: 40, color: color),
           ),
           const SizedBox(height: 18),
-          Text(title, textAlign: TextAlign.center, style: TextStyle(color: textColor, fontSize: 18, fontWeight: FontWeight.w800)),
+          Text(title, textAlign: TextAlign.center, style: TextStyle(color: textColor, fontSize: 18, fontWeight: FontWeight.w700)),
           if (message != null) ...[
             const SizedBox(height: 6),
             Text(message!, textAlign: TextAlign.center, style: TextStyle(color: textColor.withValues(alpha: 0.6), height: 1.4)),
@@ -67,7 +82,7 @@ class StatusMessage extends StatelessWidget {
           if (actionLabel != null && onAction != null) ...[
             const SizedBox(height: 18),
             FilledButton(
-              style: FilledButton.styleFrom(backgroundColor: color, foregroundColor: Colors.white, minimumSize: const Size(0, 46)),
+              style: FilledButton.styleFrom(minimumSize: const Size(0, 46)),
               onPressed: onAction,
               child: Text(actionLabel!, style: const TextStyle(fontWeight: FontWeight.bold)),
             ),
