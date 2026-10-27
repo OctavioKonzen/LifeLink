@@ -19,6 +19,10 @@ class LL {
 
   /// O fundo dos quadrinhos e chips nos temas claros (tingido como no site).
   static Color tint = const Color(0xFFF0EDE5);
+
+  /// O fundo dos cartões e botões nos temas claros: rosa, azul e verde bem
+  /// claros (como no site); no branco, branco.
+  static Color lightSurface = Colors.white;
   static const _gold = Color(0xFFF0B44C);
   static const _onGold = Color(0xFF1B1305);
 
@@ -30,18 +34,22 @@ class LL {
         gold = const Color(0xFFD94687);
         onGold = Colors.white;
         tint = const Color(0xFFF7D2E0);
+        lightSurface = const Color(0xFFFDE8F0);
       case 0xFFB3E5FC: // Azul
         gold = const Color(0xFF2B7FD4);
         onGold = Colors.white;
         tint = const Color(0xFFCDE9F8);
+        lightSurface = const Color(0xFFE6F5FD);
       case 0xFFC8E6C9: // Verde
         gold = const Color(0xFF2E9A57);
         onGold = Colors.white;
         tint = const Color(0xFFD2EAD4);
+        lightSurface = const Color(0xFFEAF6EB);
       default:
         gold = _gold;
         onGold = _onGold;
         tint = const Color(0xFFF0EDE5);
+        lightSurface = Colors.white;
     }
   }
   static const success = Color(0xFF34D399);
@@ -61,7 +69,7 @@ ThemeData appTheme(Color background) {
   final light = _isLight(background);
   final text = light ? const Color(0xFF141824) : LL.text;
   final muted = light ? const Color(0xFF5D6478) : LL.muted;
-  final surface = light ? Colors.white : Color.lerp(background, LL.surface, background == LL.bg ? 1 : 0.6)!;
+  final surface = light ? LL.lightSurface : Color.lerp(background, LL.surface, background == LL.bg ? 1 : 0.6)!;
   final line = light ? const Color(0xFFE1DCCF) : LL.line;
   final scheme = ColorScheme.fromSeed(
     seedColor: LL.gold,

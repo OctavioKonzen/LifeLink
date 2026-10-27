@@ -8,6 +8,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../../../data/providers/theme_provider.dart';
 import 'community_deck_detail_screen.dart';
 import '../../widgets/neon.dart';
+import '../../theme/app_theme.dart';
 import '../../../data/services/scryfall_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -268,7 +269,7 @@ class _CommunityDecksScreenState extends State<CommunityDecksScreen> {
                         hintStyle: TextStyle(color: textColor.withValues(alpha: 0.5)),
                         prefixIcon: Icon(Icons.search, color: textColor.withValues(alpha: 0.5)),
                         filled: true,
-                        fillColor: isLight ? Colors.black.withValues(alpha: 0.05) : Colors.white.withValues(alpha: 0.05),
+                        fillColor: isLight ? LL.lightSurface : Colors.white.withValues(alpha: 0.05),
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none),
                       ),
                       onChanged: (val) => setState(() => _searchQuery = val),
@@ -343,7 +344,7 @@ class _CommunityDecksScreenState extends State<CommunityDecksScreen> {
           color: sel ? AreaColors.official : AreaColors.official.withValues(alpha: 0.12),
           borderRadius: BorderRadius.circular(25),
         ),
-        child: Text(label, style: TextStyle(color: sel ? Colors.white : AreaColors.official, fontWeight: FontWeight.bold, fontSize: 13)),
+        child: Text(label, style: TextStyle(color: sel ? LL.onGold : AreaColors.official, fontWeight: FontWeight.bold, fontSize: 13)),
       ),
     );
   }

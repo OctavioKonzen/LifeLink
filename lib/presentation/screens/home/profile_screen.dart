@@ -90,7 +90,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final surface = neonSurface(context, bg);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14),
-      decoration: BoxDecoration(color: surface, borderRadius: BorderRadius.circular(16), border: Border.all(color: lineOf(surface))),
+      decoration: neonDecoration(LL.gold, surface),
       child: Row(children: [
         Container(
           width: 42,
@@ -160,10 +160,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     clipBehavior: Clip.antiAlias,
                     decoration: BoxDecoration(
                       color: neonSurface(context, bgColor),
+                      gradient: lightGradient(neonSurface(context, bgColor)),
                       borderRadius: BorderRadius.circular(24),
                       border: Border.all(color: lineOf(neonSurface(context, bgColor))),
                     ),
                     child: Stack(children: [
+                      // O banner padrão (cinza) não tinge os temas claros.
+                      if (!(isLight && activeBanner['id'] == '0'))
                       Positioned.fill(
                         child: Opacity(
                           opacity: 0.25,
@@ -280,7 +283,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                       decoration: BoxDecoration(
-                        color: isLight ? Colors.black.withValues(alpha: 0.05) : Colors.white10,
+                        color: isLight ? LL.lightSurface : Colors.white10,
+                        gradient: isLight ? lightGradient(LL.lightSurface) : null,
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Row(children: [
@@ -298,7 +302,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     decoration: InputDecoration(
                       filled: true,
                       fillColor: isLight
-                          ? Colors.black.withValues(alpha: 0.05)
+                          ? LL.lightSurface
                           : Colors.white10,
                       border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
@@ -422,7 +426,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               color: isSelected
                                   ? LL.gold.withValues(alpha: 0.2)
                                   : (isLight
-                                      ? Colors.black.withValues(alpha: 0.05)
+                                      ? LL.lightSurface
                                       : Colors.white10),
                               borderRadius: BorderRadius.circular(20),
                               border: Border.all(

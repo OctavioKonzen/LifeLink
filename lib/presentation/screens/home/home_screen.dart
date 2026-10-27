@@ -126,8 +126,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildSearchBar(BuildContext context, Color cardColor, Color textColor, bool isPt) {
     return Material(
-      color: cardColor,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: BorderSide(color: lineOf(cardColor))),
+      color: Colors.transparent,
+      child: Ink(
+      decoration: neonDecoration(LL.gold, cardColor),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
         onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const CardSearchScreen())),
@@ -147,6 +148,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ]),
         ),
+      ),
       ),
     );
   }
@@ -184,9 +186,11 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildMenuTile(String title, IconData icon, Color color, VoidCallback onTap, Color cardColor) {
     final light = cardColor.computeLuminance() > 0.5;
     return Material(
-      color: cardColor,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: BorderSide(color: lineOf(cardColor))),
+      color: Colors.transparent,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       clipBehavior: Clip.antiAlias,
+      child: Ink(
+      decoration: neonDecoration(LL.gold, cardColor),
       child: InkWell(
         onTap: onTap,
         child: Stack(children: [
@@ -205,6 +209,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ]),
           ),
         ]),
+      ),
       ),
     );
   }
@@ -293,11 +298,7 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Container(
               height: 42,
               margin: const EdgeInsets.symmetric(horizontal: 4),
-              decoration: BoxDecoration(
-                color: cardColor,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: lineOf(cardColor)),
-              ),
+              decoration: neonDecoration(LL.gold, cardColor, radius: 12),
               child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
                 Icon(icon, color: LL.gold, size: 18),
                 const SizedBox(width: 6),

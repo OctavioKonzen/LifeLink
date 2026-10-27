@@ -107,7 +107,7 @@ class _MatchTile extends StatelessWidget {
       'vida ${m.startingLife}',
     ].join(' · ');
     return Card(
-      color: light ? Colors.black.withValues(alpha: 0.05) : LL.surface,
+      color: light ? LL.lightSurface : LL.surface,
       margin: const EdgeInsets.only(bottom: 12),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: BorderSide(color: LL.gold.withValues(alpha: winner != null ? 0.3 : 0))),
       child: ExpansionTile(
@@ -191,7 +191,7 @@ class _Stats extends StatelessWidget {
   const _Stats(this.matches, {required this.text, required this.light});
 
   Widget _card(String title, List<Widget> children) => Card(
-        color: light ? Colors.black.withValues(alpha: 0.05) : LL.surface,
+        color: light ? LL.lightSurface : LL.surface,
         margin: const EdgeInsets.only(bottom: 14),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         child: Padding(

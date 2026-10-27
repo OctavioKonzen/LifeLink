@@ -74,7 +74,7 @@ class _AccountScreenState extends State<AccountScreen> {
     final bg = theme.backgroundColor;
     final isLight = bg.computeLuminance() > 0.5;
     final textColor = isLight ? Colors.black87 : Colors.white;
-    final fieldFill = isLight ? Colors.black.withValues(alpha: 0.05) : Colors.white10;
+    final fieldFill = isLight ? LL.lightSurface : Colors.white10;
 
     InputDecoration field(String label, IconData icon) => InputDecoration(
           labelText: label,

@@ -19,7 +19,7 @@ class AreaColors {
 /// Fundo dos cartões (o "surface" do redesign): no tema escuro, o azul
 /// do cartão (#121727) puxado para a cor de fundo escolhida.
 Color neonSurface(BuildContext context, Color background) => background.computeLuminance() > 0.5
-    ? Colors.white
+    ? LL.lightSurface
     : background == LL.bg
         ? LL.surface
         : Color.lerp(background, Colors.white, 0.05)!;
@@ -28,12 +28,19 @@ Color neonSurface(BuildContext context, Color background) => background.computeL
 Color cardColorOf(BuildContext context) => neonSurface(context, context.read<ThemeProvider>().backgroundColor);
 
 /// A borda dos cartões (#232A42 no escuro).
-Color lineOf(Color surface) => surface.computeLuminance() > 0.5 ? const Color(0xFFE1DCCF) : LL.line;
+Color lineOf(Color surface) => surface.computeLuminance() > 0.5 ? Color.lerp(LL.tint, LL.gold, 0.25)! : LL.line;
+
+/// Nos temas claros, o degradê da cor do tema (bem clara em cima, um pouco
+/// mais forte embaixo); no escuro, nenhum.
+Gradient? lightGradient(Color surface) => surface.computeLuminance() > 0.5
+    ? LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [surface, LL.tint])
+    : null;
 
 /// O cartão do redesign: fundo escuro, borda fina e cantos de 16. A cor da
 /// área só tinge a borda de leve ([glow] fica para compatibilidade).
 BoxDecoration neonDecoration(Color color, Color surface, {double radius = 16, double glow = 0}) => BoxDecoration(
       color: surface,
+      gradient: lightGradient(surface),
       borderRadius: BorderRadius.circular(radius > 18 ? 16 : radius),
       border: Border.all(color: Color.lerp(lineOf(surface), color, 0.18)!),
     );

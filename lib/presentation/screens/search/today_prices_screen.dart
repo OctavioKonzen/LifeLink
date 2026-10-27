@@ -119,7 +119,8 @@ class _TodayPricesScreenState extends State<TodayPricesScreen> {
             title: Container(
               height: 45,
               decoration: BoxDecoration(
-                color: isLight ? Colors.black.withValues(alpha: 0.05) : Colors.white10,
+                color: isLight ? LL.lightSurface : Colors.white10,
+                gradient: isLight ? lightGradient(LL.lightSurface) : null,
                 borderRadius: BorderRadius.circular(12),
               ),
               child: TextField(
