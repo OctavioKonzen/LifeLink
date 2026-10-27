@@ -14,6 +14,7 @@ import '../../widgets/dice_table.dart';
 import '../../widgets/continuous_action_button.dart';
 import 'planar_dialogs.dart';
 import 'online_screens.dart';
+import 'rules_screen.dart';
 import '../../../data/account/online.dart';
 import '../../../data/account/user_data.dart';
 import '../../theme/app_theme.dart';
@@ -392,6 +393,10 @@ class _LifeCounterScreenState extends State<LifeCounterScreen> {
                         setState(() {});
                       },
                     ),
+                    _menuButton(Icons.gavel, 'Regras', const Color(0xFFE0A030), () {
+                      close();
+                      Navigator.push(context, MaterialPageRoute(builder: (_) => const RulesScreen()));
+                    }),
                     _menuButton(Icons.close, 'Fechar', look.muted(0.70), close),
                     _menuButton(Icons.logout, 'Sair', look.muted(0.70), () => Navigator.pop(context)),
                   ]),

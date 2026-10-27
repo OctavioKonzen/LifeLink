@@ -1,10 +1,18 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:flutter/services.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../data/providers/collection_provider.dart';
 import '../../../data/providers/deck_provider.dart';
 import '../../../data/providers/theme_provider.dart';
+import '../../../data/services/collection_csv.dart';
 import '../../../data/services/deck_tools.dart';
 import '../search/card_detail_screen.dart';
 import '../search/card_scan_screen.dart';
@@ -52,6 +60,138 @@ class _CollectionScreenState extends State<CollectionScreen> {
     }
   }
 
+  /// Importar para a coleção: o CSV do Moxfield, ManaBox, Archidekt ou
+  /// Deckbox (arquivo ou colado) ou uma lista de texto.
+  Future<void> _import() async {
+    final ctrl = TextEditingController();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Importar para a coleção'),
+        content: SingleChildScrollView(
+          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            const Text('Escolha o arquivo CSV exportado do Moxfield, ManaBox, Archidekt ou Deckbox, ou cole uma lista (ex.: "2 Sol Ring (CMM) 410"). As quantidades somam com o que você já tem.',
+                style: TextStyle(fontSize: 13)),
+            const SizedBox(height: 10),
+            OutlinedButton.icon(
+              icon: const Icon(Icons.folder_open),
+              label: const Text('Escolher arquivo'),
+              onPressed: () async {
+                try {
+                  final files = await FilePicker.pickFiles(dialogTitle: 'Arquivo da coleção');
+                  if (files.isEmpty) return;
+                  ctrl.text = utf8.decode(await files.first.readAsBytes(), allowMalformed: true);
+                } catch (_) {
+                  if (ctx.mounted) ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('Não deu para abrir o arquivo.')));
+                }
+              },
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: ctrl,
+              maxLines: 8,
+              style: const TextStyle(fontSize: 13, fontFamily: 'monospace'),
+              decoration: const InputDecoration(hintText: 'Count,Name,Edition,Collector Number\n2,Sol Ring,cmm,410\n\nou\n\n4 Lightning Bolt'),
+            ),
+          ]),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Importar')),
+        ],
+      ),
+    );
+    final text = ctrl.text;
+    ctrl.dispose();
+    if (ok != true || text.trim().isEmpty || !mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.showSnackBar(const SnackBar(content: Text('Importando as cartas...'), duration: Duration(seconds: 30)));
+    String message;
+    try {
+      final r = await CollectionCsv.fetch(text);
+      if (!mounted) return;
+      if (r.copies == 0) {
+        message = r.missing.isEmpty ? 'Nenhuma carta no texto.' : 'Não encontrei: ${r.missing.take(8).join(', ')}';
+      } else {
+        context.read<CollectionProvider>().addMany(r.cards);
+        message = '${r.copies} cartas (${r.cards.length} diferentes) entraram na coleção.';
+        if (r.missing.isNotEmpty) message += ' Não encontrei: ${r.missing.take(8).join(', ')}';
+      }
+    } catch (_) {
+      message = 'Não deu para importar agora. Verifique a internet.';
+    }
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(SnackBar(content: Text(message), duration: const Duration(seconds: 6)));
+  }
+
+  /// Exportar a coleção: o CSV do Moxfield (entra também no ManaBox,
+  /// Archidekt e Deckbox) como arquivo, ou a lista de texto.
+  Future<void> _export() async {
+    final cards = context.read<CollectionProvider>().cards;
+    if (cards.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('A coleção está vazia.')));
+      return;
+    }
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) => FutureBuilder<List<CollectionRow>>(
+        future: CollectionCsv.rows([for (final c in cards) (id: c.id, name: c.name, number: c.number, qty: c.qty, trade: c.trade)]),
+        builder: (ctx, snap) {
+          if (!snap.hasData) return const SizedBox(height: 200, child: Center(child: CircularProgressIndicator()));
+          final rows = snap.data!;
+          final list = CollectionCsv.list(rows);
+          return SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+              child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                const Text('Exportar a coleção', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 4),
+                const Text('O arquivo CSV no formato do Moxfield, que também entra no ManaBox, Archidekt e Deckbox. Ou copie como lista.', style: TextStyle(fontSize: 12)),
+                const SizedBox(height: 12),
+                ConstrainedBox(
+                  constraints: BoxConstraints(maxHeight: MediaQuery.of(ctx).size.height * 0.4),
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(color: Colors.black12, borderRadius: BorderRadius.circular(12)),
+                    child: SingleChildScrollView(child: SelectableText(list, style: const TextStyle(fontFamily: 'monospace', fontSize: 13))),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Row(children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      icon: const Icon(Icons.copy),
+                      label: const Text('Copiar lista'),
+                      onPressed: () {
+                        Clipboard.setData(ClipboardData(text: list));
+                        Navigator.pop(ctx);
+                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Lista copiada.')));
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: FilledButton.icon(
+                      icon: const Icon(Icons.share),
+                      label: const Text('Enviar CSV'),
+                      onPressed: () async {
+                        final dir = await getTemporaryDirectory();
+                        final file = File('${dir.path}/lifelink-colecao.csv');
+                        await file.writeAsString(CollectionCsv.csv(rows));
+                        await SharePlus.instance.share(ShareParams(files: [XFile(file.path, mimeType: 'text/csv')], subject: 'Coleção LifeLink'));
+                      },
+                    ),
+                  ),
+                ]),
+              ]),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final bg = context.watch<ThemeProvider>().backgroundColor;
@@ -72,6 +212,14 @@ class _CollectionScreenState extends State<CollectionScreen> {
               tooltip: 'Atualizar preços',
               onPressed: _refreshing ? null : _refresh,
               icon: _refreshing ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.refresh),
+            ),
+            PopupMenuButton<String>(
+              tooltip: 'Importar ou exportar',
+              onSelected: (v) => v == 'import' ? _import() : _export(),
+              itemBuilder: (_) => const [
+                PopupMenuItem(value: 'import', child: ListTile(leading: Icon(Icons.upload_file), title: Text('Importar (CSV ou lista)'))),
+                PopupMenuItem(value: 'export', child: ListTile(leading: Icon(Icons.ios_share), title: Text('Exportar (CSV ou lista)'))),
+              ],
             ),
           ],
           bottom: TabBar(

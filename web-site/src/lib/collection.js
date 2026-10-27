@@ -90,6 +90,20 @@ export function addToCollection(card, n = 1) {
   })
 }
 
+/** Várias cartas de uma vez (importar): [{ card, n }]. */
+export function addManyToCollection(entries) {
+  updateSection('collection', (s) => {
+    const cards = [...list(s)]
+    for (const { card, n } of entries) {
+      const saved = savedOf(card)
+      const i = cards.findIndex((c) => c.id === saved.id)
+      if (i >= 0) cards[i] = { ...cards[i], qty: (cards[i].qty || 1) + n }
+      else if (cards.length < MAX_CARDS) cards.unshift({ ...saved, qty: n })
+    }
+    return { list: cards }
+  })
+}
+
 export function setQty(id, qty) {
   updateSection('collection', (s) => ({
     list: qty <= 0 ? list(s).filter((c) => c.id !== id) : list(s).map((c) => (c.id === id ? { ...c, qty } : c)),

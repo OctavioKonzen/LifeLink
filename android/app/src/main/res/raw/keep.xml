@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Os ícones dos atalhos são usados só pelo nome (no Dart): não podem ser
+     tirados na versão final. -->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@drawable/ic_shortcut_counter,@drawable/ic_shortcut_scan,@drawable/ic_shortcut_rules" />
