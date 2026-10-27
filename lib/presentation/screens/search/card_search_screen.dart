@@ -243,7 +243,7 @@ class _CardSearchScreenState extends State<CardSearchScreen> {
         nameOnly: exact != null,
         types: types,
         set: f.setCode,
-        colors: f.colors.isEmpty ? null : f.colors.where((c) => c != 'C').join(),
+        colors: f.colors.isEmpty ? null : f.colors.join(), // só "C": as incolores
         order: userOrder ? _order.$2 : (text.isEmpty ? 'popular' : null),
         desc: _order.$3 == 'desc',
         page: page,
