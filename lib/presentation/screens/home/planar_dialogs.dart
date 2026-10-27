@@ -8,6 +8,7 @@ import '../../../data/services/lifelink_cards.dart';
 import '../../../data/services/scryfall_service.dart';
 import '../../../data/services/sound_service.dart';
 import '../../widgets/dice_table.dart';
+import '../../theme/app_theme.dart';
 
 final Map<String, List<Map<String, dynamic>>> _pools = {};
 
@@ -63,6 +64,7 @@ class _TableCard extends StatefulWidget {
 }
 
 class _TableCardState extends State<_TableCard> {
+  CounterLook get look => CounterLook.of(context);
   late bool _turned = widget.sideways;
 
   @override
@@ -80,7 +82,7 @@ class _TableCardState extends State<_TableCard> {
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(12),
                 child: image.isEmpty
-                    ? const SizedBox(width: 180, height: 250, child: Icon(Icons.image_not_supported, color: Colors.white38))
+                    ? SizedBox(width: 180, height: 250, child: Icon(Icons.image_not_supported, color: look.muted(0.38)))
                     : CachedNetworkImage(
                         imageUrl: image,
                         httpHeaders: CardImages.headers,
@@ -89,7 +91,7 @@ class _TableCardState extends State<_TableCard> {
                         placeholder: (_, _) => const SizedBox(width: 180, height: 250, child: Center(child: CircularProgressIndicator())),
                         errorWidget: (_, _, _) => SizedBox(
                           width: 220,
-                          child: Text(widget.card['text'] as String? ?? '', style: const TextStyle(color: Colors.white70)),
+                          child: Text(widget.card['text'] as String? ?? '', style: TextStyle(color: look.muted(0.70))),
                         ),
                       ),
               ),
@@ -97,9 +99,9 @@ class _TableCardState extends State<_TableCard> {
           ),
         ),
         const SizedBox(height: 6),
-        Text(widget.card['name'] as String? ?? '', textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w900)),
-        Text(widget.card['type'] as String? ?? '', textAlign: TextAlign.center, style: const TextStyle(color: Colors.white54, fontSize: 12)),
-        const Text('Toque na carta para girar', style: TextStyle(color: Colors.white24, fontSize: 11)),
+        Text(widget.card['name'] as String? ?? '', textAlign: TextAlign.center, style: TextStyle(color: look.text, fontSize: 18, fontWeight: FontWeight.w900)),
+        Text(widget.card['type'] as String? ?? '', textAlign: TextAlign.center, style: TextStyle(color: look.muted(0.54), fontSize: 12)),
+        Text('Toque na carta para girar', style: TextStyle(color: look.muted(0.24), fontSize: 11)),
       ]),
     );
   }
@@ -117,6 +119,7 @@ class PlanechaseDialog extends StatefulWidget {
 }
 
 class _PlanechaseDialogState extends State<PlanechaseDialog> {
+  CounterLook get look => CounterLook.of(context);
   final _table = GlobalKey<DiceTableState>();
   bool _rolling = false;
   bool _loading = false;
@@ -181,13 +184,13 @@ class _PlanechaseDialogState extends State<PlanechaseDialog> {
         final plane = game.plane;
         final cost = game.planarRollsThisTurn;
         return Dialog(
-          backgroundColor: const Color(0xFF1E1E24),
+          backgroundColor: look.surface,
           insetPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 20),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(16),
             child: Column(mainAxisSize: MainAxisSize.min, children: [
-              const Text('Planechase', style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w900)),
+              Text('Planechase', style: TextStyle(color: look.text, fontSize: 22, fontWeight: FontWeight.w900)),
               const SizedBox(height: 10),
               if (_loading)
                 const SizedBox(height: 260, child: Center(child: CircularProgressIndicator()))
@@ -221,7 +224,7 @@ class _PlanechaseDialogState extends State<PlanechaseDialog> {
                   child: Text(
                     _result.isEmpty ? (_rolling ? '' : 'Toque no dado para rolar') : _result,
                     textAlign: TextAlign.center,
-                    style: TextStyle(color: _result.isEmpty ? Colors.white38 : const Color(0xFFFFD54F), fontWeight: FontWeight.w900, fontSize: _result.isEmpty ? 13 : 16),
+                    style: TextStyle(color: _result.isEmpty ? look.muted(0.38) : const Color(0xFFFFD54F), fontWeight: FontWeight.w900, fontSize: _result.isEmpty ? 13 : 16),
                   ),
                 ),
               ),
@@ -244,8 +247,8 @@ class _PlanechaseDialogState extends State<PlanechaseDialog> {
                 ),
               ]),
               const SizedBox(height: 6),
-              const Text('A primeira rolagem de cada vez é grátis; cada outra na mesma vez custa 1 a mais.',
-                  textAlign: TextAlign.center, style: TextStyle(color: Colors.white38, fontSize: 11)),
+              Text('A primeira rolagem de cada vez é grátis; cada outra na mesma vez custa 1 a mais.',
+                  textAlign: TextAlign.center, style: TextStyle(color: look.muted(0.38), fontSize: 11)),
               TextButton(onPressed: () => Navigator.pop(context), child: const Text('Fechar')),
             ]),
           ),
@@ -265,6 +268,7 @@ class ArchenemyDialog extends StatefulWidget {
 }
 
 class _ArchenemyDialogState extends State<ArchenemyDialog> {
+  CounterLook get look => CounterLook.of(context);
   bool _loading = false;
   String? _error;
 
@@ -294,15 +298,15 @@ class _ArchenemyDialogState extends State<ArchenemyDialog> {
       builder: (context, _) {
         final scheme = game.scheme;
         return Dialog(
-          backgroundColor: const Color(0xFF1E1E24),
+          backgroundColor: look.surface,
           insetPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 20),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(16),
             child: Column(mainAxisSize: MainAxisSize.min, children: [
-              const Text('Archenemy', style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w900)),
+              Text('Archenemy', style: TextStyle(color: look.text, fontSize: 22, fontWeight: FontWeight.w900)),
               const SizedBox(height: 4),
-              const Text('No começo de cada vez dele, o arqui-inimigo revela um esquema.', textAlign: TextAlign.center, style: TextStyle(color: Colors.white54, fontSize: 12)),
+              Text('No começo de cada vez dele, o arqui-inimigo revela um esquema.', textAlign: TextAlign.center, style: TextStyle(color: look.muted(0.54), fontSize: 12)),
               const SizedBox(height: 12),
               if (_loading)
                 const SizedBox(height: 260, child: Center(child: CircularProgressIndicator()))
