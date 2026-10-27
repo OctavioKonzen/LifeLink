@@ -37,6 +37,43 @@
   color-scheme: dark;
 }
 
+/* Os fundos claros do app (Rosa, Azul, Verde): o mesmo desenho, tingido. */
+[data-theme="rosa"] {
+  --bg: #fbe3ec;
+  --surface: #fff7fa;
+  --card: #f7d2e0;
+  --text: #2b1420;
+  --muted: #7d5466;
+  --line: #f0c1d3;
+  --accent: #d94687;
+  --on-accent: #ffffff;
+  color-scheme: light;
+}
+
+[data-theme="azul"] {
+  --bg: #e2f3fc;
+  --surface: #f8fcff;
+  --card: #cde9f8;
+  --text: #0f2230;
+  --muted: #4d6a7b;
+  --line: #bddff1;
+  --accent: #2b7fd4;
+  --on-accent: #ffffff;
+  color-scheme: light;
+}
+
+[data-theme="verde"] {
+  --bg: #e5f3e6;
+  --surface: #f9fdf9;
+  --card: #d2ead4;
+  --text: #13261a;
+  --muted: #4f6f58;
+  --line: #bedfc1;
+  --accent: #2e9a57;
+  --on-accent: #ffffff;
+  color-scheme: light;
+}
+
 [data-theme="light"] {
   --bg: #f4f2ec;
   --surface: #ffffff;

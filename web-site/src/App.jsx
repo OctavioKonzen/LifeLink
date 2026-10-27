@@ -12,12 +12,12 @@ import MyDecksPage from './pages/MyDecksPage'
 import ProfilePage from './pages/ProfilePage'
 import AccountPage from './pages/AccountPage'
 import LoginPage from './pages/LoginPage'
-import { BookOpen, Box, Heart, Layers, LogOut, Menu, Moon, Search, Smartphone, Sun, TrendingUp, Trophy, User, X } from 'lucide-react'
+import { BookOpen, Box, Check, Heart, Layers, LogOut, Menu, Palette, Search, Smartphone, TrendingUp, Trophy, User, X } from 'lucide-react'
 import Logo from './components/Logo'
 import { useAuth } from './lib/auth'
 import { logout } from './lib/sync'
 import { APK_URL } from './lib/appRelease'
-import { setTheme, useTheme } from './lib/theme'
+import { THEMES, applyTheme, setTheme, useTheme } from './lib/theme'
 
 // Mesmas áreas do menu do app (home_screen.dart).
 const SECTIONS = [
@@ -35,21 +35,49 @@ const navClass = ({ isActive }) =>
     isActive ? 'bg-card text-text' : 'text-muted hover:text-text'
   }`
 
-/** Botão de tema claro/escuro (sol ↔ lua). */
-function ThemeToggle() {
+/** A cor de fundo (a mesma do app): o botão abre as opções. */
+function ThemePicker() {
   const theme = useTheme()
-  const dark = theme === 'dark'
-  const ThemeIcon = dark ? Sun : Moon
+  const [open, setOpen] = useState(false)
+  useEffect(() => {
+    if (!open) return
+    const close = () => setOpen(false)
+    window.addEventListener('click', close)
+    return () => window.removeEventListener('click', close)
+  }, [open])
   return (
-    <button
-      type="button"
-      onClick={() => setTheme(dark ? 'light' : 'dark')}
-      aria-label={dark ? 'Mudar para tema claro' : 'Mudar para tema escuro'}
-      title={dark ? 'Tema claro' : 'Tema escuro'}
-      className="grid size-9 shrink-0 cursor-pointer place-items-center rounded-full text-muted transition hover:bg-card hover:text-text"
-    >
-      <ThemeIcon className="size-4" aria-hidden="true" />
-    </button>
+    <div className="relative shrink-0">
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation()
+          setOpen(!open)
+        }}
+        aria-label="Cor de fundo"
+        title="Cor de fundo"
+        aria-expanded={open}
+        className="grid size-9 cursor-pointer place-items-center rounded-full text-muted transition hover:bg-card hover:text-text"
+      >
+        <Palette className="size-4" aria-hidden="true" />
+      </button>
+      {open && (
+        <div onClick={(e) => e.stopPropagation()} className="page-in absolute right-0 mt-2 w-56 rounded-2xl border border-line bg-surface p-3 shadow-2xl">
+          <p className="mb-2 px-1 text-xs font-medium uppercase tracking-widest text-muted">Cor de fundo</p>
+          {THEMES.map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => setTheme(t.id)}
+              className={`flex w-full cursor-pointer items-center gap-3 rounded-lg px-2 py-2 text-left text-sm font-medium hover:bg-card ${theme === t.id ? 'text-text' : 'text-muted'}`}
+            >
+              <span className={`size-6 rounded-full border ${theme === t.id ? 'ring-2 ring-accent' : ''}`} style={{ background: t.color, borderColor: 'rgb(0 0 0 / 0.15)' }} />
+              {t.name}
+              {theme === t.id && <Check className="ml-auto size-4 text-accent" aria-hidden="true" />}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -172,7 +200,7 @@ function TopBar() {
             <Smartphone className="size-4 text-success" aria-hidden="true" />
             <span className="hidden xl:inline">Baixar app</span>
           </a>
-          <ThemeToggle />
+          <ThemePicker />
           <UserMenu />
         </div>
       </div>
@@ -262,6 +290,9 @@ function Splash() {
 
 export default function App() {
   const { status } = useAuth()
+  // A cor muda junto quando chega a da conta (ou o app troca).
+  const theme = useTheme()
+  useEffect(() => applyTheme(theme), [theme])
   // Sem estar logado, a primeira tela é sempre a de login (a mesma conta do
   // app). Sem Firebase configurado, o login fica desligado e o site abre direto.
   if (status === 'loading') return <Splash />
