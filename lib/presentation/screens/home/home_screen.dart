@@ -195,19 +195,33 @@ class _HomeScreenState extends State<HomeScreen> {
         onTap: onTap,
         child: Stack(children: [
           Positioned(right: -12, bottom: -16, child: Icon(icon, size: 92, color: LL.gold.withValues(alpha: light ? 0.12 : 0.07))),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 14, 12, 12),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(color: LL.gold.withValues(alpha: 0.14), borderRadius: BorderRadius.circular(12)),
-                child: Icon(icon, color: LL.gold, size: 22),
-              ),
-              const Spacer(),
-              Text(title, style: TextStyle(color: light ? const Color(0xFF141824) : LL.text, fontSize: 15, fontWeight: FontWeight.w600)),
-            ]),
-          ),
+          // Alto: o ícone em cima e o nome embaixo; baixo (celular com a tela
+          // menor): o ícone ao lado do nome, para o texto não sair do botão.
+          LayoutBuilder(builder: (context, box) {
+            final square = Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(color: LL.gold.withValues(alpha: 0.14), borderRadius: BorderRadius.circular(12)),
+              child: Icon(icon, color: LL.gold, size: 22),
+            );
+            final label = Text(title,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(color: light ? const Color(0xFF141824) : LL.text, fontSize: 15, fontWeight: FontWeight.w600, height: 1.2));
+            if (box.maxHeight < 100) {
+              return SizedBox(
+                height: box.maxHeight,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  child: Row(children: [square, const SizedBox(width: 10), Expanded(child: label)]),
+                ),
+              );
+            }
+            return Padding(
+              padding: const EdgeInsets.fromLTRB(16, 14, 12, 12),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [square, const Spacer(), label]),
+            );
+          }),
         ]),
       ),
       ),

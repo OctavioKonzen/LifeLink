@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:math';
+import 'dart:ui' as ui;
 
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
@@ -74,6 +75,40 @@ CardReading readCard(List<({String text, double top, double left, double height}
   return CardReading(name: name, set: set, number: number, lang: lang);
 }
 
+/// Só as linhas dentro da moldura da tela (a foto da câmera pega também a
+/// mesa e outras cartas em volta). A moldura tem 78% da largura e o formato
+/// da carta, no meio da foto (a foto em pé, [width] × [height]).
+List<({String text, double top, double left, double height})> inFrame(
+    List<({String text, double top, double left, double height})> lines, double width, double height) {
+  final frameH = width * 0.78 / 0.716;
+  final top = height / 2 - frameH / 2 - height * 0.04;
+  final bottom = height / 2 + frameH / 2 + height * 0.02;
+  final left = width * 0.11 - width * 0.06;
+  final right = width * 0.89;
+  final inside = [for (final l in lines) if (l.top >= top && l.top <= bottom && l.left >= left && l.left <= right) l];
+  // A carta fora da moldura (mais perto ou longe): fica com tudo.
+  return inside.isEmpty ? lines : inside;
+}
+
+/// O nome achado na busca é mesmo o lido (com alguns erros de leitura)?
+/// Sem isso, "Choque" lido errado podia abrir outra carta que começa igual.
+bool nameMatches(String read, String found) {
+  String norm(String t) => t.toLowerCase().replaceAll(RegExp(r'[^a-z0-9à-ÿ ]'), '').replaceAll(RegExp(r'\s+'), ' ').trim();
+  final a = norm(read), b = norm(found);
+  if (a.isEmpty || b.isEmpty) return false;
+  if (a == b) return true;
+  // Distância de edição (letras trocadas, faltando ou sobrando).
+  var prev = List<int>.generate(b.length + 1, (i) => i);
+  for (var i = 1; i <= a.length; i++) {
+    final cur = List<int>.filled(b.length + 1, 0)..[0] = i;
+    for (var j = 1; j <= b.length; j++) {
+      cur[j] = min(min(cur[j - 1] + 1, prev[j] + 1), prev[j - 1] + (a[i - 1] == b[j - 1] ? 0 : 1));
+    }
+    prev = cur;
+  }
+  return prev[b.length] <= max(1, (max(a.length, b.length) * 0.2).floor());
+}
+
 /// Acha a mesma versão da carta lida e o texto no idioma [want] (o das
 /// configurações). Volta a carta no formato do app, ou null.
 Future<Map<String, dynamic>?> findCard(CardReading r, String want) async {
@@ -100,8 +135,16 @@ Future<Map<String, dynamic>?> findCardOwn(CardReading r, String want) async {
   final words = r.name!.split(RegExp(r'\s+'));
   String? oracle;
   for (var k = words.length; k >= 1 && oracle == null; k--) {
-    final found = await cards.search(text: words.take(k).join(' '), nameOnly: true, lang: want);
-    if (found.cards.isNotEmpty) oracle = '${found.cards.first['oracle_id']}';
+    final typed = words.take(k).join(' ');
+    final found = await cards.search(text: typed, nameOnly: true, lang: want);
+    // Só vale a carta com o nome igual ao lido (ou quase): o resto fica
+    // para a busca aproximada da Scryfall.
+    for (final c in found.cards.take(10)) {
+      if (nameMatches(typed, '${c['name']}') || nameMatches(typed, '${c['enName']}')) {
+        oracle = '${c['oracle_id']}';
+        break;
+      }
+    }
     if (k <= 2) break;
   }
   if (oracle == null) return null;
@@ -220,8 +263,12 @@ class _CardScanScreenState extends State<CardScanScreen> {
   final _recognizer = TextRecognizer(script: TextRecognitionScript.latin);
   String _status = 'Abrindo a câmera...';
   String? _error;
-  bool _busy = false;
+  bool _busy = false; // a leitura automática
+  bool _manualBusy = false; // o botão (foto ou galeria)
   bool _paused = false;
+  // Muda a cada foto pelo botão: a leitura automática que estava no meio
+  // não abre mais nada.
+  int _run = 0;
   final Set<String> _failed = {}; // o que já tentou e não achou
   Timer? _loop;
   late bool _collect = widget.collect;
@@ -273,9 +320,14 @@ class _CardScanScreenState extends State<CardScanScreen> {
     final camera = _camera;
     if (_busy || _paused || camera == null || !camera.value.isInitialized || camera.value.isTakingPicture) return;
     _busy = true;
+    final run = _run;
     try {
       final photo = await camera.takePicture();
-      await _read(photo.path, delete: true);
+      if (run != _run || _paused) {
+        File(photo.path).delete().catchError((_) => File(photo.path));
+        return;
+      }
+      await _read(photo.path, delete: true, frame: true, run: run);
     } catch (_) {
       // Foto ou leitura falhou: tenta de novo na próxima volta.
     } finally {
@@ -285,55 +337,76 @@ class _CardScanScreenState extends State<CardScanScreen> {
 
   /// Tirar a foto na hora (botão) ou escolher uma foto da galeria.
   Future<void> _manual({required bool gallery}) async {
-    // Espera a leitura automática que estiver em andamento.
-    while (_busy) {
-      await Future<void>.delayed(const Duration(milliseconds: 100));
-    }
-    if (!mounted) return;
-    _busy = true;
+    if (_manualBusy) return;
+    _manualBusy = true;
+    // Para a leitura automática na hora (sem esperar ela terminar a busca).
+    final run = ++_run;
+    _paused = true;
+    HapticFeedback.selectionClick();
     try {
       String? path;
       var delete = false;
       if (gallery) {
-        _paused = true;
-        path = (await ImagePicker().pickImage(source: ImageSource.gallery))?.path;
-        _paused = false;
+        path = (await ImagePicker().pickImage(source: ImageSource.gallery, maxWidth: 2000, maxHeight: 2000))?.path;
       } else {
         final camera = _camera;
         if (camera == null || !camera.value.isInitialized) return;
-        HapticFeedback.selectionClick();
+        setState(() => _status = 'Tirando a foto...');
+        // Só espera a foto automática que já estava sendo tirada.
+        for (var i = 0; i < 40 && camera.value.isTakingPicture; i++) {
+          await Future<void>.delayed(const Duration(milliseconds: 100));
+        }
         path = (await camera.takePicture()).path;
         delete = true;
       }
-      if (path == null || !mounted) return;
+      if (path == null || !mounted) {
+        if (mounted) setState(() => _status = 'Aponte para a carta (o nome e o canto de baixo à vista)');
+        return;
+      }
       setState(() => _status = 'Lendo a foto...');
       _failed.clear(); // foto escolhida: tenta mesmo se já falhou antes
-      final ok = await _read(path, delete: delete, manual: true);
+      final ok = await _read(path, delete: delete, manual: true, frame: !gallery, run: run);
       if (!ok && mounted) setState(() => _status = 'Não consegui ler a carta nessa foto. Tente com o nome e o canto de baixo bem à vista.');
     } catch (_) {
       if (mounted) setState(() => _status = 'Não deu para usar essa foto.');
     } finally {
       _paused = false;
-      _busy = false;
+      _manualBusy = false;
     }
   }
 
   /// Lê a carta da foto e acha a versão certa; volta se achou.
-  Future<bool> _read(String path, {bool delete = false, bool manual = false}) async {
+  /// Com [frame], só conta o texto dentro da moldura (foto da câmera). Com
+  /// [run], a leitura é deixada de lado se o botão tirou outra foto.
+  Future<bool> _read(String path, {bool delete = false, bool manual = false, bool frame = false, int? run}) async {
+    bool stale() => !mounted || (run != null && run != _run) || (!manual && _paused);
     {
+      final portrait = MediaQuery.of(context).orientation == Orientation.portrait;
+      Size? size;
+      if (frame && portrait) {
+        try {
+          final buffer = await ui.ImmutableBuffer.fromFilePath(path);
+          final image = await ui.ImageDescriptor.encoded(buffer);
+          // A foto em pé (o sensor grava deitado e o ML Kit já gira o texto).
+          size = Size(min(image.width, image.height).toDouble(), max(image.width, image.height).toDouble());
+          image.dispose();
+          buffer.dispose();
+        } catch (_) {}
+      }
       final text = await _recognizer.processImage(InputImage.fromFilePath(path));
       if (delete) File(path).delete().catchError((_) => File(path));
-      final lines = [
+      var lines = [
         for (final b in text.blocks)
           for (final l in b.lines) (text: l.text, top: l.boundingBox.top, left: l.boundingBox.left, height: l.boundingBox.height),
       ];
+      if (size != null) lines = inFrame(lines, size.width, size.height);
       final reading = readCard(lines);
-      if (reading.isEmpty || !mounted) return false;
+      if (!mounted || reading.isEmpty || stale()) return false;
       final key = reading.toString();
       if (_failed.contains(key)) return false;
       setState(() => _status = 'Procurando ${reading.name ?? '${reading.set?.toUpperCase()} ${reading.number}'}...');
       final card = await findCard(reading, context.read<ThemeProvider>().cardLanguage);
-      if (!mounted) return false;
+      if (!mounted || stale()) return false;
       if (card == null) {
         _failed.add(key);
         setState(() => _status = 'Não achei "${reading.name ?? ''}". Ajuste a carta na moldura.');
