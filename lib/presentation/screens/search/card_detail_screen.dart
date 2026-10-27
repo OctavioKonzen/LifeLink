@@ -14,6 +14,7 @@ import '../../../data/providers/theme_provider.dart';
 import '../../../data/services/scryfall_service.dart';
 import '../../../data/repositories/card_repository.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/neon.dart';
 import '../../../data/providers/xp_provider.dart'; 
 
 /// Raridade em português (a Scryfall manda em inglês).
@@ -414,7 +415,7 @@ class _CardDetailScreenState extends State<CardDetailScreen> with SingleTickerPr
     // vira) e o painel de baixo tem altura fixa; as abas trocam arrastando
     // para o lado e só o conteúdo de cada aba rola.
     final panelHeight = media.size.height * 0.5;
-    final panelColor = isLight ? Colors.white : const Color(0xFF16161B);
+    final panelColor = isLight ? LL.lightSurface : const Color(0xFF16161B);
 
     return Scaffold(
       backgroundColor: bgColor,
@@ -498,6 +499,7 @@ class _CardDetailScreenState extends State<CardDetailScreen> with SingleTickerPr
             height: panelHeight,
             decoration: BoxDecoration(
               color: panelColor,
+              gradient: lightGradient(panelColor),
               borderRadius: const BorderRadius.only(topLeft: Radius.circular(30), topRight: Radius.circular(30)),
               boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 16, offset: Offset(0, -4))],
             ),

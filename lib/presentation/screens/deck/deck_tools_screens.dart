@@ -97,7 +97,7 @@ class _DeckAnalysisScreenState extends State<DeckAnalysisScreen> {
     final theme = context.watch<ThemeProvider>();
     final light = theme.backgroundColor.computeLuminance() > 0.5;
     final text = light ? Colors.black87 : Colors.white;
-    final cardColor = light ? Colors.black.withValues(alpha: 0.05) : LL.surface;
+    final cardColor = light ? LL.lightSurface : LL.surface;
 
     Widget section(String title, List<Widget> children) => Card(
           color: cardColor,

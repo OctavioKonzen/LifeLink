@@ -312,7 +312,7 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
                     hintStyle: TextStyle(color: textColor.withValues(alpha: 0.5)),
                     prefixIcon: Icon(Icons.search, color: textColor.withValues(alpha: 0.5)),
                     filled: true,
-                    fillColor: isLight ? Colors.black.withValues(alpha: 0.05) : Colors.white.withValues(alpha: 0.05),
+                    fillColor: isLight ? LL.lightSurface : Colors.white.withValues(alpha: 0.05),
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
                     contentPadding: EdgeInsets.zero,
                   ),
