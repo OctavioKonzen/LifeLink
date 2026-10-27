@@ -95,7 +95,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         Container(
           width: 42,
           height: 42,
-          decoration: BoxDecoration(color: bg.computeLuminance() > 0.5 ? const Color(0xFFF0EDE5) : LL.card, borderRadius: BorderRadius.circular(12)),
+          decoration: BoxDecoration(color: bg.computeLuminance() > 0.5 ? LL.tint : LL.card, borderRadius: BorderRadius.circular(12)),
           child: Icon(icon, color: LL.gold, size: 21),
         ),
         const SizedBox(width: 12),
@@ -140,7 +140,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   themeProvider.setPlayerName(_nameController.text);
                   Navigator.pop(context);
                 },
-                child: const Text("Salvar",
+                child: Text("Salvar",
                     style: TextStyle(
                         color: LL.gold, fontWeight: FontWeight.bold)),
               )
@@ -197,12 +197,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               style: TextStyle(color: xpProvider.selectedTitle.isNotEmpty ? LL.gold : textColor.withValues(alpha: 0.55), fontSize: 14)),
                           const SizedBox(height: 18),
                           Row(children: [
-                            Text("Nível ${xpProvider.level}", style: const TextStyle(color: LL.gold, fontWeight: FontWeight.w600, fontSize: 13)),
+                            Text("Nível ${xpProvider.level}", style: TextStyle(color: LL.gold, fontWeight: FontWeight.w600, fontSize: 13)),
                             const Spacer(),
                             Text("${xpProvider.xp} / ${xpProvider.xpForNextLevel} XP", style: TextStyle(color: textColor.withValues(alpha: 0.55), fontSize: 13)),
                           ]),
                           const SizedBox(height: 8),
-                          const LevelBar(color: LL.gold, height: 8),
+                          LevelBar(color: LL.gold, height: 8),
                         ]),
                       ),
                     ]),
@@ -246,7 +246,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             width: 44,
                             height: 44,
                             decoration: BoxDecoration(color: LL.gold.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(12)),
-                            child: const Icon(Icons.track_changes, color: LL.gold),
+                            child: Icon(Icons.track_changes, color: LL.gold),
                           ),
                           const SizedBox(width: 14),
                           Expanded(

@@ -1,5 +1,6 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import '../theme/app_theme.dart';
 import 'package:provider/provider.dart';
 import '../../data/account/auth_service.dart';
 import '../../data/providers/theme_provider.dart';
@@ -35,12 +36,12 @@ class PlayerAvatar extends StatelessWidget {
       ),
       // Sem foto: a inicial do nome no círculo dourado (como no site).
       child: CircleAvatar(
-        backgroundColor: const Color(0xFFF0B44C),
+        backgroundColor: LL.gold,
         backgroundImage: xp.selectedAvatar.isNotEmpty ? CachedNetworkImageProvider(xp.selectedAvatar, headers: CardImages.headers) : null,
         child: xp.selectedAvatar.isEmpty
             ? Text(
                 playerNameOf(context).trim().isEmpty ? '?' : playerNameOf(context).trim()[0].toUpperCase(),
-                style: TextStyle(fontFamily: 'Cinzel', fontWeight: FontWeight.w700, color: const Color(0xFF1B1305), fontSize: size * 0.42),
+                style: TextStyle(fontFamily: 'Cinzel', fontWeight: FontWeight.w700, color: LL.onGold, fontSize: size * 0.42),
               )
             : null,
       ),
@@ -50,9 +51,10 @@ class PlayerAvatar extends StatelessWidget {
 
 /// Barra de progresso do nível (XP até o próximo nível).
 class LevelBar extends StatelessWidget {
-  final Color color;
+  /// A cor da barra (sem ela, a de destaque do tema).
+  final Color? color;
   final double height;
-  const LevelBar({super.key, this.color = const Color(0xFFF0B44C), this.height = 6});
+  const LevelBar({super.key, this.color, this.height = 6});
 
   @override
   Widget build(BuildContext context) {
@@ -65,7 +67,7 @@ class LevelBar extends StatelessWidget {
       child: LinearProgressIndicator(
         value: progress,
         minHeight: height,
-        color: color,
+        color: color ?? LL.gold,
         backgroundColor: Colors.grey.withValues(alpha: 0.28), // aparece no tema claro e no escuro
       ),
     );

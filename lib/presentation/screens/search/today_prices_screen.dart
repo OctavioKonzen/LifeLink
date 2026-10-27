@@ -137,7 +137,7 @@ class _TodayPricesScreenState extends State<TodayPricesScreen> {
             ),
           ),
           body: _isLoading
-              ? const Center(child: CircularProgressIndicator(color: LL.gold))
+              ? Center(child: CircularProgressIndicator(color: LL.gold))
               : _cards.isEmpty 
                   ? Center(child: Text("Nenhuma carta encontrada.", style: TextStyle(color: textColor.withValues(alpha: 0.5))))
                   : ListView.builder(

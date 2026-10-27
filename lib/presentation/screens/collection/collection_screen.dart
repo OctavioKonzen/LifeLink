@@ -193,7 +193,7 @@ class _CollectionScreenState extends State<CollectionScreen> {
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           ListTile(title: Text(c.name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
           SwitchListTile(
-            secondary: const Icon(Icons.swap_horiz, color: LL.gold),
+            secondary: Icon(Icons.swap_horiz, color: LL.gold),
             title: const Text('Para troca', style: TextStyle(color: Colors.white)),
             subtitle: const Text('Os amigos veem e o app mostra quem quer esta carta.', style: TextStyle(color: Colors.white54)),
             value: c.trade,
@@ -316,7 +316,7 @@ Future<void> missingCardsSheet(BuildContext context, DeckModel deck) async {
                   dense: true,
                   title: Text(m.name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
                   subtitle: Text('Tenho ${m.have} de ${m.need}', style: const TextStyle(color: Colors.white54)),
-                  trailing: Text('US\$ ${(m.usd * (m.need - m.have)).toStringAsFixed(2)}', style: const TextStyle(color: LL.gold, fontWeight: FontWeight.bold)),
+                  trailing: Text('US\$ ${(m.usd * (m.need - m.have)).toStringAsFixed(2)}', style: TextStyle(color: LL.gold, fontWeight: FontWeight.bold)),
                   onTap: () => Navigator.push(ctx, MaterialPageRoute(builder: (_) => CardDetailScreen(card: m.card))),
                 ),
             ]),

@@ -103,7 +103,7 @@ class _AccountScreenState extends State<AccountScreen> {
             radius: 36,
             backgroundColor: LL.gold,
             backgroundImage: u.photo != null ? NetworkImage(u.photo!) : null,
-            child: u.photo == null ? Text((u.name ?? u.email ?? '?').substring(0, 1).toUpperCase(), style: const TextStyle(fontSize: 28, color: LL.onGold)) : null,
+            child: u.photo == null ? Text((u.name ?? u.email ?? '?').substring(0, 1).toUpperCase(), style: TextStyle(fontSize: 28, color: LL.onGold)) : null,
           ),
           const SizedBox(height: 12),
           Text(u.name ?? '', textAlign: TextAlign.center, style: TextStyle(color: textColor, fontSize: 20, fontWeight: FontWeight.bold)),

@@ -417,7 +417,7 @@ class _CardSearchScreenState extends State<CardSearchScreen> {
           floatingActionButton: FloatingActionButton(
             backgroundColor: LL.gold,
             onPressed: () => _showFilters(context, theme.backgroundColor, textColor),
-            child: const Icon(Icons.filter_list, color: LL.onGold),
+            child: Icon(Icons.filter_list, color: LL.onGold),
           ),
         ),
       ],

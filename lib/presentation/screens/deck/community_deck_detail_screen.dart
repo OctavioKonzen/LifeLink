@@ -175,7 +175,7 @@ class _CommunityDeckDetailScreenState extends State<CommunityDeckDetailScreen> {
                 onPressed: _isLoading || _saved ? null : _handleSaveDeck,
               ),
               IconButton(
-                icon: const Icon(Icons.picture_as_pdf, color: LL.gold),
+                icon: Icon(Icons.picture_as_pdf, color: LL.gold),
                 tooltip: "Baixar PDF para imprimir",
                 onPressed: _isLoading ? null : _handleDownloadPdf,
               ),

@@ -286,7 +286,7 @@ class _CommunityDecksScreenState extends State<CommunityDecksScreen> {
                           onAction: _fetchOfficialDecks,
                         )
                       : filteredDecks.isEmpty
-                        ? const StatusMessage(
+                        ? StatusMessage(
                             icon: Icons.search_off,
                             color: AreaColors.official,
                             title: "Nenhum deck encontrado",

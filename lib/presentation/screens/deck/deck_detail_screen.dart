@@ -253,7 +253,7 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
                 onPressed: () => _importList(deckProvider),
               ),
               IconButton(
-                icon: const Icon(Icons.price_check, color: LL.gold),
+                icon: Icon(Icons.price_check, color: LL.gold),
                 tooltip: "Curva, preço e legalidade",
                 onPressed: deck.cards.isEmpty ? null : () => Navigator.push(context, MaterialPageRoute(builder: (_) => DeckAnalysisScreen(deck: deck))),
               ),
@@ -326,7 +326,7 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const CircularProgressIndicator(color: LL.gold),
+                    CircularProgressIndicator(color: LL.gold),
                     const SizedBox(height: 16),
                     Text(
                       _isImporting ? "Importando cartas da lista..." : "Buscando cartas no idioma escolhido...", 
@@ -358,7 +358,7 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
               ));
             },
             backgroundColor: LL.gold,
-            child: const Icon(Icons.add, color: LL.onGold, size: 30),
+            child: Icon(Icons.add, color: LL.onGold, size: 30),
           ),
         ),
       ],
@@ -510,7 +510,7 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                 decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.75), borderRadius: BorderRadius.circular(10)),
                 child: Row(mainAxisSize: MainAxisSize.min, children: [
-                  if (card['commander'] == true) const Icon(Icons.workspace_premium, color: LL.gold, size: 14),
+                  if (card['commander'] == true) Icon(Icons.workspace_premium, color: LL.gold, size: 14),
                   if (copies.length > 1) Text('${copies.length}×', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 13)),
                 ]),
               ),
