@@ -350,7 +350,7 @@ class _CardDetailScreenState extends State<CardDetailScreen> with SingleTickerPr
             itemBuilder: (context, index) {
               final deck = provider.allDecks[index];
               return ListTile(
-                leading: const Icon(Icons.layers, color: LL.gold),
+                leading: Icon(Icons.layers, color: LL.gold),
                 title: Text(deck.name, style: const TextStyle(color: Colors.white)),
                 subtitle: Text("${deck.cards.length} cartas", style: const TextStyle(color: Colors.white54, fontSize: 12)),
                 onTap: () {
@@ -526,12 +526,12 @@ class _CardDetailScreenState extends State<CardDetailScreen> with SingleTickerPr
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                           side: BorderSide(color: LL.gold.withValues(alpha: 0.5)),
                         ),
-                        icon: const Icon(Icons.style, color: LL.gold, size: 20),
+                        icon: Icon(Icons.style, color: LL.gold, size: 20),
                         onPressed: () => _showVersionsModal(bgColor, textColor, isPt, themeProvider.cardLanguage),
                         label: FittedBox(
                           child: Text(
                             isEditingExistingCard ? "TROCAR ARTE" : "OUTRAS ARTES",
-                            style: const TextStyle(color: LL.gold, fontWeight: FontWeight.bold),
+                            style: TextStyle(color: LL.gold, fontWeight: FontWeight.bold),
                           ),
                         ),
                       ),

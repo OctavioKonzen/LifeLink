@@ -12,8 +12,38 @@ class LL {
   static const line = Color(0xFF232A42);
   static const text = Color(0xFFECEEF5);
   static const muted = Color(0xFF8D95AD);
-  static const gold = Color(0xFFF0B44C);
-  static const onGold = Color(0xFF1B1305);
+  /// A cor de destaque: dourado na noite e no branco; nos fundos rosa, azul e
+  /// verde, a cor do fundo mais forte (igual ao site). Muda com [accentFor].
+  static Color gold = _gold;
+  static Color onGold = _onGold;
+
+  /// O fundo dos quadrinhos e chips nos temas claros (tingido como no site).
+  static Color tint = const Color(0xFFF0EDE5);
+  static const _gold = Color(0xFFF0B44C);
+  static const _onGold = Color(0xFF1B1305);
+
+  /// Escolhe o destaque para a cor de fundo (chamado pelo tema do app).
+  static void accentFor(Color background) {
+    // ignore: deprecated_member_use
+    switch (background.value) {
+      case 0xFFF8BBD0: // Rosa
+        gold = const Color(0xFFD94687);
+        onGold = Colors.white;
+        tint = const Color(0xFFF7D2E0);
+      case 0xFFB3E5FC: // Azul
+        gold = const Color(0xFF2B7FD4);
+        onGold = Colors.white;
+        tint = const Color(0xFFCDE9F8);
+      case 0xFFC8E6C9: // Verde
+        gold = const Color(0xFF2E9A57);
+        onGold = Colors.white;
+        tint = const Color(0xFFD2EAD4);
+      default:
+        gold = _gold;
+        onGold = _onGold;
+        tint = const Color(0xFFF0EDE5);
+    }
+  }
   static const success = Color(0xFF34D399);
   static const danger = Color(0xFFEF4444);
 
@@ -27,6 +57,7 @@ bool _isLight(Color bg) => bg.computeLuminance() > 0.5;
 /// botões e campos como os do site). [background] é a cor escolhida nas
 /// configurações (o padrão é a noite azul).
 ThemeData appTheme(Color background) {
+  LL.accentFor(background);
   final light = _isLight(background);
   final text = light ? const Color(0xFF141824) : LL.text;
   final muted = light ? const Color(0xFF5D6478) : LL.muted;
@@ -46,7 +77,7 @@ ThemeData appTheme(Color background) {
     outline: line,
     outlineVariant: line,
     error: LL.danger,
-    surfaceContainerHighest: light ? const Color(0xFFF0EDE5) : LL.card,
+    surfaceContainerHighest: light ? LL.tint : LL.card,
     surfaceContainerHigh: light ? const Color(0xFFF4F2EC) : LL.card,
     surfaceContainer: surface,
     surfaceContainerLow: surface,
@@ -85,7 +116,7 @@ ThemeData appTheme(Color background) {
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: line)),
       enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: line)),
-      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: LL.gold, width: 2)),
+      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: LL.gold, width: 2)),
     ),
     filledButtonTheme: FilledButtonThemeData(
       style: FilledButton.styleFrom(
@@ -119,10 +150,10 @@ ThemeData appTheme(Color background) {
       style: TextButton.styleFrom(foregroundColor: LL.gold, textStyle: const TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.w600)),
     ),
     chipTheme: ChipThemeData(
-      backgroundColor: light ? const Color(0xFFF0EDE5) : LL.card,
+      backgroundColor: light ? LL.tint : LL.card,
       selectedColor: LL.gold,
       labelStyle: TextStyle(color: text, fontWeight: FontWeight.w500),
-      secondaryLabelStyle: const TextStyle(color: LL.onGold, fontWeight: FontWeight.w600),
+      secondaryLabelStyle: TextStyle(color: LL.onGold, fontWeight: FontWeight.w600),
       side: BorderSide.none,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
     ),
@@ -133,7 +164,7 @@ ThemeData appTheme(Color background) {
       dividerColor: line,
       labelStyle: const TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.w600),
     ),
-    progressIndicatorTheme: ProgressIndicatorThemeData(color: LL.gold, linearTrackColor: light ? const Color(0xFFF0EDE5) : LL.card),
+    progressIndicatorTheme: ProgressIndicatorThemeData(color: LL.gold, linearTrackColor: light ? LL.tint : LL.card),
     switchTheme: SwitchThemeData(
       thumbColor: WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.selected) ? LL.onGold : null),
       trackColor: WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.selected) ? LL.gold : null),

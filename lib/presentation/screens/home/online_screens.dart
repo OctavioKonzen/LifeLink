@@ -258,7 +258,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
                     for (final r in requests)
                       Card(
                         child: ListTile(
-                          leading: const Icon(Icons.mail, color: LL.gold),
+                          leading: Icon(Icons.mail, color: LL.gold),
                           title: Text(r.nick),
                           subtitle: const Text('quer ser seu amigo'),
                           trailing: Row(mainAxisSize: MainAxisSize.min, children: [
@@ -411,7 +411,7 @@ class _TradeWith extends StatelessWidget {
             padding: const EdgeInsets.all(14),
             child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
               Row(children: [
-                const Icon(Icons.swap_horiz, color: LL.gold),
+                Icon(Icons.swap_horiz, color: LL.gold),
                 const SizedBox(width: 8),
                 Text('Trocas com ${friend.nick}', style: TextStyle(color: text, fontSize: 16, fontWeight: FontWeight.w900)),
               ]),

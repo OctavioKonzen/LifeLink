@@ -139,7 +139,7 @@ class _HomeScreenState extends State<HomeScreen> {
             Expanded(child: Text("Procurar carta", style: TextStyle(color: textColor.withValues(alpha: 0.55), fontSize: 16))),
             // Escanear com a câmera.
             IconButton(
-              icon: const Icon(Icons.document_scanner, color: LL.gold, size: 24),
+              icon: Icon(Icons.document_scanner, color: LL.gold, size: 24),
               tooltip: 'Escanear carta com a câmera',
               onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CardScanScreen())),
               padding: EdgeInsets.zero,
@@ -340,19 +340,19 @@ class _HomeScreenState extends State<HomeScreen> {
                       const SizedBox(height: 2),
                       Row(children: [
                         Text("Nív. ${xp.level}",
-                            style: const TextStyle(color: LL.gold, fontWeight: FontWeight.w600, fontSize: 12)),
+                            style: TextStyle(color: LL.gold, fontWeight: FontWeight.w600, fontSize: 12)),
                         if (xp.selectedTitle.isNotEmpty) ...[
                           const SizedBox(width: 6),
                           Flexible(
                             child: Text(xp.selectedTitle,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(color: LL.gold, fontSize: 11, fontWeight: FontWeight.bold, fontStyle: FontStyle.italic)),
+                                style: TextStyle(color: LL.gold, fontSize: 11, fontWeight: FontWeight.bold, fontStyle: FontStyle.italic)),
                           ),
                         ],
                       ]),
                       const SizedBox(height: 6),
-                      const LevelBar(color: LL.gold, height: 5),
+                      LevelBar(color: LL.gold, height: 5),
                     ]),
                   ),
                 ]),
@@ -468,7 +468,7 @@ class _HomeScreenState extends State<HomeScreen> {
               children: [
                 Text("Nível ${xp.level}", style: const TextStyle(color: Colors.white70)),
                 if (xp.selectedTitle.isNotEmpty)
-                  Text("« ${xp.selectedTitle} »", style: const TextStyle(color: LL.gold, fontWeight: FontWeight.bold, fontSize: 12, fontStyle: FontStyle.italic)),
+                  Text("« ${xp.selectedTitle} »", style: TextStyle(color: LL.gold, fontWeight: FontWeight.bold, fontSize: 12, fontStyle: FontStyle.italic)),
               ],
             ),
             currentAccountPicture: GestureDetector(
@@ -480,7 +480,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
           ListTile(
-            leading: const Icon(Icons.account_circle, color: LL.gold),
+            leading: Icon(Icons.account_circle, color: LL.gold),
             title: Text("Conta (app e site)", style: TextStyle(color: textColor)),
             subtitle: Text(
               AuthService.instance.user?.email ?? "Entrar para sincronizar",
@@ -492,7 +492,7 @@ class _HomeScreenState extends State<HomeScreen> {
             },
           ),
           ListTile(
-            leading: const Icon(Icons.person, color: LL.gold),
+            leading: Icon(Icons.person, color: LL.gold),
             title: Text("Meu Perfil / Cosméticos", style: TextStyle(color: textColor)),
             onTap: () {
               Navigator.pop(context);
@@ -500,7 +500,7 @@ class _HomeScreenState extends State<HomeScreen> {
             },
           ),
           ListTile(
-            leading: const Icon(Icons.group, color: LL.gold),
+            leading: Icon(Icons.group, color: LL.gold),
             title: Text("Amigos", style: TextStyle(color: textColor)),
             onTap: () {
               Navigator.pop(context);
@@ -508,7 +508,7 @@ class _HomeScreenState extends State<HomeScreen> {
             },
           ),
           ListTile(
-            leading: const Icon(Icons.inventory_2, color: LL.gold),
+            leading: Icon(Icons.inventory_2, color: LL.gold),
             title: Text("Minha coleção", style: TextStyle(color: textColor)),
             onTap: () {
               Navigator.pop(context);
@@ -516,7 +516,7 @@ class _HomeScreenState extends State<HomeScreen> {
             },
           ),
           ListTile(
-            leading: const Icon(Icons.history, color: LL.gold),
+            leading: Icon(Icons.history, color: LL.gold),
             title: Text("Histórico de Partidas", style: TextStyle(color: textColor)),
             onTap: () {
               Navigator.pop(context);
@@ -524,7 +524,7 @@ class _HomeScreenState extends State<HomeScreen> {
             },
           ),
           ListTile(
-            leading: const Icon(Icons.settings, color: LL.gold),
+            leading: Icon(Icons.settings, color: LL.gold),
             title: Text("Configurações", style: TextStyle(color: textColor)),
             onTap: () {
               Navigator.pop(context);

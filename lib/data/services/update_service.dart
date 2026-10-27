@@ -201,7 +201,7 @@ class _UpdateDialogState extends State<_UpdateDialog> {
     return AlertDialog(
       backgroundColor: LL.surface,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      title: const Row(children: [
+      title: Row(children: [
         Icon(Icons.system_update, color: LL.gold),
         SizedBox(width: 10),
         Expanded(child: Text('Nova versão disponível!', style: TextStyle(color: Colors.white))),

@@ -69,7 +69,7 @@ class _ArenaMissionsScreenState extends State<ArenaMissionsScreen> {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text("SEÇÃO CONCLUÍDA!", style: TextStyle(color: LL.gold, fontSize: 22, fontWeight: FontWeight.bold, letterSpacing: 1.5)),
+            Text("SEÇÃO CONCLUÍDA!", style: TextStyle(color: LL.gold, fontSize: 22, fontWeight: FontWeight.bold, letterSpacing: 1.5)),
             const SizedBox(height: 20),
             if (reward['type'] == 'avatar')
               ClipOval(child: CachedNetworkImage(imageUrl: reward['imageUrl'], httpHeaders: CardImages.headers, width: 100, height: 100, fit: BoxFit.cover))
@@ -190,11 +190,11 @@ class _ArenaMissionsScreenState extends State<ArenaMissionsScreen> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text("Progresso da Seção", style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
-                        Text("$claimedCount / ${currentMissions.length}", style: const TextStyle(color: LL.gold, fontWeight: FontWeight.bold)),
+                        Text("$claimedCount / ${currentMissions.length}", style: TextStyle(color: LL.gold, fontWeight: FontWeight.bold)),
                       ],
                     ),
                     const SizedBox(height: 15),
-                    ClipRRect(borderRadius: BorderRadius.circular(10), child: LinearProgressIndicator(value: sectionProgress, minHeight: 12, backgroundColor: isLight ? Colors.grey[300] : Colors.grey[800], valueColor: const AlwaysStoppedAnimation<Color>(LL.gold))),
+                    ClipRRect(borderRadius: BorderRadius.circular(10), child: LinearProgressIndicator(value: sectionProgress, minHeight: 12, backgroundColor: isLight ? Colors.grey[300] : Colors.grey[800], valueColor: AlwaysStoppedAnimation<Color>(LL.gold))),
                     const SizedBox(height: 15),
                     if (isSectionComplete)
                       ElevatedButton(

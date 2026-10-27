@@ -7,12 +7,12 @@ import '../theme/app_theme.dart';
 /// Cores das áreas do app. No redesign todas usam o dourado (o contador de
 /// vida tem as cores dele).
 class AreaColors {
-  static const decks = LL.gold;
-  static const official = LL.gold;
+  static Color get decks => LL.gold;
+  static Color get official => LL.gold;
   static const life = Color(0xFFFF5252);
-  static const prices = LL.gold;
-  static const missions = LL.gold;
-  static const profile = LL.gold;
+  static Color get prices => LL.gold;
+  static Color get missions => LL.gold;
+  static Color get profile => LL.gold;
   static const settings = LL.muted;
 }
 
@@ -41,7 +41,8 @@ BoxDecoration neonDecoration(Color color, Color surface, {double radius = 16, do
 /// Aviso no meio da tela (lista vazia, erro...), com um botão opcional.
 class StatusMessage extends StatelessWidget {
   final IconData icon;
-  final Color color;
+  /// A cor do ícone (sem ela, a de destaque do tema).
+  final Color? color;
   final String title;
   final String? message;
   final String? actionLabel;
@@ -51,7 +52,7 @@ class StatusMessage extends StatelessWidget {
     super.key,
     required this.icon,
     required this.title,
-    this.color = AreaColors.decks,
+    this.color,
     this.message,
     this.actionLabel,
     this.onAction,
@@ -68,10 +69,10 @@ class StatusMessage extends StatelessWidget {
             padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: color.withValues(alpha: 0.12),
-              boxShadow: [BoxShadow(color: color.withValues(alpha: 0.25), blurRadius: 24)],
+              color: (color ?? LL.gold).withValues(alpha: 0.12),
+              boxShadow: [BoxShadow(color: (color ?? LL.gold).withValues(alpha: 0.25), blurRadius: 24)],
             ),
-            child: Icon(icon, size: 40, color: color),
+            child: Icon(icon, size: 40, color: color ?? LL.gold),
           ),
           const SizedBox(height: 18),
           Text(title, textAlign: TextAlign.center, style: TextStyle(color: textColor, fontSize: 18, fontWeight: FontWeight.w700)),
