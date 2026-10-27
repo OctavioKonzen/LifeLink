@@ -6,7 +6,8 @@ import ExpandingGrid from '../components/ExpandingGrid'
 import { Modal, PageHeader, btnPrimary, btnSecondary, inputClass } from '../components/ui'
 import { ManaPip } from '../components/Mana'
 import { matchStats } from '../lib/matches'
-import { ClipboardList, Crown, DollarSign, Hand, Lightbulb, PackageSearch, Pencil, Plus, Share2, Trash2, X } from 'lucide-react'
+import { ClipboardList, Crown, DollarSign, Hand, Lightbulb, PackageSearch, Pencil, Plus, Printer, Share2, Trash2, X } from 'lucide-react'
+import { printDeck } from '../lib/printDeck'
 import { scryfallIdOf } from '../lib/deckCards'
 import { deckList, deleteDeck, saveDeck, useUserData } from '../lib/userData'
 import { incrementDecksCreated } from '../lib/xp'
@@ -139,6 +140,16 @@ function DeckView({ deck, onClose }) {
           className={`inline-flex cursor-pointer items-center gap-2 rounded-lg px-3.5 py-2 text-sm font-medium disabled:opacity-40 ${tool === 'missing' ? 'bg-accent text-on-accent' : 'bg-card hover:brightness-125'}`}
         >
           <PackageSearch className="size-4" aria-hidden="true" /> O que falta
+        </button>
+        <button
+          type="button"
+          disabled={total < 1}
+          onClick={() => {
+            if (!printDeck(deck.name, deck.cards.map((c) => c.imageUrl))) window.alert('O navegador bloqueou a janela de impressão. Libere as janelas deste site e tente de novo.')
+          }}
+          className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-card px-3.5 py-2 text-sm font-medium hover:brightness-125 disabled:opacity-40"
+        >
+          <Printer className="size-4" aria-hidden="true" /> Imprimir / PDF
         </button>
       </div>
       {tool === 'suggestions' && (

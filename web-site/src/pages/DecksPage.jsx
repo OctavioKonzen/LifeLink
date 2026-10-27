@@ -5,6 +5,8 @@ import ExpandingGrid from '../components/ExpandingGrid'
 import { ErrorBox, Modal, PageHeader, Spinner, btnSecondary } from '../components/ui'
 import { coverIds, deck as loadDeck, deckCards, deckList, imageFor } from '../lib/mtgjson'
 import { fromMtgjson } from '../lib/deckCards'
+import { printDeck } from '../lib/printDeck'
+import { Printer } from 'lucide-react'
 import { saveDeck } from '../lib/userData'
 import { incrementCardsAdded, incrementDecksCreated } from '../lib/xp'
 
@@ -65,14 +67,26 @@ function DeckModal({ info, onClose }) {
         {total ? ` · ${total} cartas` : ''}
       </p>
       {state.cards?.length > 0 && (
-        <button
-          type="button"
-          disabled={saved}
-          onClick={save}
-          className="mb-5 inline-flex cursor-pointer items-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-on-accent hover:brightness-110 disabled:opacity-60"
-        >
-          {saved ? '✓ Salvo em Meus decks' : '+ Salvar nos Meus decks'}
-        </button>
+        <div className="mb-5 flex flex-wrap gap-2">
+          <button
+            type="button"
+            disabled={saved}
+            onClick={save}
+            className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-on-accent hover:brightness-110 disabled:opacity-60"
+          >
+            {saved ? '✓ Salvo em Meus decks' : '+ Salvar nos Meus decks'}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              const urls = state.cards.flatMap((c) => Array.from({ length: c.count }, () => imageFor(c.scryfallId)))
+              if (!printDeck(info.name, urls)) window.alert('O navegador bloqueou a janela de impressão. Libere as janelas deste site e tente de novo.')
+            }}
+            className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-line px-4 py-2 text-sm font-medium hover:bg-card"
+          >
+            <Printer className="size-4" aria-hidden="true" /> Imprimir / PDF
+          </button>
+        </div>
       )}
       {state.loading ? (
         <Spinner />
