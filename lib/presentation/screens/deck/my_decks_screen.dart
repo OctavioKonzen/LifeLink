@@ -26,14 +26,13 @@ class _MyDecksScreenState extends State<MyDecksScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: LL.surface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text("Apagar deck", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-        content: Text("Deseja realmente apagar o deck '$deckName'?", style: const TextStyle(color: Colors.white70)),
+        title: Text("Apagar deck", style: TextStyle(color: LL.ink, fontWeight: FontWeight.bold)),
+        content: Text("Deseja realmente apagar o deck '$deckName'?", style: TextStyle(color: LL.ink.withValues(alpha: 0.70))),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text("Cancelar", style: TextStyle(color: Colors.white54)),
+            child: Text("Cancelar", style: TextStyle(color: LL.ink.withValues(alpha: 0.54))),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
@@ -58,27 +57,25 @@ class _MyDecksScreenState extends State<MyDecksScreen> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          backgroundColor: LL.surface,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: const Text("Novo deck", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          title: Text("Novo deck", style: TextStyle(color: LL.ink, fontWeight: FontWeight.bold)),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               TextField(
                 controller: nameController,
                 autofocus: true,
-                style: const TextStyle(color: Colors.white),
-                decoration: const InputDecoration(
+                style: TextStyle(color: LL.ink),
+                decoration: InputDecoration(
                   hintText: "Nome do deck",
-                  hintStyle: TextStyle(color: Colors.white54),
+                  hintStyle: TextStyle(color: LL.ink.withValues(alpha: 0.54)),
                 ),
               ),
               const SizedBox(height: 20),
               DropdownButton<String>(
                 value: selectedType,
-                dropdownColor: LL.surface,
                 isExpanded: true,
-                items: ['Commander', 'Challenger', 'Normal'].map((t) => DropdownMenuItem(value: t, child: Text(t, style: const TextStyle(color: Colors.white)))).toList(),
+                items: ['Commander', 'Challenger', 'Normal'].map((t) => DropdownMenuItem(value: t, child: Text(t, style: TextStyle(color: LL.ink)))).toList(),
                 onChanged: (val) => setDialogState(() => selectedType = val!),
               ),
             ],

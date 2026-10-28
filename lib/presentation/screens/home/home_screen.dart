@@ -8,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../data/providers/theme_provider.dart';
 import '../../../data/providers/xp_provider.dart';
 import '../../../data/providers/game_provider.dart';
+import '../../../data/services/home_shortcut.dart';
 import '../../../data/services/scryfall_service.dart';
 import 'life_counter_screen.dart';
 import 'settings_screen.dart'; 
@@ -488,6 +489,8 @@ class _HomeScreenState extends State<HomeScreen> {
   // --- DRAWER COM O BANNER NO CABEÇALHO ---
   Widget _buildDrawer(BuildContext context, Color bgColor, Color textColor, bool isLight, bool isPt, ThemeProvider themeProvider, XpProvider xp) {
     final activeBanner = XpProvider.allBanners.firstWhere((b) => b['id'] == xp.selectedBannerId, orElse: () => XpProvider.allBanners[0]);
+    final plainBanner = activeBanner['id'] == '0';
+    final headerText = plainBanner ? LL.onGold : Colors.white;
 
     return Drawer(
       backgroundColor: bgColor,
@@ -497,17 +500,18 @@ class _HomeScreenState extends State<HomeScreen> {
           UserAccountsDrawerHeader(
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: activeBanner['colors'],
+                // O banner padrão (cinza) fica na cor do tema.
+                colors: plainBanner ? [LL.gold, Color.lerp(LL.gold, Colors.black, 0.25)!] : activeBanner['colors'],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
             ),
-            accountName: Text(playerNameOf(context), style: const TextStyle(fontFamily: LL.display, color: Colors.white, fontWeight: FontWeight.w700, fontSize: 20)),
+            accountName: Text(playerNameOf(context), style: TextStyle(fontFamily: LL.display, color: headerText, fontWeight: FontWeight.w700, fontSize: 20)),
             accountEmail: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text("Nível ${xp.level}", style: const TextStyle(color: Colors.white70)),
+                Text("Nível ${xp.level}", style: TextStyle(color: headerText.withValues(alpha: 0.75))),
                 if (xp.selectedTitle.isNotEmpty)
                   Text("« ${xp.selectedTitle} »", style: TextStyle(color: LL.gold, fontWeight: FontWeight.bold, fontSize: 12, fontStyle: FontStyle.italic)),
               ],
@@ -562,6 +566,22 @@ class _HomeScreenState extends State<HomeScreen> {
             onTap: () {
               Navigator.pop(context);
               Navigator.push(context, MaterialPageRoute(builder: (context) => const MatchHistoryScreen()));
+            },
+          ),
+          ListTile(
+            leading: Icon(Icons.add_to_home_screen, color: LL.gold),
+            title: Text("Contador na tela inicial", style: TextStyle(color: textColor)),
+            subtitle: Text("Um ícone que abre direto o contador de vida", style: TextStyle(color: textColor.withValues(alpha: 0.5), fontSize: 12)),
+            onTap: () async {
+              Navigator.pop(context);
+              final messenger = ScaffoldMessenger.of(context);
+              final ok = await HomeShortcut.pinCounter();
+              messenger.showSnackBar(SnackBar(
+                content: Text(ok
+                    ? 'Confirme no aviso do Android para pôr o ícone do contador na tela inicial.'
+                    : 'Este celular não deixa pôr o atalho direto. Segure o ícone do LifeLink e arraste "Contador de vida" para a tela inicial.'),
+                duration: const Duration(seconds: 6),
+              ));
             },
           ),
           ListTile(

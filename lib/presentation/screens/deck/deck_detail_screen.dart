@@ -57,13 +57,12 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: LL.surface,
-        title: const Text("Apagar Deck", style: TextStyle(color: Colors.white)),
-        content: const Text("Tem certeza que deseja excluir este deck permanentemente?", style: TextStyle(color: Colors.white70)),
+        title: Text("Apagar Deck", style: TextStyle(color: LL.ink)),
+        content: Text("Tem certeza que deseja excluir este deck permanentemente?", style: TextStyle(color: LL.ink.withValues(alpha: 0.70))),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text("Cancelar", style: TextStyle(color: Colors.white54)),
+            child: Text("Cancelar", style: TextStyle(color: LL.ink.withValues(alpha: 0.54))),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),

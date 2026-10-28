@@ -56,17 +56,16 @@ class _OnlineTableDialogState extends State<OnlineTableDialog> {
     return AnimatedBuilder(
       animation: table,
       builder: (context, _) => AlertDialog(
-        backgroundColor: const Color(0xFF1E1E24),
-        title: const Text('Mesa online', style: TextStyle(color: Colors.white)),
+        title: Text('Mesa online', style: TextStyle(color: LL.ink)),
         content: SizedBox(
           width: 360,
           child: SingleChildScrollView(
             child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
               if (!signedIn)
-                const Text('Entre na conta (menu do início → Conta) para jogar com a mesa online.', style: TextStyle(color: Colors.white70))
+                Text('Entre na conta (menu do início → Conta) para jogar com a mesa online.', style: TextStyle(color: LL.ink.withValues(alpha: 0.70)))
               else if (table.active) ...[
-                const Text('Cada um entra com este código no próprio celular (ou no site) e a vida de todos aparece em todos.',
-                    style: TextStyle(color: Colors.white54, fontSize: 13)),
+                Text('Cada um entra com este código no próprio celular (ou no site) e a vida de todos aparece em todos.',
+                    style: TextStyle(color: LL.ink.withValues(alpha: 0.54), fontSize: 13)),
                 const SizedBox(height: 12),
                 GestureDetector(
                   onTap: () {
@@ -75,14 +74,14 @@ class _OnlineTableDialogState extends State<OnlineTableDialog> {
                   },
                   child: Container(
                     padding: const EdgeInsets.symmetric(vertical: 14),
-                    decoration: BoxDecoration(color: Colors.black26, borderRadius: BorderRadius.circular(16)),
-                    child: Text(table.code!, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontSize: 38, fontWeight: FontWeight.w900, letterSpacing: 6)),
+                    decoration: BoxDecoration(color: LL.ink.withValues(alpha: 0.06), borderRadius: BorderRadius.circular(16)),
+                    child: Text(table.code!, textAlign: TextAlign.center, style: TextStyle(color: LL.ink, fontSize: 38, fontWeight: FontWeight.w900, letterSpacing: 6)),
                   ),
                 ),
                 const SizedBox(height: 12),
-                const Text('MEU LUGAR', style: TextStyle(color: Colors.white54, fontSize: 12, fontWeight: FontWeight.w800)),
-                const Text('Cada um no seu celular: o seu quadro fica grande e os dos outros pequenos, todos de frente para você.',
-                    style: TextStyle(color: Colors.white38, fontSize: 12)),
+                Text('MEU LUGAR', style: TextStyle(color: LL.ink.withValues(alpha: 0.54), fontSize: 12, fontWeight: FontWeight.w800)),
+                Text('Cada um no seu celular: o seu quadro fica grande e os dos outros pequenos, todos de frente para você.',
+                    style: TextStyle(color: LL.ink.withValues(alpha: 0.38), fontSize: 12)),
                 const SizedBox(height: 6),
                 Wrap(spacing: 6, runSpacing: 6, children: [
                   ChoiceChip(label: const Text('Mesa inteira'), selected: table.mySeat < 0, onSelected: (_) => table.setMySeat(-1)),
@@ -90,15 +89,15 @@ class _OnlineTableDialogState extends State<OnlineTableDialog> {
                     ChoiceChip(label: Text(widget.game.playerNames[i]), selected: table.mySeat == i, onSelected: (_) => table.setMySeat(i)),
                 ]),
                 const SizedBox(height: 12),
-                const Text('CONVIDAR AMIGO', style: TextStyle(color: Colors.white54, fontSize: 12, fontWeight: FontWeight.w800)),
+                Text('CONVIDAR AMIGO', style: TextStyle(color: LL.ink.withValues(alpha: 0.54), fontSize: 12, fontWeight: FontWeight.w800)),
                 StreamBuilder<List<Friend>>(
                   stream: Friends.instance.friends(),
                   builder: (context, snap) {
                     final friends = [for (final f in snap.data ?? const <Friend>[]) if (f.accepted) f];
                     if (friends.isEmpty) {
-                      return const Padding(
+                      return Padding(
                         padding: EdgeInsets.symmetric(vertical: 6),
-                        child: Text('Sem amigos ainda (menu do início → Amigos).', style: TextStyle(color: Colors.white38, fontSize: 13)),
+                        child: Text('Sem amigos ainda (menu do início → Amigos).', style: TextStyle(color: LL.ink.withValues(alpha: 0.38), fontSize: 13)),
                       );
                     }
                     return Wrap(spacing: 6, runSpacing: 6, children: [
@@ -128,8 +127,8 @@ class _OnlineTableDialogState extends State<OnlineTableDialog> {
                       controller: _code,
                       textCapitalization: TextCapitalization.characters,
                       maxLength: 6,
-                      style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w800, letterSpacing: 3),
-                      decoration: const InputDecoration(hintText: 'CÓDIGO', hintStyle: TextStyle(color: Colors.white24), counterText: ''),
+                      style: TextStyle(color: LL.ink, fontSize: 20, fontWeight: FontWeight.w800, letterSpacing: 3),
+                      decoration: InputDecoration(hintText: 'CÓDIGO', hintStyle: TextStyle(color: LL.ink.withValues(alpha: 0.24)), counterText: ''),
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -142,15 +141,15 @@ class _OnlineTableDialogState extends State<OnlineTableDialog> {
                     final invites = snap.data ?? const [];
                     if (invites.isEmpty) return const SizedBox.shrink();
                     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                      const Text('CONVITES', style: TextStyle(color: Colors.white54, fontSize: 12, fontWeight: FontWeight.w800)),
+                      Text('CONVITES', style: TextStyle(color: LL.ink.withValues(alpha: 0.54), fontSize: 12, fontWeight: FontWeight.w800)),
                       for (final i in invites)
                         ListTile(
                           dense: true,
                           contentPadding: EdgeInsets.zero,
                           leading: const Icon(Icons.mail, color: Colors.amber),
-                          title: Text('${i.from} chamou para a mesa ${i.code}', style: const TextStyle(color: Colors.white)),
+                          title: Text('${i.from} chamou para a mesa ${i.code}', style: TextStyle(color: LL.ink)),
                           trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-                            IconButton(icon: const Icon(Icons.close, color: Colors.white38), onPressed: () => Friends.instance.dismissInvite(i.code)),
+                            IconButton(icon: Icon(Icons.close, color: LL.ink.withValues(alpha: 0.38)), onPressed: () => Friends.instance.dismissInvite(i.code)),
                             TextButton(
                               onPressed: _busy
                                   ? null
@@ -165,7 +164,7 @@ class _OnlineTableDialogState extends State<OnlineTableDialog> {
                     ]);
                   },
                 ),
-                const Text('Ao entrar numa mesa, a partida deste celular vira a da mesa.', style: TextStyle(color: Colors.white38, fontSize: 12)),
+                Text('Ao entrar numa mesa, a partida deste celular vira a da mesa.', style: TextStyle(color: LL.ink.withValues(alpha: 0.38), fontSize: 12)),
               ],
               if (_busy) const Padding(padding: EdgeInsets.only(top: 10), child: LinearProgressIndicator()),
               if (_error != null) Padding(padding: const EdgeInsets.only(top: 10), child: Text(_error!, style: const TextStyle(color: Color(0xFFFF8A80)))),

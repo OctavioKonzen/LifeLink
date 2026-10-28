@@ -51,7 +51,11 @@ class LL {
         tint = const Color(0xFFF0EDE5);
         lightSurface = Colors.white;
     }
+    ink = _isLight(background) ? const Color(0xFF141824) : text;
   }
+
+  /// O texto das janelas no tema escolhido (escuro nos temas claros).
+  static Color ink = text;
   static const success = Color(0xFF34D399);
   static const danger = Color(0xFFEF4444);
 
