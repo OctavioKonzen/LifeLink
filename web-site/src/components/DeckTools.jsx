@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react'
+import QRCode from 'qrcode'
+import { codeFromLink, decodeDeck, deckLink, encodeDeck } from '../lib/shareDeck'
 import CardImage from './CardImage'
 import { Modal, Spinner } from './ui'
 import { missingFor } from '../lib/collection'
@@ -40,13 +42,25 @@ export function ImportListModal({ askName = false, onDone, onClose }) {
 
   const submit = async (e) => {
     e.preventDefault()
-    const lines = parseDeckList(text)
+    // Um link de deck do LifeLink: a lista (e o nome) vêm de dentro dele.
+    let list = text
+    let shared = null
+    const code = codeFromLink(text)
+    if (code) {
+      try {
+        shared = await decodeDeck(code)
+        list = shared.list
+      } catch {
+        return setState({ busy: false, error: 'Esse link de deck não abriu. Confira se copiou inteiro.', missing: [] })
+      }
+    }
+    const lines = parseDeckList(list)
     if (!lines.length) return setState({ busy: false, error: 'Nenhuma carta na lista.', missing: [] })
     setState({ busy: true, error: null, missing: [] })
     try {
       const { cards, missing } = await fetchDeckList(lines)
       if (!cards.length) return setState({ busy: false, error: 'Nenhuma carta encontrada.', missing })
-      onDone({ name: name.trim() || 'Deck importado', type, cards, missing })
+      onDone({ name: name.trim() || shared?.name || 'Deck importado', type: shared && !name.trim() ? shared.type : type, cards, missing })
       if (missing.length) setState({ busy: false, error: null, missing })
       else onClose()
     } catch (err) {
@@ -57,7 +71,7 @@ export function ImportListModal({ askName = false, onDone, onClose }) {
   return (
     <Modal onClose={onClose}>
       <h2 className="mb-1 text-xl font-bold">Importar lista</h2>
-      <p className="mb-3 text-sm text-muted">Cole a lista exportada do Moxfield, Archidekt, MTG Arena ou MTGO. Ex.: "1 Sol Ring (CMM) 410" ou "4x Lightning Bolt".</p>
+      <p className="mb-3 text-sm text-muted">Cole a lista exportada do Moxfield, Archidekt, MTG Arena ou MTGO (ex.: "1 Sol Ring (CMM) 410" ou "4x Lightning Bolt") ou um link de deck do LifeLink.</p>
       {state.missing.length > 0 ? (
         <div className="space-y-3">
           <p className="rounded-xl bg-amber-400/15 p-3 text-sm text-amber-300">Importado! Não encontrei: {state.missing.join(', ')}</p>
@@ -483,6 +497,8 @@ export function Suggestions({ deck }) {
 export function ExportDeck({ deck }) {
   const [text, setText] = useState(null)
   const [done, setDone] = useState('')
+  const [link, setLink] = useState('')
+  const [qr, setQr] = useState('')
   useEffect(() => {
     let alive = true
     englishNames(deck.cards).then((names) => alive && setText(exportList(deck.cards, names)))
@@ -490,16 +506,45 @@ export function ExportDeck({ deck }) {
       alive = false
     }
   }, [deck])
+  // O link do deck (o deck vai dentro do link) e o QR code dele.
+  useEffect(() => {
+    if (text == null) return
+    let alive = true
+    encodeDeck({ name: deck.name, type: deck.type, list: text })
+      .then((code) => {
+        const url = deckLink(code)
+        if (!alive) return
+        setLink(url)
+        return QRCode.toDataURL(url, { errorCorrectionLevel: 'L', margin: 1, width: 360 }).then((img) => alive && setQr(img))
+      })
+      .catch(() => {})
+    return () => {
+      alive = false
+    }
+  }, [text, deck.name, deck.type])
   if (text == null) return <div className="grid place-items-center py-6"><Spinner /></div>
-  const copy = () => navigator.clipboard?.writeText(text).then(() => setDone('Lista copiada.'), () => setDone('Não deu para copiar: selecione o texto.'))
+  const copy = (value, message) => navigator.clipboard?.writeText(value).then(() => setDone(message), () => setDone('Não deu para copiar: selecione o texto.'))
   const share = () => navigator.share({ title: deck.name, text: `${deck.name}\n\n${text}` }).catch(() => {})
   const whatsapp = `https://wa.me/?text=${encodeURIComponent(`${deck.name}\n\n${text}`)}`
   return (
     <div>
-      <p className="mb-2 text-sm text-muted">Formato do Moxfield, Arena e Archidekt (nomes em inglês).</p>
+      {link && (
+        <div className="mb-5 flex flex-col gap-4 rounded-2xl border border-line bg-bg p-4 sm:flex-row sm:items-center">
+          {qr && <img src={qr} alt="QR code do deck" className="mx-auto size-40 rounded-lg bg-white p-1 sm:mx-0" />}
+          <div className="min-w-0 flex-1">
+            <p className="font-semibold">Link do deck</p>
+            <p className="mb-2 text-sm text-muted">Quem abrir o link (ou ler o QR code com a câmera) vê o deck e salva nos decks dele.</p>
+            <div className="flex flex-wrap gap-2">
+              <button type="button" onClick={() => copy(link, 'Link copiado.')} className="rounded-lg bg-accent px-4 py-1.5 text-sm font-bold text-on-accent hover:brightness-110">🔗 Copiar link</button>
+              <a href={`https://wa.me/?text=${encodeURIComponent(`${deck.name}: ${link}`)}`} target="_blank" rel="noreferrer" className="rounded-lg bg-success px-4 py-1.5 text-sm font-bold text-white hover:brightness-110">WhatsApp</a>
+            </div>
+          </div>
+        </div>
+      )}
+      <p className="mb-2 text-sm text-muted">A lista no formato do Moxfield, Arena e Archidekt (nomes em inglês).</p>
       <textarea readOnly value={text} rows={10} className="w-full rounded-xl bg-black/20 p-3 font-mono text-sm" onFocus={(e) => e.target.select()} />
       <div className="mt-2 flex flex-wrap gap-2">
-        <button type="button" onClick={copy} className="rounded-lg bg-card px-4 py-1.5 text-sm font-bold hover:brightness-125">📋 Copiar</button>
+        <button type="button" onClick={() => copy(text, 'Lista copiada.')} className="rounded-lg bg-card px-4 py-1.5 text-sm font-bold hover:brightness-125">📋 Copiar</button>
         {typeof navigator !== 'undefined' && navigator.share && (
           <button type="button" onClick={share} className="rounded-lg bg-card px-4 py-1.5 text-sm font-bold hover:brightness-125">📤 Compartilhar</button>
         )}

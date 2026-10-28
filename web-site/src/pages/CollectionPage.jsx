@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
 import CardDetails from '../components/CardDetails'
 import CardImage from '../components/CardImage'
-import { Modal, PageHeader, btnPrimary, btnSecondary, inputClass, panel } from '../components/ui'
-import { ArrowDown, ArrowUp, Folder, MoreHorizontal, Minus, Plus, RefreshCw, Repeat, Search, X } from 'lucide-react'
+import { Modal, PageHeader, Spinner, btnPrimary, btnSecondary, inputClass, panel } from '../components/ui'
+import { ArrowDown, ArrowUp, Download, Folder, MoreHorizontal, Minus, Plus, RefreshCw, Repeat, Search, Upload, X } from 'lucide-react'
+import { collectionCsv, collectionList, exportRows, importCollection } from '../lib/collectionCsv'
 import { useUserData } from '../lib/userData'
 import { dollarInReais } from '../lib/deckTools'
 import { foldersOf, refreshPrices, removeWish, setFolder, setQty, setTrade, totalCards, totalEur, totalUsd } from '../lib/collection'
@@ -66,6 +67,91 @@ function Thumb({ img }) {
   return img ? <img src={img} alt="" loading="lazy" className="h-12 w-9 shrink-0 rounded-md object-cover" /> : <div className="h-12 w-9 shrink-0 rounded-md bg-card" />
 }
 
+/** Importar para a coleção: CSV (Moxfield, ManaBox, Archidekt, Deckbox) ou lista de texto. */
+function ImportCollection({ onClose }) {
+  const [text, setText] = useState('')
+  const [state, setState] = useState({ busy: false, message: null, error: null })
+  const readFile = (file) => file && file.text().then(setText, () => setState({ busy: false, message: null, error: 'Não deu para ler o arquivo.' }))
+  const submit = async (e) => {
+    e.preventDefault()
+    setState({ busy: true, message: null, error: null })
+    try {
+      const r = await importCollection(text)
+      if (!r.added) return setState({ busy: false, message: null, error: r.missing.length ? `Não encontrei: ${r.missing.slice(0, 10).join(', ')}` : 'Nenhuma carta no texto.' })
+      setState({ busy: false, error: null, message: `${r.added} cartas (${r.cards} diferentes) entraram na coleção.${r.missing.length ? ` Não encontrei: ${r.missing.slice(0, 10).join(', ')}` : ''}` })
+    } catch (err) {
+      setState({ busy: false, message: null, error: err.message || 'Não deu para importar agora.' })
+    }
+  }
+  return (
+    <Modal onClose={onClose}>
+      <h2 className="mb-1 text-xl font-bold">Importar para a coleção</h2>
+      <p className="mb-3 text-sm text-muted">Escolha o arquivo CSV exportado do Moxfield, ManaBox, Archidekt ou Deckbox, ou cole uma lista (ex.: "2 Sol Ring (CMM) 410"). As quantidades somam com o que você já tem.</p>
+      {state.message ? (
+        <div className="space-y-3">
+          <p className="rounded-xl bg-success/15 p-3 text-sm font-semibold text-success">{state.message}</p>
+          <button type="button" onClick={onClose} className={`${btnPrimary} w-full`}>Pronto</button>
+        </div>
+      ) : (
+        <form onSubmit={submit} className="flex flex-col gap-3">
+          <label className={`${btnSecondary} self-start`}>
+            <Upload className="size-4" aria-hidden="true" /> Escolher arquivo
+            <input type="file" accept=".csv,.txt,text/csv,text/plain" onChange={(e) => readFile(e.target.files?.[0])} className="sr-only" />
+          </label>
+          <textarea value={text} onChange={(e) => setText(e.target.value)} rows={9} placeholder={'Count,Name,Edition,Collector Number\n2,Sol Ring,cmm,410\n\nou\n\n4 Lightning Bolt'} className="w-full rounded-xl border border-line bg-bg p-3 font-mono text-sm" />
+          {state.error && <p className="text-sm font-semibold text-danger">{state.error}</p>}
+          <button type="submit" disabled={state.busy || !text.trim()} className={btnPrimary}>
+            {state.busy ? 'Importando...' : 'Importar'}
+          </button>
+        </form>
+      )}
+    </Modal>
+  )
+}
+
+/** Exportar a coleção: CSV do Moxfield (serve também no ManaBox, Archidekt e Deckbox) ou lista. */
+function ExportCollection({ collection, onClose }) {
+  const [rows, setRows] = useState(null)
+  const [done, setDone] = useState('')
+  useEffect(() => {
+    let alive = true
+    exportRows(collection).then((r) => alive && setRows(r), () => alive && setRows([]))
+    return () => {
+      alive = false
+    }
+  }, [collection])
+  const download = () => {
+    const url = URL.createObjectURL(new Blob([collectionCsv(rows)], { type: 'text/csv;charset=utf-8' }))
+    const a = Object.assign(document.createElement('a'), { href: url, download: 'lifelink-colecao.csv' })
+    a.click()
+    setTimeout(() => URL.revokeObjectURL(url), 1000)
+    setDone('Arquivo baixado.')
+  }
+  const list = rows ? collectionList(rows) : ''
+  return (
+    <Modal onClose={onClose}>
+      <h2 className="mb-1 text-xl font-bold">Exportar a coleção</h2>
+      <p className="mb-3 text-sm text-muted">O arquivo CSV no formato do Moxfield, que também entra no ManaBox, Archidekt e Deckbox. Ou copie como lista.</p>
+      {!rows ? (
+        <Spinner />
+      ) : (
+        <div className="space-y-3">
+          <textarea readOnly value={list} rows={9} onFocus={(e) => e.target.select()} className="w-full rounded-xl border border-line bg-bg p-3 font-mono text-sm" />
+          <div className="flex flex-wrap gap-2">
+            <button type="button" onClick={download} className={btnPrimary}>
+              <Download className="size-4" aria-hidden="true" /> Baixar CSV
+            </button>
+            <button type="button" onClick={() => navigator.clipboard?.writeText(list).then(() => setDone('Lista copiada.'), () => {})} className={btnSecondary}>
+              📋 Copiar lista
+            </button>
+            {done && <span className="self-center text-sm font-bold text-success">{done}</span>}
+          </div>
+        </div>
+      )}
+    </Modal>
+  )
+}
+
 export default function CollectionPage() {
   const collection = useUserData((s) => s.collection)
   const wishlist = useUserData((s) => s.wishlist)
@@ -77,6 +163,7 @@ export default function CollectionPage() {
   const [folder, setFolderFilter] = useState(null) // null = todas; '' = sem pasta
   const [onlyTrade, setOnlyTrade] = useState(false)
   const [options, setOptions] = useState(null) // id da carta com as opções abertas
+  const [transfer, setTransfer] = useState(null) // 'import' | 'export'
 
   useEffect(() => {
     dollarInReais().then(setBrl, () => {})
@@ -125,11 +212,21 @@ export default function CollectionPage() {
         title="Coleção"
         description="Tudo o que você tem guardado, com o valor atualizado, e a lista de desejos."
         action={
-          <button type="button" onClick={refresh} className={btnSecondary}>
-            <RefreshCw className="size-4" aria-hidden="true" /> Atualizar preços
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <button type="button" onClick={() => setTransfer('import')} className={btnSecondary}>
+              <Upload className="size-4" aria-hidden="true" /> Importar
+            </button>
+            <button type="button" onClick={() => setTransfer('export')} className={btnSecondary} disabled={!(collection?.list || []).length}>
+              <Download className="size-4" aria-hidden="true" /> Exportar
+            </button>
+            <button type="button" onClick={refresh} className={btnSecondary}>
+              <RefreshCw className="size-4" aria-hidden="true" /> Atualizar preços
+            </button>
+          </div>
         }
       />
+      {transfer === 'import' && <ImportCollection onClose={() => setTransfer(null)} />}
+      {transfer === 'export' && <ExportCollection collection={collection} onClose={() => setTransfer(null)} />}
       <div className="mb-6 inline-flex gap-1 rounded-xl border border-line bg-surface p-1">
         <button type="button" className={tabClass(tab === 'collection')} onClick={() => setTab('collection')}>
           Coleção ({totalCards(collection)})

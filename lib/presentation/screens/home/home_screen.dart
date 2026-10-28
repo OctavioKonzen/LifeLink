@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:provider/provider.dart';
+import 'package:quick_actions/quick_actions.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../data/providers/theme_provider.dart';
@@ -18,6 +20,7 @@ import '../search/card_scan_screen.dart';
 import '../search/set_cards_screen.dart';
 import '../search/today_prices_screen.dart'; 
 import 'arena_missions_screen.dart';
+import 'rules_screen.dart';
 import 'profile_screen.dart'; 
 import 'account_screen.dart';
 import '../collection/collection_screen.dart';
@@ -53,6 +56,29 @@ class _HomeScreenState extends State<HomeScreen> {
     }).catchError((_) {});
     // Uma vez por dia: avisa se alguma carta da lista de desejos ficou mais barata.
     WidgetsBinding.instance.addPostFrameCallback((_) => _checkWishPrices());
+    _setUpShortcuts();
+  }
+
+  /// Os atalhos ao segurar o ícone do app (dá para arrastar para a tela
+  /// inicial): contador de vida, escanear carta e regras.
+  void _setUpShortcuts() {
+    if (kIsWeb) return;
+    const actions = QuickActions();
+    actions.initialize((type) {
+      if (!mounted) return;
+      final Widget? screen = switch (type) {
+        'counter' => const LegacyTheme(child: LifeCounterScreen()),
+        'scan' => const CardScanScreen(),
+        'rules' => const RulesScreen(),
+        _ => null,
+      };
+      if (screen != null) Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
+    }).catchError((_) {});
+    actions.setShortcutItems(const [
+      ShortcutItem(type: 'counter', localizedTitle: 'Contador de vida', icon: 'ic_shortcut_counter'),
+      ShortcutItem(type: 'scan', localizedTitle: 'Escanear carta', icon: 'ic_shortcut_scan'),
+      ShortcutItem(type: 'rules', localizedTitle: 'Regras', icon: 'ic_shortcut_rules'),
+    ]).catchError((_) {});
   }
 
   Future<void> _checkWishPrices() async {
@@ -536,6 +562,14 @@ class _HomeScreenState extends State<HomeScreen> {
             onTap: () {
               Navigator.pop(context);
               Navigator.push(context, MaterialPageRoute(builder: (context) => const MatchHistoryScreen()));
+            },
+          ),
+          ListTile(
+            leading: Icon(Icons.gavel, color: LL.gold),
+            title: Text("Regras (juiz)", style: TextStyle(color: textColor)),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(context, MaterialPageRoute(builder: (context) => const RulesScreen()));
             },
           ),
           ListTile(

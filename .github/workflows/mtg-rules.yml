@@ -1,0 +1,33 @@
+# As Regras Completas de Magic (da Wizards) para o juiz de regras do app e do
+# site: data/rules.json no R2 (tool/build_rules.py). Roda todo mês (a Wizards
+# atualiza as regras a cada coleção nova), quando pedir e quando o script muda.
+name: Regras de Magic (R2)
+
+on:
+  schedule:
+    - cron: '41 11 3 * *'
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['tool/build_rules.py', '.github/workflows/mtg-rules.yml']
+
+permissions:
+  contents: read
+
+jobs:
+  rules:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install boto3
+      - name: Baixar, ler e gravar no R2
+        env:
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: lifelink
+        run: python3 tool/build_rules.py

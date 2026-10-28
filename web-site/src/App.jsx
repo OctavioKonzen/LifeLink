@@ -12,7 +12,9 @@ import MyDecksPage from './pages/MyDecksPage'
 import ProfilePage from './pages/ProfilePage'
 import AccountPage from './pages/AccountPage'
 import LoginPage from './pages/LoginPage'
-import { BookOpen, Box, Check, Heart, Layers, LogOut, Menu, Palette, Search, Smartphone, TrendingUp, Trophy, User, X } from 'lucide-react'
+import RulesPage from './pages/RulesPage'
+import SharedDeckPage from './pages/SharedDeckPage'
+import { BookOpen, Box, Check, Gavel, Heart, Layers, LogOut, Menu, Palette, Search, Smartphone, TrendingUp, Trophy, User, X } from 'lucide-react'
 import Logo from './components/Logo'
 import { useAuth } from './lib/auth'
 import { logout } from './lib/sync'
@@ -27,6 +29,7 @@ const SECTIONS = [
   { path: '/precos', label: 'Preços', icon: TrendingUp },
   { path: '/decks', label: 'Decks oficiais', icon: BookOpen },
   { path: '/contador', label: 'Contador', icon: Heart },
+  { path: '/regras', label: 'Regras', icon: Gavel },
   { path: '/perfil', label: 'Perfil', icon: Trophy },
 ]
 
@@ -314,6 +317,8 @@ export default function App() {
             <Route path="/meus-decks" element={<MyDecksPage />} />
             <Route path="/perfil" element={<ProfilePage />} />
             <Route path="/conta" element={<AccountPage />} />
+            <Route path="/regras" element={<RulesPage />} />
+            <Route path="/d/:code" element={<SharedDeckPage />} />
             <Route path="*" element={<SearchPage />} />
           </Routes>
         </PageFade>

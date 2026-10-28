@@ -3,9 +3,11 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../../data/providers/deck_provider.dart';
 import '../../../data/providers/theme_provider.dart';
+import '../../../data/services/deck_share.dart';
 import '../../../data/services/deck_tools.dart';
 import '../../../data/services/scryfall_service.dart';
 import '../search/card_detail_screen.dart';
@@ -424,7 +426,7 @@ Future<({List<DeckLine> lines, String name, String type})?> importListDialog(Bui
               ),
               const SizedBox(height: 8),
             ],
-            const Text('Cole a lista exportada do Moxfield, Archidekt, MTG Arena ou MTGO.\nEx.: "1 Sol Ring (CMM) 410" ou "4x Lightning Bolt".',
+            const Text('Cole a lista exportada do Moxfield, Archidekt, MTG Arena ou MTGO (ex.: "1 Sol Ring (CMM) 410" ou "4x Lightning Bolt") ou um link de deck do LifeLink.',
                 style: TextStyle(color: Colors.white54, fontSize: 12)),
             const SizedBox(height: 8),
             TextField(
@@ -449,7 +451,14 @@ Future<({List<DeckLine> lines, String name, String type})?> importListDialog(Bui
     ),
   );
   if (ok != true) return null;
-  return (lines: DeckTools.parse(listCtrl.text), name: nameCtrl.text.trim().isEmpty ? 'Deck importado' : nameCtrl.text.trim(), type: type);
+  // Um link de deck do LifeLink: a lista (e o nome e o tipo) vêm de dentro dele.
+  final code = DeckShare.codeFromLink(listCtrl.text);
+  final shared = code == null ? null : DeckShare.decode(code);
+  final name = nameCtrl.text.trim();
+  if (shared != null) {
+    return (lines: DeckTools.parse(shared.list), name: name.isEmpty ? shared.name : name, type: name.isEmpty ? shared.type : type);
+  }
+  return (lines: DeckTools.parse(listCtrl.text), name: name.isEmpty ? 'Deck importado' : name, type: type);
 }
 
 /// A curva de mana (quantas cartas de cada custo, sem os terrenos) e quanto
@@ -545,13 +554,55 @@ Future<void> exportDeckSheet(BuildContext context, DeckModel deck) async {
           return const SizedBox(height: 200, child: Center(child: CircularProgressIndicator()));
         }
         final text = DeckTools.exportList(deck.cards, english: snap.data!);
+        final link = DeckShare.link(DeckShare.encode(name: deck.name, type: deck.type, list: text));
         return SafeArea(
-          child: Padding(
+          child: SingleChildScrollView(
             padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
             child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
               Text('Exportar ${deck.name}', style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 12),
+              // O link do deck (o deck vai dentro do link) e o QR code dele.
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(color: Colors.black26, borderRadius: BorderRadius.circular(12)),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                  const Text('Link do deck', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+                  const SizedBox(height: 2),
+                  const Text('Quem abrir o link (ou ler o QR code com a câmera) vê o deck e salva nos decks dele.', style: TextStyle(color: Colors.white54, fontSize: 12)),
+                  const SizedBox(height: 10),
+                  Center(
+                    child: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(10)),
+                      child: QrImageView(data: link, size: 220, errorCorrectionLevel: QrErrorCorrectLevel.L, padding: EdgeInsets.zero),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Row(children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        icon: const Icon(Icons.link),
+                        label: const Text('Copiar link'),
+                        onPressed: () {
+                          Clipboard.setData(ClipboardData(text: link));
+                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Link copiado.')));
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        icon: const Icon(Icons.share),
+                        label: const Text('Enviar link'),
+                        onPressed: () => SharePlus.instance.share(ShareParams(text: '${deck.name}: $link', subject: deck.name)),
+                      ),
+                    ),
+                  ]),
+                ]),
+              ),
+              const SizedBox(height: 16),
               const SizedBox(height: 4),
-              const Text('Formato do Moxfield, Arena e Archidekt (nomes em inglês).', style: TextStyle(color: Colors.white54, fontSize: 12)),
+              const Text('A lista no formato do Moxfield, Arena e Archidekt (nomes em inglês).', style: TextStyle(color: Colors.white54, fontSize: 12)),
               const SizedBox(height: 12),
               ConstrainedBox(
                 constraints: BoxConstraints(maxHeight: MediaQuery.of(ctx).size.height * 0.45),

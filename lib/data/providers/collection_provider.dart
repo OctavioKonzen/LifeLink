@@ -201,6 +201,21 @@ class CollectionProvider with ChangeNotifier {
     return qtyOf(saved.id);
   }
 
+  /// Várias cartas de uma vez (importar): [(carta, quantas)].
+  void addMany(List<(Map<String, dynamic>, int)> entries) {
+    for (final (card, n) in entries) {
+      final saved = SavedCard.of(card);
+      final i = _cards.indexWhere((c) => c.id == saved.id);
+      if (i >= 0) {
+        _cards[i].qty += n;
+      } else if (_cards.length < maxCards) {
+        saved.qty = n;
+        _cards.insert(0, saved);
+      }
+    }
+    _changed('collection');
+  }
+
   void setQty(String id, int qty) {
     if (qty <= 0) {
       _cards.removeWhere((c) => c.id == id);
