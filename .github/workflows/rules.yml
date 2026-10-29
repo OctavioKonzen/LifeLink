@@ -7,10 +7,10 @@ name: Regras do banco
 on:
   push:
     branches: [main]
-    paths: ['firestore.rules', 'tool/rules-test/**', 'web-site/src/lib/onlineCore.js', '.github/workflows/rules.yml']
+    paths: ['firestore.rules', 'tool/deploy_firestore_rules.py', 'tool/rules-test/**', 'web-site/src/lib/onlineCore.js', '.github/workflows/rules.yml']
   workflow_dispatch:
   pull_request:
-    paths: ['firestore.rules', 'tool/rules-test/**', 'web-site/src/lib/onlineCore.js', '.github/workflows/rules.yml']
+    paths: ['firestore.rules', 'tool/deploy_firestore_rules.py', 'tool/rules-test/**', 'web-site/src/lib/onlineCore.js', '.github/workflows/rules.yml']
 
 permissions:
   contents: read
@@ -39,18 +39,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-python@v5
         with:
-          node-version: 22
+          python-version: '3.12'
       - name: Publicar as regras no Firebase
         env:
           SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          FIREBASE_PROJECT: lifelink-ad40f
         run: |
           if [ -z "$SERVICE_ACCOUNT" ]; then
             echo "::warning::Sem o segredo FIREBASE_SERVICE_ACCOUNT: as regras não foram publicadas (cole no Console do Firebase ou crie o segredo)."
             exit 0
           fi
-          printf '%s' "$SERVICE_ACCOUNT" > "$RUNNER_TEMP/sa.json"
-          echo '{"firestore":{"rules":"firestore.rules"}}' > firebase.json
-          GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/sa.json" npx --yes firebase-tools@14 deploy --only firestore:rules --project lifelink-ad40f --non-interactive
-          rm -f "$RUNNER_TEMP/sa.json"
+          pip install --quiet google-auth requests
+          python3 tool/deploy_firestore_rules.py
