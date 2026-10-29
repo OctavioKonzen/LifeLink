@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../theme/app_theme.dart';
+
 /// Os filtros da busca de cartas e como viram a busca do Scryfall.
 class CardFilters {
   /// Cores da identidade (W, U, B, R, G e C para incolor).
@@ -146,6 +148,7 @@ class _FiltersSheetState extends State<_FiltersSheet> {
     required VoidCallback onTap,
     required VoidCallback onClear,
   }) {
+    final idle = Theme.of(context).brightness == Brightness.light ? LL.tint : LL.card;
     return Align(
       alignment: Alignment.centerLeft,
       child: Material(
@@ -156,20 +159,21 @@ class _FiltersSheetState extends State<_FiltersSheet> {
           child: Ink(
             padding: const EdgeInsets.fromLTRB(22, 12, 12, 12),
             decoration: BoxDecoration(
-              gradient: LinearGradient(colors: value == null ? [const Color(0xFF455A64), const Color(0xFF37474F)] : colors),
+              // Sem nada escolhido, na cor do tema; escolhido, com o degradê da lista.
+              gradient: LinearGradient(colors: value == null ? [idle, Color.lerp(idle, LL.gold, 0.12)!] : colors),
               borderRadius: BorderRadius.circular(30),
-              boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 8, offset: Offset(0, 3))],
+              boxShadow: value == null ? null : const [BoxShadow(color: Colors.black26, blurRadius: 8, offset: Offset(0, 3))],
             ),
             child: Row(mainAxisSize: MainAxisSize.min, children: [
               Flexible(
                 child: Text(value ?? label,
-                    maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                    maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: value == null ? LL.ink : Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
               ),
               const SizedBox(width: 8),
               if (value != null)
                 GestureDetector(onTap: onClear, child: const Icon(Icons.close, color: Colors.white, size: 22))
               else
-                const Icon(Icons.arrow_drop_down, color: Colors.white, size: 28),
+                Icon(Icons.arrow_drop_down, color: LL.ink, size: 28),
             ]),
           ),
         ),
@@ -300,7 +304,7 @@ class _FiltersSheetState extends State<_FiltersSheet> {
           child: Padding(
             padding: const EdgeInsets.fromLTRB(24, 8, 24, 16),
             child: FilledButton(
-              style: FilledButton.styleFrom(backgroundColor: const Color(0xFF0288D1), foregroundColor: Colors.white, minimumSize: const Size(double.infinity, 56)),
+              style: FilledButton.styleFrom(backgroundColor: LL.gold, foregroundColor: LL.onGold, minimumSize: const Size(double.infinity, 56)),
               onPressed: () => Navigator.pop(context, _filters),
               child: Text(count == 0 ? "Ver todas as cartas" : "Ver cartas ($count ${count == 1 ? 'filtro' : 'filtros'})",
                   style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600)),

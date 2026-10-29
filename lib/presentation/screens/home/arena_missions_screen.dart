@@ -64,7 +64,6 @@ class _ArenaMissionsScreenState extends State<ArenaMissionsScreen> {
       context: context,
       barrierDismissible: false,
       builder: (ctx) => AlertDialog(
-        backgroundColor: LL.surface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -82,7 +81,7 @@ class _ArenaMissionsScreenState extends State<ArenaMissionsScreen> {
             else
               const Icon(Icons.military_tech, size: 80, color: Colors.purpleAccent),
             const SizedBox(height: 20),
-            Text("Desbloqueado: ${reward['name']}", style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold), textAlign: TextAlign.center),
+            Text("Desbloqueado: ${reward['name']}", style: TextStyle(color: LL.ink, fontWeight: FontWeight.bold), textAlign: TextAlign.center),
             const SizedBox(height: 25),
             ElevatedButton(
               onPressed: () {

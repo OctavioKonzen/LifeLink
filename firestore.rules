@@ -15,7 +15,9 @@ rules_version = '2';
 // perfil (na mesma transação). Para trocar, o novo é registrado e o antigo
 // é liberado na mesma transação.
 //
-// Para usar: Console do Firebase → Firestore Database → Regras → colar e Publicar.
+// Publicação: a Action rules.yml publica sozinha na main (com o segredo
+// FIREBASE_SERVICE_ACCOUNT). Sem ele: Console do Firebase → Firestore Database
+// → Regras → colar e Publicar.
 service cloud.firestore {
   match /databases/{database}/documents {
     function isOwner(uid) {

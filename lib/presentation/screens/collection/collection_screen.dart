@@ -336,14 +336,13 @@ class _CollectionScreenState extends State<CollectionScreen> {
   Future<void> _cardOptions(CollectionProvider collection, SavedCard c) async {
     await showModalBottomSheet(
       context: context,
-      backgroundColor: LL.surface,
       builder: (ctx) => SafeArea(
         child: Column(mainAxisSize: MainAxisSize.min, children: [
-          ListTile(title: Text(c.name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
+          ListTile(title: Text(c.name, style: TextStyle(color: LL.ink, fontWeight: FontWeight.bold))),
           SwitchListTile(
             secondary: Icon(Icons.swap_horiz, color: LL.gold),
-            title: const Text('Para troca', style: TextStyle(color: Colors.white)),
-            subtitle: const Text('Os amigos veem e o app mostra quem quer esta carta.', style: TextStyle(color: Colors.white54)),
+            title: Text('Para troca', style: TextStyle(color: LL.ink)),
+            subtitle: Text('Os amigos veem e o app mostra quem quer esta carta.', style: TextStyle(color: LL.ink.withValues(alpha: 0.54))),
             value: c.trade,
             onChanged: (v) {
               collection.setTrade(c.id, v);
@@ -351,8 +350,8 @@ class _CollectionScreenState extends State<CollectionScreen> {
             },
           ),
           ListTile(
-            leading: const Icon(Icons.folder_outlined, color: Colors.white70),
-            title: Text(c.folder.isEmpty ? 'Pôr numa pasta' : 'Pasta: ${c.folder}', style: const TextStyle(color: Colors.white)),
+            leading: Icon(Icons.folder_outlined, color: LL.ink.withValues(alpha: 0.70)),
+            title: Text(c.folder.isEmpty ? 'Pôr numa pasta' : 'Pasta: ${c.folder}', style: TextStyle(color: LL.ink)),
             onTap: () async {
               Navigator.pop(ctx);
               final folder = await _askFolder(collection.folders, c.folder);
@@ -361,7 +360,7 @@ class _CollectionScreenState extends State<CollectionScreen> {
           ),
           ListTile(
             leading: const Icon(Icons.delete_outline, color: Colors.redAccent),
-            title: const Text('Tirar da coleção', style: TextStyle(color: Colors.white)),
+            title: Text('Tirar da coleção', style: TextStyle(color: LL.ink)),
             onTap: () {
               collection.setQty(c.id, 0);
               Navigator.pop(ctx);
@@ -440,7 +439,6 @@ Future<void> missingCardsSheet(BuildContext context, DeckModel deck) async {
   final cost = missing.fold(0.0, (a, m) => a + m.usd * (m.need - m.have));
   await showModalBottomSheet(
     context: context,
-    backgroundColor: LL.surface,
     isScrollControlled: true,
     builder: (ctx) => SafeArea(
       child: ConstrainedBox(
@@ -449,11 +447,11 @@ Future<void> missingCardsSheet(BuildContext context, DeckModel deck) async {
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              const Text('O que falta na coleção', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+              Text('O que falta na coleção', style: TextStyle(color: LL.ink, fontSize: 18, fontWeight: FontWeight.bold)),
               const SizedBox(height: 4),
               Text(
                 missing.isEmpty ? 'Você tem todas as cartas deste deck!' : '${missing.length} carta(s) · ${_money(cost, brl)}\nTerrenos básicos não contam; qualquer versão da carta serve.',
-                style: const TextStyle(color: Colors.white70, fontSize: 13),
+                style: TextStyle(color: LL.ink.withValues(alpha: 0.70), fontSize: 13),
               ),
             ]),
           ),
@@ -462,8 +460,8 @@ Future<void> missingCardsSheet(BuildContext context, DeckModel deck) async {
               for (final m in missing)
                 ListTile(
                   dense: true,
-                  title: Text(m.name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
-                  subtitle: Text('Tenho ${m.have} de ${m.need}', style: const TextStyle(color: Colors.white54)),
+                  title: Text(m.name, style: TextStyle(color: LL.ink, fontWeight: FontWeight.w600)),
+                  subtitle: Text('Tenho ${m.have} de ${m.need}', style: TextStyle(color: LL.ink.withValues(alpha: 0.54))),
                   trailing: Text('US\$ ${(m.usd * (m.need - m.have)).toStringAsFixed(2)}', style: TextStyle(color: LL.gold, fontWeight: FontWeight.bold)),
                   onTap: () => Navigator.push(ctx, MaterialPageRoute(builder: (_) => CardDetailScreen(card: m.card))),
                 ),

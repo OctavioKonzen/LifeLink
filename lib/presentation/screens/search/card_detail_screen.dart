@@ -341,8 +341,7 @@ class _CardDetailScreenState extends State<CardDetailScreen> with SingleTickerPr
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: LL.surface,
-        title: Text("Adicionar a qual deck?", style: TextStyle(color: Colors.white)),
+        title: Text("Adicionar a qual deck?", style: TextStyle(color: LL.ink)),
         content: SizedBox(
           width: double.maxFinite,
           child: ListView.builder(
@@ -352,8 +351,8 @@ class _CardDetailScreenState extends State<CardDetailScreen> with SingleTickerPr
               final deck = provider.allDecks[index];
               return ListTile(
                 leading: Icon(Icons.layers, color: LL.gold),
-                title: Text(deck.name, style: const TextStyle(color: Colors.white)),
-                subtitle: Text("${deck.cards.length} cartas", style: const TextStyle(color: Colors.white54, fontSize: 12)),
+                title: Text(deck.name, style: TextStyle(color: LL.ink)),
+                subtitle: Text("${deck.cards.length} cartas", style: TextStyle(color: LL.ink.withValues(alpha: 0.54), fontSize: 12)),
                 onTap: () {
                   provider.addCardToDeck(index, _currentCard);
                   

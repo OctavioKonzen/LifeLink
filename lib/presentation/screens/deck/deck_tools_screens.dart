@@ -407,37 +407,35 @@ Future<({List<DeckLine> lines, String name, String type})?> importListDialog(Bui
     context: context,
     builder: (ctx) => StatefulBuilder(
       builder: (ctx, setDialog) => AlertDialog(
-        backgroundColor: LL.surface,
-        title: const Text('Importar lista', style: TextStyle(color: Colors.white)),
+        title: Text('Importar lista', style: TextStyle(color: LL.ink)),
         content: SingleChildScrollView(
           child: Column(mainAxisSize: MainAxisSize.min, children: [
             if (askName) ...[
               TextField(
                 controller: nameCtrl,
-                style: const TextStyle(color: Colors.white),
-                decoration: const InputDecoration(hintText: 'Nome do deck', hintStyle: TextStyle(color: Colors.white38)),
+                style: TextStyle(color: LL.ink),
+                decoration: InputDecoration(hintText: 'Nome do deck', hintStyle: TextStyle(color: LL.ink.withValues(alpha: 0.38))),
               ),
               DropdownButton<String>(
                 value: type,
                 isExpanded: true,
-                dropdownColor: LL.surface,
-                items: [for (final t in const ['Commander', 'Challenger', 'Normal']) DropdownMenuItem(value: t, child: Text(t, style: const TextStyle(color: Colors.white)))],
+                items: [for (final t in const ['Commander', 'Challenger', 'Normal']) DropdownMenuItem(value: t, child: Text(t, style: TextStyle(color: LL.ink)))],
                 onChanged: (v) => setDialog(() => type = v!),
               ),
               const SizedBox(height: 8),
             ],
-            const Text('Cole a lista exportada do Moxfield, Archidekt, MTG Arena ou MTGO (ex.: "1 Sol Ring (CMM) 410" ou "4x Lightning Bolt") ou um link de deck do LifeLink.',
-                style: TextStyle(color: Colors.white54, fontSize: 12)),
+            Text('Cole a lista exportada do Moxfield, Archidekt, MTG Arena ou MTGO (ex.: "1 Sol Ring (CMM) 410" ou "4x Lightning Bolt") ou um link de deck do LifeLink.',
+                style: TextStyle(color: LL.ink.withValues(alpha: 0.54), fontSize: 12)),
             const SizedBox(height: 8),
             TextField(
               controller: listCtrl,
               maxLines: 10,
-              style: const TextStyle(color: Colors.white, fontSize: 13),
+              style: TextStyle(color: LL.ink, fontSize: 13),
               decoration: InputDecoration(
                 hintText: "Commander\n1 Atraxa, Praetors' Voice\n\nDeck\n1 Sol Ring\n...",
-                hintStyle: const TextStyle(color: Colors.white24),
+                hintStyle: TextStyle(color: LL.ink.withValues(alpha: 0.24)),
                 filled: true,
-                fillColor: Colors.black26,
+                fillColor: LL.ink.withValues(alpha: 0.06),
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
               ),
             ),
@@ -545,7 +543,6 @@ class _ManaCurve extends StatelessWidget {
 Future<void> exportDeckSheet(BuildContext context, DeckModel deck) async {
   await showModalBottomSheet(
     context: context,
-    backgroundColor: LL.surface,
     isScrollControlled: true,
     builder: (ctx) => FutureBuilder<Map<String, String>>(
       future: DeckTools.englishNames(deck.cards),
@@ -559,16 +556,16 @@ Future<void> exportDeckSheet(BuildContext context, DeckModel deck) async {
           child: SingleChildScrollView(
             padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
             child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-              Text('Exportar ${deck.name}', style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+              Text('Exportar ${deck.name}', style: TextStyle(color: LL.ink, fontSize: 18, fontWeight: FontWeight.bold)),
               const SizedBox(height: 12),
               // O link do deck (o deck vai dentro do link) e o QR code dele.
               Container(
                 padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(color: Colors.black26, borderRadius: BorderRadius.circular(12)),
+                decoration: BoxDecoration(color: LL.ink.withValues(alpha: 0.06), borderRadius: BorderRadius.circular(12)),
                 child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                  const Text('Link do deck', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+                  Text('Link do deck', style: TextStyle(color: LL.ink, fontWeight: FontWeight.w700)),
                   const SizedBox(height: 2),
-                  const Text('Quem abrir o link (ou ler o QR code com a câmera) vê o deck e salva nos decks dele.', style: TextStyle(color: Colors.white54, fontSize: 12)),
+                  Text('Quem abrir o link (ou ler o QR code com a câmera) vê o deck e salva nos decks dele.', style: TextStyle(color: LL.ink.withValues(alpha: 0.54), fontSize: 12)),
                   const SizedBox(height: 10),
                   Center(
                     child: Container(
@@ -602,14 +599,14 @@ Future<void> exportDeckSheet(BuildContext context, DeckModel deck) async {
               ),
               const SizedBox(height: 16),
               const SizedBox(height: 4),
-              const Text('A lista no formato do Moxfield, Arena e Archidekt (nomes em inglês).', style: TextStyle(color: Colors.white54, fontSize: 12)),
+              Text('A lista no formato do Moxfield, Arena e Archidekt (nomes em inglês).', style: TextStyle(color: LL.ink.withValues(alpha: 0.54), fontSize: 12)),
               const SizedBox(height: 12),
               ConstrainedBox(
                 constraints: BoxConstraints(maxHeight: MediaQuery.of(ctx).size.height * 0.45),
                 child: Container(
                   padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(color: Colors.black26, borderRadius: BorderRadius.circular(12)),
-                  child: SingleChildScrollView(child: SelectableText(text, style: const TextStyle(color: Colors.white, fontFamily: 'monospace', fontSize: 13))),
+                  decoration: BoxDecoration(color: LL.ink.withValues(alpha: 0.06), borderRadius: BorderRadius.circular(12)),
+                  child: SingleChildScrollView(child: SelectableText(text, style: TextStyle(color: LL.ink, fontFamily: 'monospace', fontSize: 13))),
                 ),
               ),
               const SizedBox(height: 12),

@@ -1,11 +1,14 @@
 # Testa as regras do banco (firestore.rules) no simulador do Firebase sempre
-# que elas mudam: nick único, nick fixo e dados de cada conta.
+# que elas mudam: nick único, nick fixo e dados de cada conta. Na main, depois
+# dos testes, publica as regras no Firebase (precisa do segredo
+# FIREBASE_SERVICE_ACCOUNT: a chave da conta de serviço do projeto, em JSON).
 name: Regras do banco
 
 on:
   push:
     branches: [main]
     paths: ['firestore.rules', 'tool/rules-test/**', 'web-site/src/lib/onlineCore.js', '.github/workflows/rules.yml']
+  workflow_dispatch:
   pull_request:
     paths: ['firestore.rules', 'tool/rules-test/**', 'web-site/src/lib/onlineCore.js', '.github/workflows/rules.yml']
 
@@ -29,3 +32,25 @@ jobs:
           node-version: 22
       - run: npm install --no-audit --no-fund
       - run: npm test
+
+  deploy:
+    needs: test
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Publicar as regras no Firebase
+        env:
+          SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          if [ -z "$SERVICE_ACCOUNT" ]; then
+            echo "::warning::Sem o segredo FIREBASE_SERVICE_ACCOUNT: as regras não foram publicadas (cole no Console do Firebase ou crie o segredo)."
+            exit 0
+          fi
+          printf '%s' "$SERVICE_ACCOUNT" > "$RUNNER_TEMP/sa.json"
+          echo '{"firestore":{"rules":"firestore.rules"}}' > firebase.json
+          GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/sa.json" npx --yes firebase-tools@14 deploy --only firestore:rules --project lifelink-ad40f --non-interactive
+          rm -f "$RUNNER_TEMP/sa.json"
