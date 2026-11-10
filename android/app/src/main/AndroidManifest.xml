@@ -7,6 +7,9 @@
     <!-- Escanear cartas com a câmera -->
     <uses-permission android:name="android.permission.CAMERA"/>
     <uses-feature android:name="android.hardware.camera" android:required="false"/>
+    <!-- Gravar os sons do contador (cada jogador com os seus) -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO"/>
+    <uses-feature android:name="android.hardware.microphone" android:required="false"/>
     <application
         android:label="LifeLink"
         android:name="${applicationName}"

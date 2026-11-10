@@ -75,7 +75,7 @@ class _LifeCounterScreenState extends State<LifeCounterScreen> {
             'cmd' => change.delta > 0 ? GameSound.comandante : GameSound.cura,
             _ => null,
           };
-    if (sound != null) SoundService.instance.play(sound);
+    if (sound != null) SoundService.instance.play(sound, seat: change.player);
   }
 
   // A vitória registrada nesta partida (para desfazer se o jogador "voltar").
@@ -756,6 +756,9 @@ class _LifeCounterScreenState extends State<LifeCounterScreen> {
               ]);
             }(),
               const SizedBox(height: 20),
+              // Os sons deste lugar da mesa, gravados pela pessoa.
+              _SeatSounds(seat: index),
+              const SizedBox(height: 20),
               ElevatedButton(onPressed: () => Navigator.pop(ctx), child: const Text('Pronto')),
             ]),
           ),
@@ -925,6 +928,113 @@ class _LifeCounterScreenState extends State<LifeCounterScreen> {
         ),
       ),
     );
+  }
+}
+
+/// Os sons de um lugar da mesa: para cada som (dano, cura, veneno, dano de
+/// comandante, derrota), gravar um próprio, ouvir e voltar ao padrão.
+class _SeatSounds extends StatefulWidget {
+  final int seat;
+  const _SeatSounds({required this.seat});
+
+  @override
+  State<_SeatSounds> createState() => _SeatSoundsState();
+}
+
+class _SeatSoundsState extends State<_SeatSounds> {
+  CounterLook get look => CounterLook.of(context);
+  final _sounds = CustomSounds.instance;
+  GameSound? _recording;
+  Timer? _limit;
+  String? _message;
+
+  @override
+  void initState() {
+    super.initState();
+    _sounds.load().then((_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _limit?.cancel();
+    if (_recording != null) _sounds.cancel();
+    super.dispose();
+  }
+
+  Future<void> _record(GameSound sound) async {
+    if (_recording == sound) return _stop();
+    if (_recording != null) await _stop();
+    HapticFeedback.selectionClick();
+    final ok = await _sounds.start(widget.seat, sound);
+    if (!mounted) return;
+    if (!ok) {
+      setState(() => _message = 'Sem permissão para o microfone. Libere nas configurações do celular.');
+      return;
+    }
+    setState(() {
+      _recording = sound;
+      _message = 'Gravando ${gameSoundNames[sound]!.toLowerCase()}... toque de novo para parar (até ${CustomSounds.maxLength.inSeconds} s).';
+    });
+    _limit = Timer(CustomSounds.maxLength, _stop);
+  }
+
+  Future<void> _stop() async {
+    _limit?.cancel();
+    final sound = _recording;
+    if (sound == null) return;
+    final ok = await _sounds.stop(widget.seat, sound);
+    if (!mounted) return;
+    setState(() {
+      _recording = null;
+      _message = ok ? 'Pronto! ${gameSoundNames[sound]} gravado.' : 'A gravação ficou vazia. Tente de novo.';
+    });
+    if (ok) _sounds.preview(widget.seat, sound);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
+      Text('SONS DESTE JOGADOR', style: TextStyle(color: look.muted(0.54), fontSize: 12, fontWeight: FontWeight.w800)),
+      const SizedBox(height: 2),
+      Text('Grave a sua voz (ou o que quiser) para cada som. Fica só neste celular.', style: TextStyle(color: look.muted(0.45), fontSize: 12)),
+      const SizedBox(height: 6),
+      for (final sound in GameSound.values)
+        Row(children: [
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(gameSoundNames[sound]!, style: TextStyle(color: look.text, fontWeight: FontWeight.w700)),
+              Text(_sounds.has(widget.seat, sound) ? 'Gravado' : 'Padrão', style: TextStyle(color: _sounds.has(widget.seat, sound) ? look.accent : look.muted(0.45), fontSize: 12)),
+            ]),
+          ),
+          IconButton(
+            tooltip: 'Ouvir',
+            icon: Icon(Icons.play_arrow, color: look.muted(0.7)),
+            onPressed: _recording != null ? null : () => _sounds.preview(widget.seat, sound),
+          ),
+          IconButton(
+            tooltip: _recording == sound ? 'Parar' : 'Gravar',
+            icon: Icon(_recording == sound ? Icons.stop_circle : Icons.mic, color: _recording == sound ? Colors.redAccent : look.accent),
+            onPressed: () => _record(sound),
+          ),
+          IconButton(
+            tooltip: 'Voltar ao padrão',
+            icon: Icon(Icons.restart_alt, color: look.muted(0.6)),
+            onPressed: _recording != null || !_sounds.has(widget.seat, sound)
+                ? null
+                : () async {
+                    await _sounds.remove(widget.seat, sound);
+                    if (mounted) setState(() => _message = '${gameSoundNames[sound]}: voltou ao som padrão.');
+                  },
+          ),
+        ]),
+      if (_message != null)
+        Padding(
+          padding: const EdgeInsets.only(top: 4),
+          child: Text(_message!, style: TextStyle(color: _recording != null ? Colors.redAccent : look.muted(0.7), fontSize: 12, fontWeight: FontWeight.w600)),
+        ),
+    ]);
   }
 }
 
