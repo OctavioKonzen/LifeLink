@@ -29,6 +29,17 @@ export function stableText(value) {
   return JSON.stringify(sorted(value) ?? null)
 }
 
+/** As partes que não mudaram na conta desde a última vez (guarda as novas em seen). */
+export function unchangedSections(seenMap, raw) {
+  const same = new Set()
+  for (const [k, v] of Object.entries(raw || {})) {
+    const text = stableText(v)
+    if (seenMap.get(k) === text) same.add(k)
+    seenMap.set(k, text)
+  }
+  return same
+}
+
 /** Na mesa online a partida vem só da mesa (online.js liga isto). */
 export const syncHooks = { gameFromTable: () => false }
 const dirtyDecks = new Set()
@@ -83,12 +94,7 @@ async function listen(id) {
           // O que foi mudado aqui e ainda não foi gravado tem preferência; o
           // que não mudou na conta fica como está; e na mesa online a
           // partida vem só da mesa.
-          const skip = new Set(dirty)
-          for (const [k, v] of Object.entries(raw || {})) {
-            const text = stableText(v)
-            if (seen.get(k) === text) skip.add(k)
-            seen.set(k, text)
-          }
+          const skip = new Set([...dirty, ...unchangedSections(seen, raw)])
           if (syncHooks.gameFromTable()) skip.add('game')
           applyRemote(remote, skip)
           for (const k of SECTION_KEYS) if (!(k in remote)) dirty.add(k)

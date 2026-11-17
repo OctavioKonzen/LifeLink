@@ -8,7 +8,6 @@
 //   • ao sair, os dados da conta saem do aparelho.
 
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -34,20 +33,7 @@ class AccountSync {
   bool _ready = false;
   bool _decksReady = false;
 
-  // O que a conta tem de cada parte (o último que chegou ou que foi gravado
-  // daqui), em texto. Uma parte igual a essa não é aplicada de novo: senão,
-  // qualquer mudança na conta (XP, coleção...) trazia de volta a partida
-  // guardada, por cima da que está acontecendo (os números pulavam).
-  final Map<String, String> _seen = {};
-
-  static String _text(Object? v) => jsonEncode(_sorted(v), toEncodable: (o) => o.toString());
-
-  /// Os campos em ordem (o Firestore pode devolver numa ordem diferente).
-  static Object? _sorted(Object? v) => switch (v) {
-        Map m => {for (final k in (m.keys.map((k) => '$k').toList()..sort())) k: _sorted(m[k])},
-        List l => [for (final x in l) _sorted(x)],
-        _ => v,
-      };
+  final _seen = RemoteSeen();
 
   void start() {
     _data.onLocalChange = _onLocalChange;
@@ -96,13 +82,7 @@ class AccountSync {
         // O que foi mudado aqui e ainda não foi gravado tem preferência; o
         // que não mudou na conta fica como está; e na mesa online a partida
         // vem só da mesa.
-        final same = <String>{
-          for (final e in data.entries)
-            if (_seen[e.key] == _text(e.value)) e.key,
-        };
-        for (final e in data.entries) {
-          _seen[e.key] = _text(e.value);
-        }
+        final same = _seen.unchanged(data);
         await _data.applyRemote(data, except: {..._dirty, ...same, if (OnlineTable.instance.active) 'game'});
         // Parte que a conta ainda não tem: vai a deste aparelho.
         for (final k in UserData.sectionKeys) {
@@ -181,9 +161,7 @@ class AccountSync {
       _dirty.clear();
       try {
         await ref.set({'data': changes, 'updatedAt': FieldValue.serverTimestamp()}, SetOptions(merge: true));
-        for (final e in changes.entries) {
-          _seen[e.key] = _text(e.value);
-        }
+        _seen.wrote(changes);
       } catch (_) {
         _dirty.addAll(changes.keys); // tenta de novo na próxima mudança
       }
