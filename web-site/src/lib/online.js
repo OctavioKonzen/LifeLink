@@ -5,12 +5,14 @@ import { useSyncExternalStore } from 'react'
 import { getAuthState, loadFirestore, onAuthChange } from './auth'
 import { defaultGame, fromCloud, getState, onLocalChange, subscribe, toCloud, updateSection } from './userData'
 import { publicTrade } from './collection'
-import { syncReady } from './sync'
+import { syncHooks, syncReady } from './sync'
 import * as core from './onlineCore'
 
 // mySeat: o meu lugar nesta mesa (só neste navegador, não vai para a mesa):
 // com ele, o contador mostra o meu quadro grande e os outros pequenos. -1 = a mesa inteira.
 let state = { code: null, isOwner: false, error: null, mySeat: -1 }
+// Na mesa online, a partida da conta não sobrescreve a da mesa (sync.js).
+syncHooks.gameFromTable = () => state.code != null
 const listeners = new Set()
 const set = (next) => {
   state = { ...state, ...next }

@@ -12,6 +12,7 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'auth_service.dart';
+import 'online.dart';
 import 'user_data.dart';
 
 class AccountSync {
@@ -31,6 +32,8 @@ class AccountSync {
   final Set<String> _deletedDecks = {};
   bool _ready = false;
   bool _decksReady = false;
+
+  final _seen = RemoteSeen();
 
   void start() {
     _data.onLocalChange = _onLocalChange;
@@ -63,6 +66,7 @@ class AccountSync {
     _dirty.clear();
     _dirtyDecks.clear();
     _deletedDecks.clear();
+    _seen.clear();
     _ready = _decksReady = false;
   }
 
@@ -75,8 +79,11 @@ class AccountSync {
       if (remote is Map) {
         final data = Map<String, dynamic>.from(remote);
         if (!_ready) _keepBestProfile(data);
-        // O que foi mudado aqui e ainda não foi gravado tem preferência.
-        await _data.applyRemote(data, except: _dirty);
+        // O que foi mudado aqui e ainda não foi gravado tem preferência; o
+        // que não mudou na conta fica como está; e na mesa online a partida
+        // vem só da mesa.
+        final same = _seen.unchanged(data);
+        await _data.applyRemote(data, except: {..._dirty, ...same, if (OnlineTable.instance.active) 'game'});
         // Parte que a conta ainda não tem: vai a deste aparelho.
         for (final k in UserData.sectionKeys) {
           if (!data.containsKey(k)) _dirty.add(k);
@@ -154,6 +161,7 @@ class AccountSync {
       _dirty.clear();
       try {
         await ref.set({'data': changes, 'updatedAt': FieldValue.serverTimestamp()}, SetOptions(merge: true));
+        _seen.wrote(changes);
       } catch (_) {
         _dirty.addAll(changes.keys); // tenta de novo na próxima mudança
       }

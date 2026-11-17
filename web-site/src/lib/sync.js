@@ -16,6 +16,32 @@ let timer = null
 let ready = false
 let decksReady = false
 const dirty = new Set()
+// O que a conta tem de cada parte (o último que chegou ou que foi gravado
+// daqui), em texto. Uma parte igual a essa não é aplicada de novo: senão,
+// qualquer mudança na conta (XP, coleção...) trazia de volta a partida
+// guardada, por cima da que está acontecendo (os números pulavam).
+const seen = new Map()
+
+/** O valor em texto, com os campos em ordem (o Firestore pode mudar a ordem). */
+export function stableText(value) {
+  const sorted = (v) =>
+    Array.isArray(v) ? v.map(sorted) : v && typeof v === 'object' ? Object.fromEntries(Object.keys(v).sort().map((k) => [k, sorted(v[k])])) : v
+  return JSON.stringify(sorted(value) ?? null)
+}
+
+/** As partes que não mudaram na conta desde a última vez (guarda as novas em seen). */
+export function unchangedSections(seenMap, raw) {
+  const same = new Set()
+  for (const [k, v] of Object.entries(raw || {})) {
+    const text = stableText(v)
+    if (seenMap.get(k) === text) same.add(k)
+    seenMap.set(k, text)
+  }
+  return same
+}
+
+/** Na mesa online a partida vem só da mesa (online.js liga isto). */
+export const syncHooks = { gameFromTable: () => false }
 const dirtyDecks = new Set()
 const deletedDecks = new Set()
 
@@ -27,6 +53,7 @@ function stop() {
   timer = null
   dirty.clear()
   dirtyDecks.clear()
+  seen.clear()
   deletedDecks.clear()
   ready = decksReady = false
 }
@@ -60,11 +87,16 @@ async function listen(id) {
         // Ignora o "eco" das gravações feitas aqui.
         if (snap.metadata.hasPendingWrites || uid !== id) return
         if (snap.metadata.fromCache && !snap.exists()) return
-        const remote = fromCloud(snap.data()?.data)
+        const raw = snap.data()?.data
+        const remote = fromCloud(raw)
         if (remote && typeof remote === 'object') {
           if (!ready) keepBestProfile(remote)
-          // O que foi mudado aqui e ainda não foi gravado tem preferência.
-          applyRemote(remote, dirty)
+          // O que foi mudado aqui e ainda não foi gravado tem preferência; o
+          // que não mudou na conta fica como está; e na mesa online a
+          // partida vem só da mesa.
+          const skip = new Set([...dirty, ...unchangedSections(seen, raw)])
+          if (syncHooks.gameFromTable()) skip.add('game')
+          applyRemote(remote, skip)
           for (const k of SECTION_KEYS) if (!(k in remote)) dirty.add(k)
         } else {
           // Conta nova: o que já estava no navegador vai para ela.
@@ -110,6 +142,7 @@ export async function flush() {
     const data = Object.fromEntries(keys.map((k) => [k, toCloud(k, state[k])]))
     try {
       await setDoc(userRef, { data, updatedAt: serverTimestamp() }, { merge: true })
+      for (const [k, v] of Object.entries(data)) seen.set(k, stableText(v))
     } catch {
       for (const k of keys) dirty.add(k) // tenta de novo na próxima mudança
     }

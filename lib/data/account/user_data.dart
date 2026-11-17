@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 // Os dados que vão para a conta (users/{uid} no Firestore). O formato é o
 // mesmo do site (web-site/src/lib/userData.js):
 //   data.settings: { bgColor, playerName, cardLanguage }
@@ -22,6 +24,44 @@ class SyncedSection {
   final Future<void> Function(Map<String, dynamic>? value) apply;
 
   const SyncedSection({required this.key, required this.read, required this.apply});
+}
+
+/// O que a conta tem de cada parte (o último que chegou ou que foi gravado
+/// daqui), em texto. Uma parte igual a essa não é aplicada de novo: senão,
+/// qualquer mudança na conta (XP, coleção...) trazia de volta a partida
+/// guardada, por cima da que está acontecendo (os números pulavam).
+class RemoteSeen {
+  final Map<String, String> _seen = {};
+
+  /// O valor em texto, com os campos em ordem (o Firestore pode mudar a ordem).
+  static String text(Object? v) => jsonEncode(_sorted(v), toEncodable: (o) => o.toString());
+
+  static Object? _sorted(Object? v) => switch (v) {
+        Map m => {for (final k in (m.keys.map((k) => '$k').toList()..sort())) k: _sorted(m[k])},
+        List l => [for (final x in l) _sorted(x)],
+        _ => v,
+      };
+
+  /// Chegou da conta: volta as partes que não mudaram desde a última vez
+  /// (essas não são aplicadas) e guarda as novas.
+  Set<String> unchanged(Map<String, dynamic> data) {
+    final same = <String>{};
+    for (final e in data.entries) {
+      final t = text(e.value);
+      if (_seen[e.key] == t) same.add(e.key);
+      _seen[e.key] = t;
+    }
+    return same;
+  }
+
+  /// Gravou na conta: é isso que a conta tem agora.
+  void wrote(Map<String, dynamic> changes) {
+    for (final e in changes.entries) {
+      _seen[e.key] = text(e.value);
+    }
+  }
+
+  void clear() => _seen.clear();
 }
 
 /// Os decks ficam um por documento (o Firestore limita cada documento a 1 MB).
