@@ -576,11 +576,12 @@ class GameProvider with ChangeNotifier {
   Future<void> _saveAndNotify() async {
     notifyListeners();
     onLocalChange?.call();
+    // Marca na hora que a partida mudou aqui: o que chegar da conta nesse
+    // meio-tempo não volta a vida para o valor de antes (a conta grava logo
+    // depois que para de mexer).
+    UserData.instance.changed('game');
     _saveTimer?.cancel();
-    _saveTimer = Timer(const Duration(milliseconds: 350), () {
-      _save();
-      UserData.instance.changed('game');
-    });
+    _saveTimer = Timer(const Duration(milliseconds: 350), _save);
   }
 
   Future<void> _save() async {
