@@ -40,6 +40,23 @@ export function unchangedSections(seenMap, raw) {
   return same
 }
 
+/** Partes que a conta só traz ao entrar (igual a UserData.onlyAtStart no app). */
+export const ONLY_AT_START = new Set(['game'])
+
+/**
+ * As partes que chegaram da conta e NÃO são aplicadas (igual a
+ * UserData.keepLocal no app): as mudadas aqui e ainda não gravadas, as que
+ * não mudaram na conta, a partida do contador depois de entrar (dois
+ * aparelhos na mesma conta trocavam a partida um do outro) e, na mesa
+ * online, a partida (ela vem só da mesa).
+ */
+export function keepLocal({ dirty = new Set(), unchanged = new Set(), started, onlineTable = false }) {
+  const skip = new Set([...dirty, ...unchanged])
+  if (started) for (const k of ONLY_AT_START) skip.add(k)
+  if (onlineTable) skip.add('game')
+  return skip
+}
+
 /** Na mesa online a partida vem só da mesa (online.js liga isto). */
 export const syncHooks = { gameFromTable: () => false }
 const dirtyDecks = new Set()
@@ -94,8 +111,7 @@ async function listen(id) {
           // O que foi mudado aqui e ainda não foi gravado tem preferência; o
           // que não mudou na conta fica como está; e na mesa online a
           // partida vem só da mesa.
-          const skip = new Set([...dirty, ...unchangedSections(seen, raw)])
-          if (syncHooks.gameFromTable()) skip.add('game')
+          const skip = keepLocal({ dirty, unchanged: unchangedSections(seen, raw), started: ready, onlineTable: syncHooks.gameFromTable() })
           applyRemote(remote, skip)
           for (const k of SECTION_KEYS) if (!(k in remote)) dirty.add(k)
         } else {

@@ -82,4 +82,32 @@ void main() {
     await receive(seen, {'game': other});
     expect(game.lives.take(2), [33, 40]);
   });
+
+  test('outro aparelho (ou o site) com o contador aberto não troca a partida daqui', () async {
+    final game = GameProvider();
+    await game.ready;
+    final seen = RemoteSeen();
+    // Ao entrar na conta, a partida dela vem (aqui: 40 e 40).
+    await game.applySync({'playerCount': 2, 'lives': [40, 40]});
+    var data = <String, dynamic>{'game': game.toSync()};
+    await UserData.instance.applyRemote(data, except: UserData.keepLocal(unchanged: seen.unchanged(data), started: false));
+
+    // Joga aqui: 21 e 40.
+    game.updateLife(0, -19);
+    // O outro aparelho grava a partida dele (5 jogadores, outra ordem).
+    final other = Map<String, dynamic>.from(game.toSync())
+      ..['playerCount'] = 5
+      ..['lives'] = [75, 31, 31, 2, 6, 40];
+    data = {'game': other};
+    await UserData.instance.applyRemote(data, except: UserData.keepLocal(unchanged: seen.unchanged(data), started: true));
+
+    expect(game.playerCount, 2);
+    expect(game.lives.take(2), [21, 40]);
+  });
+
+  test('a partida da conta vem ao entrar', () {
+    expect(UserData.keepLocal(started: false), isEmpty);
+    expect(UserData.keepLocal(started: true), {'game'});
+    expect(UserData.keepLocal(started: false, onlineTable: true), {'game'});
+  });
 }
