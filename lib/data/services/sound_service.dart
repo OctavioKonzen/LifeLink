@@ -62,20 +62,32 @@ class SoundService {
   void forget(String path) => _custom.remove(path)?.then((p) => p?.dispose()).catchError((_) {});
 
   // Segurando o botão: guarda o som e toca uma vez só ao soltar (o mais
-  // importante: morte > comandante > veneno > dano > cura).
-  bool _holding = false;
+  // importante: morte > comandante > veneno > dano > cura). Conta quantos
+  // botões estão segurados (duas pessoas ao mesmo tempo) e destrava sozinho
+  // se um "soltou" se perder: antes, um botão preso deixava todos os sons
+  // esperando e eles tocavam depois, do nada.
+  int _holds = 0;
+  DateTime _holdSince = DateTime(2000);
   GameSound? _pending;
   int? _pendingSeat;
   static const _rank = {GameSound.cura: 1, GameSound.dano: 2, GameSound.veneno: 3, GameSound.comandante: 4, GameSound.morte: 5};
+  static const _maxHold = Duration(seconds: 20);
+
+  bool get holding => _holds > 0 && DateTime.now().difference(_holdSince) < _maxHold;
 
   void beginHold() {
-    _holding = true;
-    _pending = null;
+    if (!holding) {
+      _holds = 0;
+      _pending = null;
+    }
+    _holds++;
+    _holdSince = DateTime.now();
   }
 
   void endHold() {
-    if (!_holding) return;
-    _holding = false;
+    if (_holds == 0) return;
+    _holds--;
+    if (_holds > 0) return;
     final sound = _pending;
     _pending = null;
     if (sound != null) play(sound, seat: _pendingSeat);
@@ -84,7 +96,7 @@ class SoundService {
   /// Toca o som; com [seat], o gravado para esse lugar da mesa, se tiver.
   void play(GameSound sound, {int? seat}) {
     if (!enabled) return;
-    if (_holding) {
+    if (holding) {
       if (_pending == null || _rank[sound]! > _rank[_pending]!) {
         _pending = sound;
         _pendingSeat = seat;
