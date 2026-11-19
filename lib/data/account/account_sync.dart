@@ -80,10 +80,10 @@ class AccountSync {
         final data = Map<String, dynamic>.from(remote);
         if (!_ready) _keepBestProfile(data);
         // O que foi mudado aqui e ainda não foi gravado tem preferência; o
-        // que não mudou na conta fica como está; e na mesa online a partida
-        // vem só da mesa.
+        // que não mudou na conta fica como está; a partida só vem ao entrar
+        // (UserData.onlyAtStart); e na mesa online ela vem só da mesa.
         final same = _seen.unchanged(data);
-        await _data.applyRemote(data, except: {..._dirty, ...same, if (OnlineTable.instance.active) 'game'});
+        await _data.applyRemote(data, except: UserData.keepLocal(dirty: _dirty, unchanged: same, started: _ready, onlineTable: OnlineTable.instance.active));
         // Parte que a conta ainda não tem: vai a deste aparelho.
         for (final k in UserData.sectionKeys) {
           if (!data.containsKey(k)) _dirty.add(k);

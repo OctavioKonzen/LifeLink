@@ -81,6 +81,24 @@ class UserData {
 
   static const sectionKeys = ['settings', 'profile', 'game', 'matches', 'collection', 'wishlist'];
 
+  /// Partes que a conta só traz ao entrar (depois, cada aparelho fica com a
+  /// sua). A partida do contador: dois aparelhos (ou o site) na mesma conta
+  /// com o contador aberto trocavam a partida um do outro, e os números
+  /// mudavam e trocavam de lugar sozinhos. Para jogar a mesma partida em
+  /// vários celulares existe a mesa online.
+  static const onlyAtStart = {'game'};
+
+  /// As partes que chegaram da conta e NÃO são aplicadas: as mudadas aqui e
+  /// ainda não gravadas ([dirty]), as que não mudaram na conta
+  /// ([unchanged]), as de [onlyAtStart] depois da primeira vez ([started])
+  /// e, na mesa online ([onlineTable]), a partida.
+  static Set<String> keepLocal({Set<String> dirty = const {}, Set<String> unchanged = const {}, required bool started, bool onlineTable = false}) => {
+        ...dirty,
+        ...unchanged,
+        if (started) ...onlyAtStart,
+        if (onlineTable) 'game',
+      };
+
   final Map<String, SyncedSection> _sections = {};
   SyncedDecks? decks;
 
