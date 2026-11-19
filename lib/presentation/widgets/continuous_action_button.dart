@@ -27,7 +27,13 @@ class _ContinuousActionButtonState extends State<ContinuousActionButton> {
 
   void _startTimer() {
     _timer?.cancel();
+    final started = DateTime.now();
     _timer = Timer.periodic(const Duration(milliseconds: 120), (t) {
+      // Um "soltou" perdido não deixa o botão mudando sozinho para sempre.
+      if (!mounted || DateTime.now().difference(started) > const Duration(seconds: 20)) {
+        t.cancel();
+        return;
+      }
       widget.onHoldAction();
       HapticFeedback.selectionClick();
     });
@@ -44,7 +50,11 @@ class _ContinuousActionButtonState extends State<ContinuousActionButton> {
   @override
   Widget build(BuildContext context) {
     // REMOVIDO o Expanded daqui para não quebrar o layout do veneno.
-    return GestureDetector(
+    // O Listener vê o dedo saindo mesmo quando o gesto foi para outro lugar.
+    return Listener(
+      onPointerUp: (_) => _stopTimer(),
+      onPointerCancel: (_) => _stopTimer(),
+      child: GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: () {
         widget.onTap();
@@ -57,6 +67,7 @@ class _ContinuousActionButtonState extends State<ContinuousActionButton> {
         alignment: widget.alignment,
         padding: widget.padding,
         child: widget.child,
+      ),
       ),
     );
   }

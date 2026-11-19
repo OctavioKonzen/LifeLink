@@ -40,7 +40,6 @@ class PlayerCardWidget extends StatefulWidget {
 class _PlayerCardWidgetState extends State<PlayerCardWidget> {
   int _lifeDelta = 0;
   Timer? _deltaTimer;
-  Timer? _holdTimer;
   Timer? _clock; // atualiza o tempo da vez enquanto é a vez deste jogador
 
   // A "página" do quadro: 0 = vida, -1 = veneno, 1 = dano de comandante.
@@ -66,8 +65,7 @@ class _PlayerCardWidgetState extends State<PlayerCardWidget> {
   void _goTo(int page) {
     if (page == _page) return;
     HapticFeedback.selectionClick();
-    _stopHold();
-    setState(() => _page = page);
+    setState(() => _page = page); // os botões segurados param sozinhos (HoldZone)
     _touchPage();
   }
 
@@ -129,33 +127,9 @@ class _PlayerCardWidgetState extends State<PlayerCardWidget> {
     if (!wasDead && widget.game.isDead(widget.index)) HapticFeedback.heavyImpact();
   }
 
-  // Segurar: de 1 em 1 enquanto segura, começando devagar e acelerando
-  // (dá para parar no número certo).
-  void _startHold(int sign, [void Function(int)? action]) {
-    HapticFeedback.mediumImpact();
-    SoundService.instance.beginHold(); // o som toca uma vez, ao soltar
-    _holdTimer?.cancel();
-    var steps = 0;
-    void tick() {
-      (action ?? _change)(sign);
-      steps++;
-      final wait = max(45, 260 - steps * 18);
-      _holdTimer = Timer(Duration(milliseconds: wait), tick);
-    }
-
-    tick();
-  }
-
-  void _stopHold() {
-    _holdTimer?.cancel();
-    _holdTimer = null;
-    SoundService.instance.endHold();
-  }
-
   @override
   void dispose() {
     _deltaTimer?.cancel();
-    _holdTimer?.cancel();
     _clock?.cancel();
     _pageTimer?.cancel();
     super.dispose();
@@ -163,12 +137,8 @@ class _PlayerCardWidgetState extends State<PlayerCardWidget> {
 
   Widget _zone(int sign, [void Function(int)? action]) {
     return Expanded(
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: () => (action ?? _change)(sign),
-        onLongPressStart: (_) => _startHold(sign, action),
-        onLongPressEnd: (_) => _stopHold(),
-        onLongPressCancel: _stopHold,
+      child: HoldZone(
+        onStep: () => (action ?? _change)(sign),
         child: Align(
           alignment: sign < 0 ? const Alignment(-0.75, 0) : const Alignment(0.75, 0),
           child: Icon(sign < 0 ? Icons.remove : Icons.add, color: Colors.white.withValues(alpha: 0.35), size: 34),
@@ -604,6 +574,75 @@ class _AmountDialogState extends State<_AmountDialog> {
           label: const Text('Cura'),
         ),
       ],
+    );
+  }
+}
+
+/// Um botão de − ou + do quadro: tocar muda 1; segurar vai de 1 em 1,
+/// começando devagar e acelerando (dá para parar no número certo). O relógio
+/// é do próprio botão e para quando o dedo sai, quando o toque é cancelado e
+/// quando o botão sai da tela (o quadro trocou de página no meio): antes, um
+/// botão que sumia segurado continuava mudando a vida e prendia o som.
+class HoldZone extends StatefulWidget {
+  final VoidCallback onStep;
+  final Widget child;
+  const HoldZone({super.key, required this.onStep, required this.child});
+
+  @override
+  State<HoldZone> createState() => _HoldZoneState();
+}
+
+class _HoldZoneState extends State<HoldZone> {
+  Timer? _timer;
+  bool _holding = false;
+
+  void _start() {
+    if (_holding) return;
+    _holding = true;
+    HapticFeedback.mediumImpact();
+    SoundService.instance.beginHold(); // o som toca uma vez, ao soltar
+    var steps = 0;
+    final started = DateTime.now();
+    void tick() {
+      if (!mounted || !_holding) return;
+      // Segurança: ninguém segura de verdade por 20 s seguidos.
+      if (DateTime.now().difference(started) > const Duration(seconds: 20)) return _stop();
+      widget.onStep();
+      steps++;
+      _timer = Timer(Duration(milliseconds: max(45, 260 - steps * 18)), tick);
+    }
+
+    tick();
+  }
+
+  void _stop() {
+    _timer?.cancel();
+    _timer = null;
+    if (!_holding) return;
+    _holding = false;
+    SoundService.instance.endHold();
+  }
+
+  @override
+  void dispose() {
+    _stop();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // O Listener vê o dedo saindo mesmo quando o gesto foi para outro lugar.
+    return Listener(
+      onPointerUp: (_) => _stop(),
+      onPointerCancel: (_) => _stop(),
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: widget.onStep,
+        onLongPressStart: (_) => _start(),
+        onLongPressEnd: (_) => _stop(),
+        onLongPressCancel: _stop,
+        child: widget.child,
+      ),
     );
   }
 }
